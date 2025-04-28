@@ -1,0 +1,288 @@
+{% extends "base.html" %}
+
+{% block title %}RFID Access Control{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">RFID Access Control</h2>
+    
+    <div class="row">
+        <!-- Left Column - RFID Card Management -->
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">RFID Card Management</h5>
+                </div>
+                <div class="card-body">
+                    {% if current_user.access_level == 'admin' %}
+                        <form id="card-form" class="mb-4">
+                            <div class="mb-3">
+                                <label for="card_id" class="form-label">Card ID</label>
+                                <input type="text" class="form-control" id="card_id" placeholder="Enter RFID card ID">
+                            </div>
+                            <div class="mb-3">
+                                <label for="user_id" class="form-label">Assign to User</label>
+                                <select class="form-select" id="user_id">
+                                    <option value="" selected disabled>Select User</option>
+                                    {% for user in users %}
+                                        <option value="{{ user.id }}">{{ user.username }} ({{ user.access_level }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3 form-check">
+                                <input type="checkbox" class="form-check-input" id="card_active" checked>
+                                <label class="form-check-label" for="card_active">Card Active</label>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Save Card</button>
+                        </form>
+                    {% else %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> You need admin privileges to manage RFID cards.
+                        </div>
+                    {% endif %}
+                    
+                    <h6 class="mt-4 mb-3">Registered Cards</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Card ID</th>
+                                    <th>User</th>
+                                    <th>Status</th>
+                                    <th>Issue Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for card in rfid_cards %}
+                                <tr>
+                                    <td>{{ card.card_id }}</td>
+                                    <td>{{ card.user.username }}</td>
+                                    <td>
+                                        {% if card.active %}
+                                            <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ card.issue_date.strftime('%Y-%m-%d') }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center">No cards registered</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Column - Server Configuration and Access Logs -->
+        <div class="col-md-6">
+            <!-- Server Configuration -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">NooyenMachineMonitor Server</h5>
+                </div>
+                <div class="card-body">
+                    {% if current_user.access_level == 'admin' %}
+                        <form id="server-form" class="mb-3">
+                            <div class="mb-3">
+                                <label for="server_url" class="form-label">Server URL</label>
+                                <input type="text" class="form-control" id="server_url" value="{{ rfid_config.server_url }}" placeholder="https://nooyenmachinemonitor.replit.app/api/auth">
+                            </div>
+                            <div class="mb-3">
+                                <label for="api_key" class="form-label">API Key</label>
+                                <input type="text" class="form-control" id="api_key" value="{{ rfid_config.api_key }}" placeholder="Enter API key">
+                            </div>
+                            <div class="mb-3">
+                                <label for="machine_id" class="form-label">Machine ID</label>
+                                <input type="text" class="form-control" id="machine_id" value="{{ rfid_config.machine_id }}" placeholder="laser_room_1">
+                            </div>
+                            <div class="mb-3">
+                                <label for="session_hours" class="form-label">Session Duration (hours)</label>
+                                <input type="number" class="form-control" id="session_hours" value="{{ rfid_config.session_hours }}" min="1" max="72">
+                            </div>
+                            <div class="mb-3 form-check">
+                                <input type="checkbox" class="form-check-input" id="offline_mode" {% if rfid_config.offline_mode %}checked{% endif %}>
+                                <label class="form-check-label" for="offline_mode">Enable Offline Mode</label>
+                                <small class="form-text text-muted d-block">When enabled, authentication can be performed using the local database if the server is unavailable</small>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Save Configuration</button>
+                        </form>
+                    {% else %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> You need admin privileges to change server configuration.
+                        </div>
+                        <div class="mb-3">
+                            <strong>Server URL:</strong> {{ rfid_config.server_url }}
+                        </div>
+                        <div class="mb-3">
+                            <strong>Machine ID:</strong> {{ rfid_config.machine_id }}
+                        </div>
+                        <div class="mb-3">
+                            <strong>Offline Mode:</strong> {% if rfid_config.offline_mode %}Enabled{% else %}Disabled{% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Access Logs -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Recent Access Logs</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>User</th>
+                                    <th>Action</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in access_logs %}
+                                <tr>
+                                    <td>{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                                    <td>{{ log.user.username if log.user else 'Unknown' }}</td>
+                                    <td>
+                                        {% if log.action == 'login' %}
+                                            <span class="badge bg-success">Login</span>
+                                        {% elif log.action == 'logout' %}
+                                            <span class="badge bg-warning">Logout</span>
+                                        {% elif log.action == 'access_denied' %}
+                                            <span class="badge bg-danger">Denied</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ log.action }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ log.details }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center">No access logs</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="alert-container" class="position-fixed bottom-0 end-0 p-3" style="z-index: 5"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Card management form
+    const cardForm = document.getElementById('card-form');
+    if (cardForm) {
+        cardForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const cardData = {
+                card_id: document.getElementById('card_id').value,
+                user_id: document.getElementById('user_id').value,
+                active: document.getElementById('card_active').checked
+            };
+            
+            if (!cardData.card_id) {
+                showAlert('Please enter a card ID', 'danger');
+                return;
+            }
+            
+            if (!cardData.user_id) {
+                showAlert('Please select a user', 'danger');
+                return;
+            }
+            
+            fetch('/api/rfid/card', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(cardData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('Card saved successfully', 'success');
+                    // Reload the page to show updated card list
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    showAlert(`Error: ${data.error}`, 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('An error occurred while saving the card', 'danger');
+            });
+        });
+    }
+    
+    // Server configuration form
+    const serverForm = document.getElementById('server-form');
+    if (serverForm) {
+        serverForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const configData = {
+                server_url: document.getElementById('server_url').value,
+                api_key: document.getElementById('api_key').value,
+                machine_id: document.getElementById('machine_id').value,
+                session_hours: document.getElementById('session_hours').value,
+                offline_mode: document.getElementById('offline_mode').checked
+            };
+            
+            fetch('/api/rfid/config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(configData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('Configuration saved successfully', 'success');
+                } else {
+                    showAlert(`Error: ${data.error}`, 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('An error occurred while saving the configuration', 'danger');
+            });
+        });
+    }
+    
+    // Function to show alert messages
+    function showAlert(message, type) {
+        const alertContainer = document.getElementById('alert-container');
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.role = 'alert';
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        alertContainer.appendChild(alertDiv);
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            alertDiv.classList.remove('show');
+            setTimeout(() => alertDiv.remove(), 500);
+        }, 5000);
+    }
+});
+</script>
+{% endblock %}

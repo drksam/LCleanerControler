@@ -1,0 +1,18 @@
+[Unit]
+Description=NooyenLaserRoom Control System
+After=network.target postgresql.service
+
+[Service]
+User=laser
+Group=laser
+WorkingDirectory=/home/laser/StepperController
+EnvironmentFile=/home/laser/StepperController/.env
+ExecStart=/home/laser/StepperController/venv/bin/gunicorn --bind 0.0.0.0:5000 --reuse-port --reload main:app
+Restart=always
+RestartSec=5
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=nooyen-laser
+
+[Install]
+WantedBy=multi-user.target

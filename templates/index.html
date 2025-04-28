@@ -1,0 +1,371 @@
+{% extends "base.html" %}
+
+{% block title %}Laser Cleaning Control - Operation{% endblock %}
+
+{% block content %}
+
+        <!-- Temperature Monitor Bar -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="card bg-dark">
+                    <div class="card-body py-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong><i class="fas fa-thermometer-half me-2"></i>Temperature:</strong>
+                            </div>
+                            <div class="d-flex" id="temperature-monitor">
+                                {% if temp_status and temp_status.sensors and temp_status.sensors|length > 0 %}
+                                    {% for device_id, sensor in temp_status.sensors.items() %}
+                                        <div class="px-3 d-flex align-items-center" data-sensor-id="{{ device_id }}">
+                                            {% set temp_class = "text-success" %}
+                                            {% if sensor.temperature >= sensor.high_limit * 0.9 %}
+                                                {% set temp_class = "text-warning" %}
+                                            {% endif %}
+                                            {% if sensor.temperature >= sensor.high_limit %}
+                                                {% set temp_class = "text-danger" %}
+                                            {% endif %}
+                                            <span class="{{ temp_class }}">
+                                                <i class="fas fa-thermometer-half me-1"></i>
+                                                {{ sensor.name }}: {{ "%.1f"|format(sensor.temperature) }}°C
+                                                <small class="text-muted">(Limit: {{ sensor.high_limit }}°C)</small>
+                                            </span>
+                                        </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="px-3 d-flex align-items-center" id="no-sensors-warning">
+                                        <span class="text-warning"><i class="fas fa-exclamation-triangle me-1"></i>No temperature sensors detected</span>
+                                    </div>
+                                {% endif %}
+                                <!-- Temperature readings will be updated by JavaScript -->
+                            </div>
+                            <div>
+                                <a href="/temperature" class="btn btn-sm btn-outline-info">
+                                    <i class="fas fa-cog me-1"></i> Temperature Settings
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Sequences -->
+            <div class="col-md-12 mb-4">
+                <div class="card">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">Saved Sequences</h5>
+                        <a href="/sequences" class="btn btn-sm btn-light">
+                            <i class="fas fa-cog me-1"></i> Manage Sequences
+                        </a>
+                    </div>
+                    <div class="card-body">
+                        <div class="row" id="sequence-cards">
+                            {% if sequences %}
+                                {% for id, seq in sequences.items() %}
+                                    {% if loop.index <= 4 %}
+                                    <div class="col-md-3 mb-3">
+                                        <div class="card h-100">
+                                            <div class="card-header bg-info text-white">
+                                                {{ seq.name }}
+                                            </div>
+                                            <div class="card-body">
+                                                <p class="small text-muted">
+                                                    {{ seq.description if seq.description else "No description" }}
+                                                </p>
+                                                <p class="small text-muted">
+                                                    <strong>Steps:</strong> {{ seq.steps|length }}
+                                                </p>
+                                            </div>
+                                            <div class="card-footer">
+                                                <button class="btn btn-sm btn-primary run-sequence-btn w-100" 
+                                                        data-sequence-id="{{ id }}">
+                                                    <i class="fas fa-play me-1"></i> Run
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                {% endfor %}
+                            {% else %}
+                                <div class="col-12">
+                                    <div class="alert alert-info">
+                                        No sequences available. <a href="/sequences">Create a sequence</a>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <div class="col-md-12 mb-4">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="card-title mb-0">Quick Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-header bg-danger text-white">Laser Control</div>
+                                    <div class="card-body text-center">
+                                        <!-- Standard Fire Controls - Split into toggle/momentary rows -->
+                                        <div class="row mb-3">
+                                            <div class="col-6">
+                                                <label class="d-block mb-1">Toggle Mode</label>
+                                                <button id="fire-toggle-button" class="btn btn-danger btn-lg w-100">
+                                                    <i class="fas fa-fire-alt"></i> FIRE
+                                                </button>
+                                            </div>
+                                            <div class="col-6">
+                                                <label class="d-block mb-1">Momentary</label>
+                                                <button id="fire-button" class="btn btn-danger btn-lg w-100">
+                                                    <i class="fas fa-fire-alt"></i> FIRE
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Fiber Fire Controls - Split into toggle/momentary rows -->
+                                        <div class="row mb-3">
+                                            <div class="col-6">
+                                                <label class="d-block mb-1">Toggle Mode</label>
+                                                <button id="fire-fiber-toggle-button" class="btn btn-warning btn-lg w-100">
+                                                    <i class="fas fa-bolt"></i> FIBER
+                                                </button>
+                                            </div>
+                                            <div class="col-6">
+                                                <label class="d-block mb-1">Momentary</label>
+                                                <button id="fire-fiber-button" class="btn btn-warning btn-lg w-100">
+                                                    <i class="fas fa-bolt"></i> FIBER
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        <button id="stop-fire-button" class="btn btn-secondary btn-lg mt-2 w-100" disabled>
+                                            <i class="fas fa-stop-circle me-2"></i> STOP
+                                        </button>
+                                        
+                                        <div class="progress mt-3">
+                                            <div id="firing-progress" class="progress-bar bg-danger" style="width: 0%"></div>
+                                        </div>
+                                        <div id="firing-time-display" class="mt-1">00:00:00</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-header bg-warning text-dark">Cleaning Head Control</div>
+                                    <div class="card-body text-center">
+                                        <button id="home-cleaning-head" class="btn btn-primary btn-lg mb-3 w-100">
+                                            <i class="fas fa-home me-2"></i> Home Cleaning Head
+                                        </button>
+                                        <div class="d-grid gap-2">
+                                            <button id="index-button" class="btn btn-info btn-lg mb-2">
+                                                <i class="fas fa-forward me-2"></i> Index Forward
+                                            </button>
+                                            <button id="index-back-button" class="btn btn-warning btn-lg mb-2">
+                                                <i class="fas fa-backward me-2"></i> Index Back
+                                            </button>
+                                            <button id="stop-cleaning-head" class="btn btn-secondary btn-lg">
+                                                <i class="fas fa-stop-circle me-2"></i> Stop Movement
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-header bg-info text-white">Table Control</div>
+                                    <div class="card-body text-center">
+                                        <div class="d-grid gap-2 mb-3">
+                                            <button id="run-table-button" class="btn btn-primary btn-lg">
+                                                <i class="fas fa-play-circle me-2"></i> RUN TABLE
+                                            </button>
+                                            <button id="stop-table-button" class="btn btn-secondary btn-lg" disabled>
+                                                <i class="fas fa-stop-circle me-2"></i> STOP TABLE
+                                            </button>
+                                        </div>
+                                        <div class="d-grid gap-2">
+                                            <button id="table-forward-button" class="btn btn-success btn-lg">
+                                                <i class="fas fa-arrow-right me-2"></i> Forward
+                                            </button>
+                                            <button id="table-backward-button" class="btn btn-danger btn-lg">
+                                                <i class="fas fa-arrow-left me-2"></i> Backward
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- IO Status Overview -->
+            <div class="col-md-12 mb-4">
+                <div class="card">
+                    <div class="card-header bg-dark text-white">
+                        <h5 class="card-title mb-0">IO Status</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-md-3 mb-3">
+                                <div class="d-flex flex-column align-items-center">
+                                    <div id="cleaning-head-status-icon" class="mb-2">
+                                        <i class="fas fa-wrench fa-2x text-secondary"></i>
+                                    </div>
+                                    <h6>Cleaning Head</h6>
+                                    <span id="cleaning-head-status" class="badge bg-secondary">Position: {{ current_position }}</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="d-flex flex-column align-items-center">
+                                    <div id="firing-status-icon" class="mb-2">
+                                        <i class="fas fa-fire-alt fa-2x text-secondary"></i>
+                                    </div>
+                                    <h6>Trigger Status</h6>
+                                    <span id="firing-status" class="badge bg-secondary">Not Firing</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="d-flex flex-column align-items-center">
+                                    <div id="temperature-status-icon" class="mb-2">
+                                        {% if temp_status and temp_status.sensors and temp_status.sensors|length > 0 %}
+                                            {% set highest_temp = 0 %}
+                                            {% set highest_limit = 50 %}
+                                            {% set sensor_name = "Unknown" %}
+                                            {% for device_id, sensor in temp_status.sensors.items() %}
+                                                {% if sensor.temperature > highest_temp %}
+                                                    {% set highest_temp = sensor.temperature %}
+                                                    {% set highest_limit = sensor.high_limit %}
+                                                    {% set sensor_name = sensor.name %}
+                                                {% endif %}
+                                            {% endfor %}
+                                            
+                                            {% if highest_temp >= highest_limit %}
+                                                <i class="fas fa-thermometer-half fa-2x text-danger"></i>
+                                            {% elif highest_temp >= highest_limit * 0.9 %}
+                                                <i class="fas fa-thermometer-half fa-2x text-warning"></i>
+                                            {% else %}
+                                                <i class="fas fa-thermometer-half fa-2x text-success"></i>
+                                            {% endif %}
+                                        {% else %}
+                                            <i class="fas fa-thermometer-half fa-2x text-secondary"></i>
+                                        {% endif %}
+                                    </div>
+                                    <h6>Temperature</h6>
+                                    <span id="temperature-status" class="badge 
+                                        {% if temp_status and temp_status.sensors and temp_status.sensors|length > 0 %}
+                                            {% set highest_temp = 0 %}
+                                            {% set highest_limit = 50 %}
+                                            {% set sensor_name = "Unknown" %}
+                                            {% for device_id, sensor in temp_status.sensors.items() %}
+                                                {% if sensor.temperature > highest_temp %}
+                                                    {% set highest_temp = sensor.temperature %}
+                                                    {% set highest_limit = sensor.high_limit %}
+                                                    {% set sensor_name = sensor.name %}
+                                                {% endif %}
+                                            {% endfor %}
+                                            
+                                            {% if highest_temp >= highest_limit %}
+                                                bg-danger
+                                            {% elif highest_temp >= highest_limit * 0.9 %}
+                                                bg-warning
+                                            {% else %}
+                                                bg-success
+                                            {% endif %}
+                                        {% else %}
+                                            bg-secondary
+                                        {% endif %}
+                                    ">
+                                        {% if temp_status and temp_status.sensors and temp_status.sensors|length > 0 %}
+                                            {% set highest_temp = 0 %}
+                                            {% set sensor_name = "Unknown" %}
+                                            {% for device_id, sensor in temp_status.sensors.items() %}
+                                                {% if sensor.temperature > highest_temp %}
+                                                    {% set highest_temp = sensor.temperature %}
+                                                    {% set sensor_name = sensor.name %}
+                                                {% endif %}
+                                            {% endfor %}
+                                            {{ "%.1f"|format(highest_temp) }}°C ({{ sensor_name }})
+                                        {% else %}
+                                            No Sensors
+                                        {% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="d-flex flex-column align-items-center">
+                                    <div id="fan-status-icon" class="mb-2">
+                                        <i class="fas fa-fan fa-2x text-secondary"></i>
+                                    </div>
+                                    <h6>Fan</h6>
+                                    <span id="fan-state-display" class="badge bg-secondary">Off</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="d-flex flex-column align-items-center">
+                                    <div id="lights-status-icon" class="mb-2">
+                                        <i class="fas fa-lightbulb fa-2x text-secondary"></i>
+                                    </div>
+                                    <h6>Red Lights</h6>
+                                    <span id="lights-state-display" class="badge bg-secondary">Off</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row text-center mt-2">
+                            <div class="col-md-3 mb-3">
+                                <div class="d-flex flex-column align-items-center">
+                                    <div id="table-forward-icon" class="mb-2">
+                                        <i class="fas fa-arrow-right fa-2x text-secondary"></i>
+                                    </div>
+                                    <h6>Table Forward</h6>
+                                    <span id="table-forward-status" class="badge bg-secondary">OFF</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="d-flex flex-column align-items-center">
+                                    <div id="table-backward-icon" class="mb-2">
+                                        <i class="fas fa-arrow-left fa-2x text-secondary"></i>
+                                    </div>
+                                    <h6>Table Backward</h6>
+                                    <span id="table-backward-status" class="badge bg-secondary">OFF</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="d-flex flex-column align-items-center">
+                                    <div id="table-front-limit-icon" class="mb-2">
+                                        <i class="fas fa-stop-circle fa-2x text-secondary"></i>
+                                    </div>
+                                    <h6>Front Limit</h6>
+                                    <span id="table-front-limit-status" class="badge bg-secondary">Not Active</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="d-flex flex-column align-items-center">
+                                    <div id="table-back-limit-icon" class="mb-2">
+                                        <i class="fas fa-stop-circle fa-2x text-secondary"></i>
+                                    </div>
+                                    <h6>Back Limit</h6>
+                                    <span id="table-back-limit-status" class="badge bg-secondary">Not Active</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+
+            <!-- Status Log moved to base template -->
+        </div>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/table_control.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/temperature.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/operation.js') }}"></script>
+{% endblock %}

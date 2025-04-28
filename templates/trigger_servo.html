@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}Trigger Servo Setup{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="card-title mb-0">Trigger Servo Control</h5>
+            </div>
+            <div class="card-body">
+                {% if not servo_initialized %}
+                <div class="alert alert-warning" role="alert">
+                    <strong>Warning:</strong> Trigger Servo not initialized. This might be because you're not running on a Raspberry Pi or GPIO access is restricted.
+                </div>
+                {% endif %}
+
+                <div class="row">
+                    <!-- Position Controls -->
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-header bg-secondary">Position Settings</div>
+                            <div class="card-body">
+                                <!-- Position A -->
+                                <div class="mb-3">
+                                    <label for="servo-position-a" class="form-label">Position A (degrees):</label>
+                                    <div class="d-flex align-items-center">
+                                        <input type="range" class="form-range me-2" id="servo-position-a" 
+                                               min="-90" max="90" value="{{ servo_position_a }}">
+                                        <span id="servo-position-a-value" class="badge bg-secondary">{{ servo_position_a }}</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- Position B -->
+                                <div class="mb-3">
+                                    <label for="servo-position-b" class="form-label">Position B (degrees):</label>
+                                    <div class="d-flex align-items-center">
+                                        <input type="range" class="form-range me-2" id="servo-position-b" 
+                                               min="-90" max="90" value="{{ servo_position_b }}">
+                                        <span id="servo-position-b-value" class="badge bg-secondary">{{ servo_position_b }}</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- Inversion Toggle -->
+                                <div class="form-check form-switch mt-4">
+                                    <input class="form-check-input" type="checkbox" id="servo-invert" {% if servo_inverted %}checked{% endif %}>
+                                    <label class="form-check-label" for="servo-invert">Invert Positions</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Motion Controls -->
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-header bg-success">Motion Controls</div>
+                            <div class="card-body">
+                                <div class="d-grid gap-2">
+                                    <button id="move-to-position-a" class="btn btn-primary btn-lg">
+                                        <i class="fas fa-arrow-left me-2"></i> Move to Position A
+                                    </button>
+                                    <button id="move-to-position-b" class="btn btn-success btn-lg">
+                                        <i class="fas fa-arrow-right me-2"></i> Move to Position B
+                                    </button>
+                                </div>
+                                
+                                <!-- Direct Angle Control -->
+                                <div class="mt-4">
+                                    <label for="servo-direct-angle" class="form-label">Direct Angle Control:</label>
+                                    <div class="d-flex">
+                                        <input type="range" class="form-range me-2" id="servo-direct-angle" 
+                                               min="-90" max="90" value="0">
+                                        <span id="servo-direct-angle-value" class="badge bg-secondary">0</span>
+                                    </div>
+                                </div>
+                                <div class="d-grid mt-2">
+                                    <button id="move-to-angle" class="btn btn-outline-primary">
+                                        Move to Angle
+                                    </button>
+                                    
+                                    <div class="d-flex justify-content-between mt-3">
+                                        <button id="detach-servo" class="btn btn-outline-danger me-1 flex-grow-1">
+                                            <i class="fas fa-power-off me-1"></i> Detach Servo
+                                        </button>
+                                        <button id="reattach-servo" class="btn btn-outline-success ms-1 flex-grow-1">
+                                            <i class="fas fa-plug me-1"></i> Reattach Servo
+                                        </button>
+                                    </div>
+                                    <div class="text-muted text-center mt-2">
+                                        <small>Detach to prevent jitter at rest position</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Firing Test Section -->
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header bg-danger text-white">
+                <h5 class="card-title mb-0">Firing Test</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-header">Direct Firing Control</div>
+                            <div class="card-body text-center">
+                                <div class="d-grid gap-2">
+                                    <button id="fire-button-test" class="btn btn-danger btn-lg mb-2">
+                                        <i class="fas fa-fire-alt me-2"></i> FIRE TEST
+                                    </button>
+                                    <button id="stop-fire-button-test" class="btn btn-secondary btn-lg" disabled>
+                                        <i class="fas fa-stop-circle me-2"></i> STOP
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">Fiber Sequence Test</div>
+                            <div class="card-body text-center">
+                                <p class="text-secondary mb-3">Servo will move in the A-B-A-B sequence pattern</p>
+                                <div class="d-grid">
+                                    <button id="fire-fiber-button-test" class="btn btn-warning btn-lg">
+                                        <i class="fas fa-bolt me-2"></i> TEST FIBER SEQUENCE
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<script src="{{ url_for('static', filename='js/servo_control.js') }}"></script>
+{% endblock %}

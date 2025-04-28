@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NooyenLaserRoom - Login</title>
+    <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
+    <style>
+        body {
+            padding-top: 40px;
+            padding-bottom: 40px;
+            background-color: var(--bs-dark);
+            color: var(--bs-light);
+        }
+        
+        .form-signin {
+            max-width: 330px;
+            padding: 15px;
+            margin: 0 auto;
+        }
+        
+        .form-signin .form-floating {
+            margin-bottom: 10px;
+        }
+        
+        .form-signin .form-control {
+            position: relative;
+            height: auto;
+            box-sizing: border-box;
+            padding: 10px;
+            font-size: 16px;
+        }
+        
+        .form-signin input[type="text"],
+        .form-signin input[type="password"] {
+            margin-bottom: 10px;
+        }
+        
+        .logo {
+            max-width: 100px;
+            margin-bottom: 20px;
+        }
+        
+        .login-container {
+            background-color: var(--bs-gray-900);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            margin-top: 50px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row">
+            <div class="col-md-6 offset-md-3 login-container">
+                <form class="form-signin" method="POST" action="{{ url_for('login') }}">
+                    <div class="text-center mb-4">
+                        <h1 class="h3 mb-3 fw-normal">NooyenLaserRoom</h1>
+                        <p class="lead">Laser Cleaning Machine Control System</p>
+                    </div>
+                    
+                    {% if error %}
+                    <div class="alert alert-danger">
+                        {{ error }}
+                    </div>
+                    {% endif %}
+                    
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ category }}">
+                                    {{ message }}
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                    
+                    <div class="form-floating mb-3">
+                        <input type="text" class="form-control" id="username" name="username" placeholder="Username" required autofocus>
+                        <label for="username">Username</label>
+                    </div>
+                    
+                    <div class="form-floating mb-3">
+                        <input type="password" class="form-control" id="password" name="password" placeholder="Password" required>
+                        <label for="password">Password</label>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-lg btn-primary" type="submit">Sign In</button>
+                    </div>
+                    
+                    <div class="mt-4 text-center">
+                        <p class="text-muted">Use one of the following default accounts:</p>
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <p><strong>Admin:</strong><br>
+                                admin / Pigfloors</p>
+                            </div>
+                            <div class="col-6">
+                                <p><strong>Operator:</strong><br>
+                                laser / Piglaser</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <p class="mt-4 text-center text-muted">
+                        <small>
+                            Nooyen Laser Room Control System<br>
+                            Part of the Nooyen Machine Suite
+                        </small>
+                    </p>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

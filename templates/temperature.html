@@ -1,0 +1,572 @@
+{% extends "base.html" %}
+
+{% block title %}Temperature Monitoring - Laser Cleaning Control{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">Temperature Monitoring</h5>
+            </div>
+            <div class="card-body">
+                <div id="temperature-sensors-container" class="row">
+                    <!-- This will be populated by JavaScript -->
+                    <div class="col-12 text-center" id="no-sensors-message">
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            No temperature sensors detected. Make sure DS18B20 sensors are properly connected.
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="card bg-dark text-light">
+                            <div class="card-header">
+                                <h5 class="mb-0">System Status</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span>High Temperature Warning Limit:</span>
+                                        <span id="high-temp-limit" class="badge bg-warning text-dark">--°C</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span>High Temperature Condition:</span>
+                                        <span id="high-temp-condition" class="badge bg-secondary">--</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span>Monitoring Status:</span>
+                                        <span id="monitoring-status" class="badge bg-success">Active</span>
+                                    </div>
+                                </div>
+                                <div class="alert alert-info small">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    When temperature exceeds the high limit, all operations will be automatically stopped for safety.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="card bg-dark text-light">
+                            <div class="card-header">
+                                <h5 class="mb-0">Configuration</h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="temperature-config-form">
+                                    <div class="mb-3">
+                                        <label for="high-temp-limit-input" class="form-label">Global High Temperature Limit (°C)</label>
+                                        <input type="number" class="form-control" id="high-temp-limit-input" min="20" max="100" step="1" value="{{ temp_config.high_limit|default(50) }}" required>
+                                        <small class="form-text text-muted">Default limit if no sensor-specific limit is set</small>
+                                    </div>
+
+                                    <div class="card mb-3 bg-dark border border-secondary">
+                                        <div class="card-header">
+                                            <h6 class="mb-0">Primary Sensor Selection</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="mb-3">
+                                                <label for="primary-sensor-select" class="form-label">Primary Sensor</label>
+                                                <select class="form-select" id="primary-sensor-select">
+                                                    <option value="">-- Select Primary Sensor --</option>
+                                                    <!-- Will be filled by JavaScript -->
+                                                </select>
+                                                <small class="form-text text-muted">This sensor's temperature will be displayed on the main operation page.</small>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="card mb-3 bg-dark border border-secondary">
+                                        <div class="card-header">
+                                            <h6 class="mb-0">Sensor-Specific Limits</h6>
+                                        </div>
+                                        <div class="card-body" id="sensor-limits-container">
+                                            <!-- Will be filled by JavaScript -->
+                                            <div class="text-center text-muted py-3" id="no-sensor-limits">
+                                                <i class="fas fa-info-circle me-2"></i>Sensor-specific limits will appear here when sensors are detected
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="monitoring-interval-input" class="form-label">Monitoring Interval (seconds)</label>
+                                        <input type="number" class="form-control" id="monitoring-interval-input" min="1" max="60" step="1" value="{{ temp_config.monitoring_interval|default(5) }}" required>
+                                        <small class="form-text text-muted">How often temperature readings are taken</small>
+                                    </div>
+                                    
+                                    <div class="card mb-3 bg-dark border border-secondary">
+                                        <div class="card-header">
+                                            <h6 class="mb-0">1-Wire Interface Configuration</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="mb-3">
+                                                <label for="w1-gpio-pin-input" class="form-label">GPIO Pin for 1-Wire (BCM)</label>
+                                                <select class="form-select" id="w1-gpio-pin-input">
+                                                    <option value="2" {% if temp_config.w1_gpio_pin == 2 %}selected{% endif %}>GPIO 2 (Pin 3)</option>
+                                                    <option value="4" {% if temp_config.w1_gpio_pin == 4 %}selected{% endif %}>GPIO 4 (Pin 7) - Default</option>
+                                                    <option value="17" {% if temp_config.w1_gpio_pin == 17 %}selected{% endif %}>GPIO 17 (Pin 11)</option>
+                                                    <option value="27" {% if temp_config.w1_gpio_pin == 27 %}selected{% endif %}>GPIO 27 (Pin 13)</option>
+                                                </select>
+                                                <small class="form-text text-muted">
+                                                    The GPIO pin connected to the DS18B20 sensors' data line.
+                                                    <strong>Note:</strong> Changes require a system reboot to take effect.
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save me-2"></i> Save Configuration
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sensor Card Template (Hidden) -->
+<template id="sensor-card-template">
+    <div class="col-md-3 mb-3 sensor-card">
+        <div class="card bg-dark text-light">
+            <div class="card-header">
+                <h5 class="sensor-name mb-0">Sensor Name</h5>
+            </div>
+            <div class="card-body text-center">
+                <div class="sensor-temp-icon mb-2">
+                    <i class="fas fa-thermometer-half fa-3x text-primary"></i>
+                </div>
+                <h2 class="sensor-temp">--°C</h2>
+                <div class="small text-muted sensor-id">ID: --</div>
+                <div class="small text-muted sensor-limit mb-2">Limit: --°C</div>
+                <form class="mt-2 sensor-name-form">
+                    <div class="input-group input-group-sm mb-2">
+                        <span class="input-group-text">Name</span>
+                        <input type="text" class="form-control sensor-name-input" placeholder="Sensor Name">
+                        <button class="btn btn-outline-primary save-sensor-name" type="submit">
+                            <i class="fas fa-save"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</template>
+
+<!-- Sensor Limit Input Template (Hidden) -->
+<template id="sensor-limit-template">
+    <div class="mb-3 sensor-limit-container">
+        <div class="input-group">
+            <span class="input-group-text sensor-limit-name">Sensor Name</span>
+            <input type="number" class="form-control sensor-limit-input" min="20" max="100" step="1" value="50" required>
+            <span class="input-group-text">°C</span>
+        </div>
+        <small class="form-text text-muted">Individual temperature limit for this sensor</small>
+    </div>
+</template>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Flags to control updating
+    let isEditing = false;
+    let updateTimer = null;
+    
+    // Load current configuration
+    loadTemperatureConfig();
+    
+    // Update temperature data
+    updateTemperatures();
+    
+    // Function to start or stop updates based on editing state
+    function toggleUpdates(editing) {
+        isEditing = editing;
+        
+        if (isEditing) {
+            // Stop automatic updates while editing
+            if (updateTimer) {
+                clearInterval(updateTimer);
+                updateTimer = null;
+                console.log('Temperature updates paused during editing');
+            }
+        } else {
+            // Resume automatic updates
+            if (!updateTimer) {
+                updateTemperatures(); // Update immediately
+                updateTimer = setInterval(updateTemperatures, 3000);
+                console.log('Temperature updates resumed');
+            }
+        }
+    }
+    
+    // Start updates initially
+    toggleUpdates(false);
+    
+    // Add focus/blur event listeners to all input elements to detect editing
+    document.querySelectorAll('input, select, textarea').forEach(input => {
+        input.addEventListener('focus', () => toggleUpdates(true));
+        input.addEventListener('blur', () => toggleUpdates(false));
+    });
+    
+    // Also pause updates when sensor name forms are being edited
+    document.addEventListener('click', function(e) {
+        // Check if clicking on a save-sensor-name button or sensor-name-input
+        if (e.target.classList.contains('save-sensor-name') || 
+            e.target.classList.contains('sensor-name-input')) {
+            toggleUpdates(true);
+        }
+    });
+    
+    // Set up form submission
+    const configForm = document.getElementById('temperature-config-form');
+    if (configForm) {
+        configForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            saveTemperatureConfig();
+            // Resume updates after saving
+            toggleUpdates(false);
+        });
+    }
+});
+
+function updateTemperatures() {
+    fetch('/temperature/status')
+        .then(response => response.json())
+        .then(data => {
+            const sensorsContainer = document.getElementById('temperature-sensors-container');
+            const noSensorsMessage = document.getElementById('no-sensors-message');
+            
+            // Update system status
+            const highTempLimit = document.getElementById('high-temp-limit');
+            const highTempCondition = document.getElementById('high-temp-condition');
+            const sensorLimitsContainer = document.getElementById('sensor-limits-container');
+            const noSensorLimits = document.getElementById('no-sensor-limits');
+            
+            if (highTempLimit) {
+                highTempLimit.textContent = data.high_limit + '°C';
+            }
+            
+            if (highTempCondition) {
+                if (data.high_temp_condition) {
+                    highTempCondition.textContent = 'ALERT';
+                    highTempCondition.className = 'badge bg-danger';
+                } else {
+                    highTempCondition.textContent = 'Normal';
+                    highTempCondition.className = 'badge bg-success';
+                }
+            }
+            
+            // Update sensor-specific limits UI
+            if (sensorLimitsContainer && data.sensors && Object.keys(data.sensors).length > 0) {
+                // Hide "no sensors" message
+                if (noSensorLimits) {
+                    noSensorLimits.style.display = 'none';
+                }
+                
+                // Create or update limit inputs for each sensor
+                for (const sensorId in data.sensors) {
+                    const sensor = data.sensors[sensorId];
+                    let limitGroup = document.getElementById(`limit-group-${sensorId}`);
+                    
+                    if (!limitGroup) {
+                        // Create new limit input group
+                        limitGroup = document.createElement('div');
+                        limitGroup.className = 'mb-2';
+                        limitGroup.id = `limit-group-${sensorId}`;
+                        
+                        const html = `
+                            <label class="form-label">${sensor.name || 'Unnamed Sensor'} (${sensorId})</label>
+                            <div class="input-group input-group-sm">
+                                <input type="number" class="form-control sensor-limit-input" 
+                                       id="sensor-limit-${sensorId}" 
+                                       data-sensor-id="${sensorId}"
+                                       min="20" max="100" step="1" 
+                                       value="${sensor.high_limit || data.high_limit}">
+                                <span class="input-group-text">°C</span>
+                            </div>
+                            <small class="form-text text-muted">Individual limit for this sensor (overrides global limit)</small>
+                        `;
+                        
+                        limitGroup.innerHTML = html;
+                        sensorLimitsContainer.appendChild(limitGroup);
+                        
+                        // Track user changes
+                        const input = limitGroup.querySelector('input');
+                        if (input) {
+                            input.addEventListener('change', function() {
+                                this.setAttribute('data-user-changed', 'true');
+                            });
+                        }
+                    } else {
+                        // Update existing limit input
+                        const label = limitGroup.querySelector('label');
+                        const input = limitGroup.querySelector('input');
+                        
+                        if (label) {
+                            label.textContent = `${sensor.name || 'Unnamed Sensor'} (${sensorId})`;
+                        }
+                        
+                        if (input && !input.getAttribute('data-user-changed')) {
+                            input.value = sensor.high_limit || data.high_limit;
+                        }
+                    }
+                }
+            } else if (sensorLimitsContainer) {
+                // Show "no sensors" message
+                if (noSensorLimits) {
+                    noSensorLimits.style.display = 'block';
+                }
+                
+                // Remove all limit inputs
+                Array.from(sensorLimitsContainer.querySelectorAll('[id^="limit-group-"]')).forEach(el => {
+                    el.remove();
+                });
+            }
+            
+            // Check if we have temperature data
+            if (data.sensors && Object.keys(data.sensors).length > 0) {
+                // Hide "no sensors" message
+                if (noSensorsMessage) {
+                    noSensorsMessage.style.display = 'none';
+                }
+                
+                // Get all existing sensor cards
+                const existingSensorCards = document.querySelectorAll('.sensor-card');
+                const existingSensorIds = Array.from(existingSensorCards).map(card => card.dataset.sensorId);
+                
+                // Process each sensor
+                for (const sensorId in data.sensors) {
+                    const sensor = data.sensors[sensorId];
+                    let sensorCard;
+                    
+                    // Check if card exists for this sensor
+                    if (existingSensorIds.includes(sensorId)) {
+                        // Update existing card
+                        sensorCard = document.querySelector(`.sensor-card[data-sensor-id="${sensorId}"]`);
+                        updateSensorCard(sensorCard, sensor);
+                    } else {
+                        // Create new card
+                        sensorCard = createSensorCard(sensorId, sensor);
+                        sensorsContainer.appendChild(sensorCard);
+                    }
+                }
+                
+                // Remove cards for sensors that no longer exist
+                existingSensorCards.forEach(card => {
+                    if (!data.sensors[card.dataset.sensorId]) {
+                        card.remove();
+                    }
+                });
+            } else {
+                // Show "no sensors" message
+                if (noSensorsMessage) {
+                    noSensorsMessage.style.display = 'block';
+                }
+                
+                // Remove all sensor cards
+                const sensorCards = document.querySelectorAll('.sensor-card');
+                sensorCards.forEach(card => card.remove());
+            }
+        })
+        .catch(error => {
+            console.error('Error updating temperature data:', error);
+        });
+}
+
+function createSensorCard(sensorId, sensor) {
+    // Clone the template
+    const template = document.getElementById('sensor-card-template');
+    const clone = document.importNode(template.content, true);
+    const sensorCard = clone.querySelector('.sensor-card');
+    
+    // Set sensor ID as data attribute
+    sensorCard.dataset.sensorId = sensorId;
+    
+    // Update card contents
+    updateSensorCard(sensorCard, sensor);
+    
+    // Set up name form submission
+    const nameForm = sensorCard.querySelector('.sensor-name-form');
+    const nameInput = sensorCard.querySelector('.sensor-name-input');
+    
+    nameForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Save the new name
+        fetch('/temperature/update_sensor_name', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                sensor_id: sensorId,
+                name: nameInput.value
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Update the name display
+                const nameDisplay = sensorCard.querySelector('.sensor-name');
+                nameDisplay.textContent = nameInput.value;
+            }
+        })
+        .catch(error => {
+            console.error('Error saving sensor name:', error);
+        });
+    });
+    
+    return sensorCard;
+}
+
+function updateSensorCard(card, sensor) {
+    // Update temperature and color
+    const tempDisplay = card.querySelector('.sensor-temp');
+    const tempIcon = card.querySelector('.sensor-temp-icon i');
+    const nameDisplay = card.querySelector('.sensor-name');
+    const nameInput = card.querySelector('.sensor-name-input');
+    const idDisplay = card.querySelector('.sensor-id');
+    const limitDisplay = card.querySelector('.sensor-limit');
+    
+    // Get the temperature value (handles both old 'temp' and new 'temperature' properties)
+    const tempValue = sensor.temperature !== undefined ? sensor.temperature : sensor.temp;
+    
+    // Update temperature
+    tempDisplay.textContent = tempValue.toFixed(1) + '°C';
+    
+    // Update name
+    nameDisplay.textContent = sensor.name || 'Unnamed Sensor';
+    nameInput.value = sensor.name || '';
+    
+    // Update ID display
+    idDisplay.textContent = 'ID: ' + card.dataset.sensorId;
+    
+    // Update limit display if available
+    if (limitDisplay) {
+        limitDisplay.textContent = 'Limit: ' + (sensor.high_limit || '--') + '°C';
+    }
+    
+    // Update color based on temperature
+    if (sensor.high_temp) {
+        tempDisplay.className = 'sensor-temp text-danger';
+        tempIcon.className = 'fas fa-thermometer-full fa-3x text-danger';
+    } else if (tempValue > sensor.high_limit * 0.9) { // 90% of high limit
+        tempDisplay.className = 'sensor-temp text-warning';
+        tempIcon.className = 'fas fa-thermometer-three-quarters fa-3x text-warning';
+    } else {
+        tempDisplay.className = 'sensor-temp text-success';
+        tempIcon.className = 'fas fa-thermometer-half fa-3x text-success';
+    }
+}
+
+function loadTemperatureConfig() {
+    fetch('/temperature/status')
+        .then(response => response.json())
+        .then(data => {
+            const highLimitInput = document.getElementById('high-temp-limit-input');
+            const intervalInput = document.getElementById('monitoring-interval-input');
+            const primarySensorSelect = document.getElementById('primary-sensor-select');
+            
+            if (highLimitInput && data.high_limit) {
+                highLimitInput.value = data.high_limit;
+            }
+            
+            if (intervalInput && data.monitoring_interval) {
+                intervalInput.value = data.monitoring_interval;
+            }
+            
+            // Populate primary sensor select with available sensors
+            if (primarySensorSelect && data.sensors && Object.keys(data.sensors).length > 0) {
+                // Clear existing options except the default one
+                Array.from(primarySensorSelect.options)
+                    .filter(option => option.value !== "")
+                    .forEach(option => option.remove());
+                
+                // Add an option for each sensor
+                for (const sensorId in data.sensors) {
+                    const sensor = data.sensors[sensorId];
+                    const option = document.createElement('option');
+                    option.value = sensorId;
+                    option.textContent = sensor.name || `Sensor ${sensorId}`;
+                    primarySensorSelect.appendChild(option);
+                }
+                
+                // Select the current primary sensor if set
+                if (data.primary_sensor) {
+                    const option = Array.from(primarySensorSelect.options)
+                        .find(opt => opt.value === data.primary_sensor);
+                    if (option) {
+                        option.selected = true;
+                    }
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error loading temperature configuration:', error);
+        });
+}
+
+function saveTemperatureConfig() {
+    const highLimitInput = document.getElementById('high-temp-limit-input');
+    const intervalInput = document.getElementById('monitoring-interval-input');
+    const sensorLimitInputs = document.querySelectorAll('.sensor-limit-input');
+    
+    // Collect sensor-specific limits
+    const sensorLimits = {};
+    sensorLimitInputs.forEach(input => {
+        const sensorId = input.getAttribute('data-sensor-id');
+        const limitValue = parseFloat(input.value);
+        if (sensorId && !isNaN(limitValue)) {
+            sensorLimits[sensorId] = limitValue;
+        }
+    });
+    
+    // Get GPIO pin selection for 1-Wire
+    const w1GpioPinInput = document.getElementById('w1-gpio-pin-input');
+    
+    // Get primary sensor selection
+    const primarySensorSelect = document.getElementById('primary-sensor-select');
+    const primarySensor = primarySensorSelect ? primarySensorSelect.value : null;
+    
+    const config = {
+        high_limit: parseInt(highLimitInput.value, 10),
+        monitoring_interval: parseInt(intervalInput.value, 10),
+        sensor_limits: sensorLimits,
+        w1_gpio_pin: parseInt(w1GpioPinInput.value, 10),
+        primary_sensor: primarySensor
+    };
+    
+    fetch('/temperature/update_config', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(config)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            // Show success message
+            alert('Temperature configuration updated successfully');
+            
+            // Update current display
+            updateTemperatures();
+        } else {
+            alert('Error updating configuration: ' + (data.message || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error saving temperature configuration:', error);
+        alert('Error saving configuration: ' + error.message);
+    });
+}
+</script>
+{% endblock %}

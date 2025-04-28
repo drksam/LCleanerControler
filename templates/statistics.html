@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block title %}Laser Usage Statistics{% endblock %}
+
+{% block content %}
+
+        <div class="row">
+            <!-- Usage Stats Overview -->
+            <div class="col-md-12 mb-4">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="card-title mb-0">Laser Usage Statistics</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header bg-info">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <h6 class="mb-0">Laser Fire Count</h6>
+                                            <button id="reset-counter-btn" class="btn btn-sm btn-outline-light">
+                                                <i class="fas fa-redo-alt"></i> Reset
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="card-body text-center">
+                                        <h2 id="laser-fire-count" class="display-1">{{ stats.laser_fire_count }}</h2>
+                                        <p class="text-muted">
+                                            <small>Counts firings longer than {{ laser_fire_threshold / 1000 }} seconds</small>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header bg-danger">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <h6 class="mb-0">Total Laser Fire Time</h6>
+                                            <button id="reset-timer-btn" class="btn btn-sm btn-outline-light">
+                                                <i class="fas fa-redo-alt"></i> Reset
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="card-body text-center">
+                                        <h2 id="total-fire-time" class="display-4">
+                                            {{ total_time_formatted }}
+                                        </h2>
+                                        <p id="total-fire-time-ms" class="text-muted mb-0">
+                                            {{ stats.laser_fire_time }} ms
+                                        </p>
+                                        <p class="text-muted">
+                                            <small>Total hours:minutes:seconds of laser operation</small>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Current Session Stats -->
+            <div class="col-md-12 mb-4">
+                <div class="card">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="card-title mb-0">Current Session</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header bg-info">Session Fire Count</div>
+                                    <div class="card-body text-center">
+                                        <h3 id="session-fire-count">0</h3>
+                                        <p class="text-muted">
+                                            <small>Firings in this session</small>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header bg-danger">Session Fire Time</div>
+                                    <div class="card-body text-center">
+                                        <h3 id="session-fire-time">00:00:00</h3>
+                                        <p class="text-muted">
+                                            <small>Time fired in this session</small>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="col-md-12 mb-4">
+                <div class="card">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="card-title mb-0">Statistics Management</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <button id="reset-counter-btn-large" class="btn btn-outline-primary btn-lg">
+                                <i class="fas fa-redo-alt me-2"></i> Reset Fire Counter
+                            </button>
+                            <button id="reset-timer-btn-large" class="btn btn-outline-danger btn-lg">
+                                <i class="fas fa-redo-alt me-2"></i> Reset Fire Timer
+                            </button>
+                            <button id="reset-all-btn" class="btn btn-outline-warning btn-lg">
+                                <i class="fas fa-trash-alt me-2"></i> Reset All Statistics
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Log Container -->
+            <div class="col-md-12 mb-4">
+                <div class="card">
+                    <div class="card-header bg-dark text-white">
+                        <h5 class="card-title mb-0">Event Log</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="log-container" class="bg-dark p-3 rounded" style="height: 200px; overflow-y: auto; font-family: monospace;">
+                            <div class="log-entry">
+                                <small>{{ now.strftime('%H:%M:%S') }}</small> Statistics page loaded.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ url_for('static', filename='js/statistics.js') }}"></script>
+{% endblock %}

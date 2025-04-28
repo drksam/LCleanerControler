@@ -1,0 +1,1037 @@
+{% extends "base.html" %}
+
+{% block title %}Sequence Programming{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h2 class="mb-4">Sequence Programming</h2>
+            
+            <div class="alert alert-info">
+                <p><strong>Create and manage automated operation sequences.</strong> Sequences allow you to program a series of steps that will be executed automatically.</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-5">
+            <!-- Sequence List Panel -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Saved Sequences</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush" id="sequenceList">
+                        {% if sequences %}
+                            {% for id, seq in sequences.items() %}
+                                <a href="#" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center sequence-item" data-id="{{ id }}">
+                                    <div>
+                                        <h6 class="mb-1">{{ seq.name }}</h6>
+                                        <small class="text-muted">{{ seq.description }}</small>
+                                    </div>
+                                    <span class="badge bg-primary rounded-pill">{{ seq.steps|length }} steps</span>
+                                </a>
+                            {% endfor %}
+                        {% else %}
+                            <div class="list-group-item text-center">
+                                <p class="text-muted mb-0">No sequences saved yet</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <button class="btn btn-success" id="newSequenceBtn">
+                        <i class="bi bi-plus-circle"></i> New Sequence
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Sequence Player Panel -->
+            <div class="card mb-4">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">Sequence Player</h5>
+                </div>
+                <div class="card-body">
+                    <div id="playerControls" class="text-center">
+                        <div class="btn-group mb-3">
+                            <button class="btn btn-primary" id="playBtn" disabled>
+                                <i class="bi bi-play-fill"></i> Play
+                            </button>
+                            <button class="btn btn-warning" id="pauseBtn" disabled>
+                                <i class="bi bi-pause-fill"></i> Pause
+                            </button>
+                            <button class="btn btn-danger" id="stopBtn" disabled>
+                                <i class="bi bi-stop-fill"></i> Stop
+                            </button>
+                        </div>
+                        
+                        <div class="progress mb-3" style="height: 25px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 role="progressbar" id="sequenceProgress" 
+                                 style="width: 0%;" 
+                                 aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                        </div>
+                        
+                        <div class="text-start">
+                            <p class="mb-1"><strong>Status:</strong> <span id="sequenceStatus">Idle</span></p>
+                            <p class="mb-1"><strong>Current Step:</strong> <span id="currentStep">-</span></p>
+                            <p class="mb-0"><strong>Sequence:</strong> <span id="currentSequence">None</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Execution Log Panel -->
+            <div class="card mb-4">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">Execution Log</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush" id="executionLog" style="max-height: 200px; overflow-y: auto;">
+                        <div class="list-group-item">
+                            <small class="text-muted">Execution log will appear here</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-7">
+            <!-- Sequence Editor Panel -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Sequence Editor</h5>
+                    <div>
+                        <button class="btn btn-sm btn-light" id="saveSequenceBtn" disabled>
+                            <i class="bi bi-save"></i> Save
+                        </button>
+                        <button class="btn btn-sm btn-danger" id="deleteSequenceBtn" disabled>
+                            <i class="bi bi-trash"></i> Delete
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <form id="sequenceForm">
+                        <input type="hidden" id="sequenceId" value="">
+                        
+                        <div class="mb-3">
+                            <label for="sequenceName" class="form-label">Sequence Name</label>
+                            <input type="text" class="form-control" id="sequenceName" placeholder="Enter sequence name" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="sequenceDescription" class="form-label">Description</label>
+                            <textarea class="form-control" id="sequenceDescription" rows="2" placeholder="Enter sequence description"></textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Steps</label>
+                            <div class="list-group mb-2" id="stepsList">
+                                <!-- Steps will be added here dynamically -->
+                                <div class="list-group-item text-center text-muted" id="noStepsMessage">
+                                    No steps added yet
+                                </div>
+                            </div>
+                            
+                            <div class="d-flex justify-content-end">
+                                <button type="button" class="btn btn-success" id="addStepBtn">
+                                    <i class="bi bi-plus-circle"></i> Add Step
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Step Types Reference -->
+            <div class="card mb-4">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">Available Step Types</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ul class="list-unstyled">
+                                <li class="mb-2"><span class="badge bg-primary">stepper_move</span> - Move cleaning head</li>
+                                <li class="mb-2"><span class="badge bg-danger">fire</span> - Press laser trigger</li>
+                                <li class="mb-2"><span class="badge bg-warning">fire_fiber</span> - Start fiber sequence (A-B-A-B)</li>
+                                <li class="mb-2"><span class="badge bg-success">stop_fire</span> - Release laser trigger</li>
+                                <li class="mb-2"><span class="badge bg-warning">wait</span> - Wait for specified time</li>
+                                <li class="mb-2"><span class="badge bg-info">wait_input</span> - Wait for specific input</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <ul class="list-unstyled">
+                                <li class="mb-2"><span class="badge bg-info">fan_on</span> / <span class="badge bg-info">fan_off</span> - Control fan</li>
+                                <li class="mb-2"><span class="badge bg-info">lights_on</span> / <span class="badge bg-info">lights_off</span> - Control lights</li>
+                                <li class="mb-2"><span class="badge bg-secondary">table_forward</span> - Move table forward</li>
+                                <li class="mb-2"><span class="badge bg-secondary">table_backward</span> - Move table backward</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Step Modal -->
+<div class="modal fade" id="addStepModal" tabindex="-1" aria-labelledby="addStepModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="addStepModalLabel">Add Sequence Step</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="stepForm">
+                    <div class="mb-3">
+                        <label for="stepType" class="form-label">Step Type</label>
+                        <select class="form-select" id="stepType" required>
+                            <option value="">Select a step type...</option>
+                            <option value="stepper_move">Move Cleaning Head (stepper_move)</option>
+                            <option value="fire">Fire Laser (fire)</option>
+                            <option value="fire_fiber">Fire Fiber Sequence (fire_fiber)</option>
+                            <option value="stop_fire">Stop Firing (stop_fire)</option>
+                            <option value="wait">Wait (wait)</option>
+                            <option value="wait_input">Wait for Input (wait_input)</option>
+                            <option value="fan_on">Fan On (fan_on)</option>
+                            <option value="fan_off">Fan Off (fan_off)</option>
+                            <option value="lights_on">Lights On (lights_on)</option>
+                            <option value="lights_off">Lights Off (lights_off)</option>
+                            <option value="table_forward">Table Forward (table_forward)</option>
+                            <option value="table_backward">Table Backward (table_backward)</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Dynamic parameters based on step type will be added here -->
+                    <div id="stepParams"></div>
+                    
+                    <div class="mb-3">
+                        <label for="delayAfter" class="form-label">Delay After (ms)</label>
+                        <input type="number" class="form-control" id="delayAfter" min="0" value="0">
+                        <div class="form-text">Wait this many milliseconds after this step completes</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveStepBtn">Add Step</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Step Modal -->
+<div class="modal fade" id="editStepModal" tabindex="-1" aria-labelledby="editStepModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="editStepModalLabel">Edit Sequence Step</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editStepForm">
+                    <input type="hidden" id="editStepIndex" value="">
+                    
+                    <div class="mb-3">
+                        <label for="editStepType" class="form-label">Step Type</label>
+                        <select class="form-select" id="editStepType" required>
+                            <option value="">Select a step type...</option>
+                            <option value="stepper_move">Move Cleaning Head (stepper_move)</option>
+                            <option value="fire">Fire Laser (fire)</option>
+                            <option value="fire_fiber">Fire Fiber Sequence (fire_fiber)</option>
+                            <option value="stop_fire">Stop Firing (stop_fire)</option>
+                            <option value="wait">Wait (wait)</option>
+                            <option value="wait_input">Wait for Input (wait_input)</option>
+                            <option value="fan_on">Fan On (fan_on)</option>
+                            <option value="fan_off">Fan Off (fan_off)</option>
+                            <option value="lights_on">Lights On (lights_on)</option>
+                            <option value="lights_off">Lights Off (lights_off)</option>
+                            <option value="table_forward">Table Forward (table_forward)</option>
+                            <option value="table_backward">Table Backward (table_backward)</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Dynamic parameters based on step type will be added here -->
+                    <div id="editStepParams"></div>
+                    
+                    <div class="mb-3">
+                        <label for="editDelayAfter" class="form-label">Delay After (ms)</label>
+                        <input type="number" class="form-control" id="editDelayAfter" min="0" value="0">
+                        <div class="form-text">Wait this many milliseconds after this step completes</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="updateStepBtn">Update Step</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        // Current sequence being edited
+        let currentSequence = {
+            id: '',
+            name: '',
+            description: '',
+            steps: []
+        };
+        
+        // Sequence that's currently running (if any)
+        let runningSequenceId = null;
+        
+        // Status update interval
+        let statusInterval = null;
+        
+        // Populate parameter fields based on step type
+        function populateStepParams(stepType, container) {
+            container.empty();
+            
+            switch(stepType) {
+                case 'stepper_move':
+                    container.append(`
+                        <div class="mb-3">
+                            <label class="form-label">Direction</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="${container.attr('id') == 'stepParams' ? 'direction' : 'editDirection'}" 
+                                       id="${container.attr('id') == 'stepParams' ? 'directionIn' : 'editDirectionIn'}" value="in" checked>
+                                <label class="form-check-label" for="${container.attr('id') == 'stepParams' ? 'directionIn' : 'editDirectionIn'}">
+                                    In (Toward Home)
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="${container.attr('id') == 'stepParams' ? 'direction' : 'editDirection'}" 
+                                       id="${container.attr('id') == 'stepParams' ? 'directionOut' : 'editDirectionOut'}" value="out">
+                                <label class="form-check-label" for="${container.attr('id') == 'stepParams' ? 'directionOut' : 'editDirectionOut'}">
+                                    Out (Away from Home)
+                                </label>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="${container.attr('id') == 'stepParams' ? 'steps' : 'editSteps'}" class="form-label">Steps</label>
+                            <input type="number" class="form-control" id="${container.attr('id') == 'stepParams' ? 'steps' : 'editSteps'}" min="1" value="100" required>
+                        </div>
+                    `);
+                    break;
+                    
+                case 'fire':
+                    container.append(`
+                        <div class="mb-3">
+                            <label for="${container.attr('id') == 'stepParams' ? 'duration' : 'editDuration'}" class="form-label">Duration (ms)</label>
+                            <input type="number" class="form-control" id="${container.attr('id') == 'stepParams' ? 'duration' : 'editDuration'}" min="500" value="2000" required>
+                            <div class="form-text">Minimum recommended duration: 500ms</div>
+                        </div>
+                    `);
+                    break;
+                
+                case 'fire_fiber':
+                    // No parameters needed for fiber sequence
+                    container.append(`
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            This will start the A-B-A-B servo fiber sequence pattern
+                        </div>
+                    `);
+                    break;
+                    
+                case 'wait':
+                    container.append(`
+                        <div class="mb-3">
+                            <label for="${container.attr('id') == 'stepParams' ? 'waitDuration' : 'editWaitDuration'}" class="form-label">Duration (ms)</label>
+                            <input type="number" class="form-control" id="${container.attr('id') == 'stepParams' ? 'waitDuration' : 'editWaitDuration'}" min="0" value="1000" required>
+                        </div>
+                    `);
+                    break;
+                
+                case 'wait_input':
+                    container.append(`
+                        <div class="mb-3">
+                            <label for="${container.attr('id') == 'stepParams' ? 'inputType' : 'editInputType'}" class="form-label">Wait for Input</label>
+                            <select class="form-select" id="${container.attr('id') == 'stepParams' ? 'inputType' : 'editInputType'}" required>
+                                <option value="button_in">IN Button</option>
+                                <option value="button_out">OUT Button</option>
+                                <option value="fire_button">FIRE Button</option>
+                                <option value="table_front_limit">Table Front Limit Switch</option>
+                                <option value="table_back_limit">Table Back Limit Switch</option>
+                            </select>
+                            <div class="form-text">Sequence will pause until this input is activated</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="${container.attr('id') == 'stepParams' ? 'inputTimeout' : 'editInputTimeout'}" class="form-label">Timeout (ms, 0 for no timeout)</label>
+                            <input type="number" class="form-control" id="${container.attr('id') == 'stepParams' ? 'inputTimeout' : 'editInputTimeout'}" min="0" value="30000">
+                            <div class="form-text">Maximum time to wait (0 = wait indefinitely)</div>
+                        </div>
+                    `);
+                    break;
+                    
+                case 'table_forward':
+                case 'table_backward':
+                    container.append(`
+                        <div class="mb-3">
+                            <label for="${container.attr('id') == 'stepParams' ? 'tableDuration' : 'editTableDuration'}" class="form-label">Duration (ms)</label>
+                            <input type="number" class="form-control" id="${container.attr('id') == 'stepParams' ? 'tableDuration' : 'editTableDuration'}" min="100" value="1000" required>
+                            <div class="form-text">How long to run the table motor</div>
+                        </div>
+                    `);
+                    break;
+            }
+        }
+        
+        // Load sequence data for editing
+        function loadSequence(sequenceId) {
+            $.ajax({
+                url: `/sequences/${sequenceId}`,
+                type: 'GET',
+                success: function(response) {
+                    if (response.status === 'success') {
+                        // Update current sequence
+                        currentSequence = response.sequence;
+                        currentSequence.id = sequenceId;
+                        
+                        // Fill form
+                        $('#sequenceId').val(sequenceId);
+                        $('#sequenceName').val(currentSequence.name);
+                        $('#sequenceDescription').val(currentSequence.description);
+                        
+                        // Enable buttons
+                        $('#saveSequenceBtn').prop('disabled', false);
+                        $('#deleteSequenceBtn').prop('disabled', false);
+                        $('#playBtn').prop('disabled', false);
+                        
+                        // Update steps list
+                        updateStepsList();
+                    } else {
+                        alert('Error loading sequence: ' + response.message);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert('Error loading sequence: ' + error);
+                }
+            });
+        }
+        
+        // Create a new empty sequence
+        function createNewSequence() {
+            currentSequence = {
+                id: 'new_sequence_' + Date.now(),
+                name: 'New Sequence',
+                description: '',
+                steps: []
+            };
+            
+            // Fill form
+            $('#sequenceId').val(currentSequence.id);
+            $('#sequenceName').val(currentSequence.name);
+            $('#sequenceDescription').val(currentSequence.description);
+            
+            // Enable save button, disable others
+            $('#saveSequenceBtn').prop('disabled', false);
+            $('#deleteSequenceBtn').prop('disabled', true);
+            $('#playBtn').prop('disabled', true);
+            
+            // Update steps list (empty)
+            updateStepsList();
+        }
+        
+        // Update steps list in the UI
+        function updateStepsList() {
+            const $stepsList = $('#stepsList');
+            $stepsList.empty();
+            
+            if (currentSequence.steps.length === 0) {
+                $stepsList.append(`
+                    <div class="list-group-item text-center text-muted" id="noStepsMessage">
+                        No steps added yet
+                    </div>
+                `);
+                return;
+            }
+            
+            // Add each step to the list
+            currentSequence.steps.forEach((step, index) => {
+                let stepDescription = getStepDescription(step);
+                
+                $stepsList.append(`
+                    <div class="list-group-item d-flex justify-content-between align-items-center" data-index="${index}">
+                        <div>
+                            <span class="badge ${getStepBadgeClass(step.action)}">${step.action}</span>
+                            <span>${stepDescription}</span>
+                            ${step.delay_after ? `<small class="text-muted ms-2">(Delay after: ${step.delay_after}ms)</small>` : ''}
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-primary edit-step-btn">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger delete-step-btn">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `);
+            });
+        }
+        
+        // Get description text for a step based on its type and parameters
+        function getStepDescription(step) {
+            switch(step.action) {
+                case 'stepper_move':
+                    return `Move ${step.direction} ${step.steps} steps`;
+                case 'fire':
+                    return `Fire for ${step.duration}ms`;
+                case 'fire_fiber':
+                    return 'Start fiber sequence (A-B-A-B)';
+                case 'stop_fire':
+                    return 'Stop firing';
+                case 'wait':
+                    return `Wait for ${step.duration}ms`;
+                case 'wait_input':
+                    const inputName = getInputTypeName(step.input_type);
+                    const timeout = step.timeout ? `(timeout: ${step.timeout}ms)` : '(no timeout)';
+                    return `Wait for input: ${inputName} ${timeout}`;
+                case 'fan_on':
+                    return 'Turn fan on';
+                case 'fan_off':
+                    return 'Turn fan off';
+                case 'lights_on':
+                    return 'Turn lights on';
+                case 'lights_off':
+                    return 'Turn lights off';
+                case 'table_forward':
+                    return `Move table forward for ${step.duration}ms`;
+                case 'table_backward':
+                    return `Move table backward for ${step.duration}ms`;
+                default:
+                    return 'Unknown step';
+            }
+        }
+        
+        // Get a human-readable name for an input type
+        function getInputTypeName(inputType) {
+            switch(inputType) {
+                case 'button_in':
+                    return 'IN Button';
+                case 'button_out':
+                    return 'OUT Button';
+                case 'fire_button':
+                    return 'FIRE Button';
+                case 'table_front_limit':
+                    return 'Table Front Limit Switch';
+                case 'table_back_limit':
+                    return 'Table Back Limit Switch';
+                default:
+                    return inputType;
+            }
+        }
+        
+        // Get CSS class for step badge
+        function getStepBadgeClass(action) {
+            switch(action) {
+                case 'stepper_move':
+                    return 'bg-primary';
+                case 'fire':
+                    return 'bg-danger';
+                case 'fire_fiber':
+                    return 'bg-danger';
+                case 'stop_fire':
+                    return 'bg-success';
+                case 'wait':
+                    return 'bg-warning';
+                case 'wait_input':
+                    return 'bg-info';
+                case 'fan_on':
+                case 'fan_off':
+                case 'lights_on':
+                case 'lights_off':
+                    return 'bg-info';
+                case 'table_forward':
+                case 'table_backward':
+                    return 'bg-secondary';
+                default:
+                    return 'bg-dark';
+            }
+        }
+        
+        // Get step parameters from the form
+        function getStepParams() {
+            const stepType = $('#stepType').val();
+            const params = {
+                action: stepType,
+                delay_after: parseInt($('#delayAfter').val()) || 0
+            };
+            
+            switch(stepType) {
+                case 'stepper_move':
+                    params.direction = $('input[name="direction"]:checked').val();
+                    params.steps = parseInt($('#steps').val());
+                    break;
+                case 'fire':
+                    params.duration = parseInt($('#duration').val());
+                    break;
+                case 'fire_fiber':
+                    // No additional parameters needed
+                    break;
+                case 'wait':
+                    params.duration = parseInt($('#waitDuration').val());
+                    break;
+                case 'wait_input':
+                    params.input_type = $('#inputType').val();
+                    params.timeout = parseInt($('#inputTimeout').val()) || 0;
+                    break;
+                case 'table_forward':
+                case 'table_backward':
+                    params.duration = parseInt($('#tableDuration').val());
+                    break;
+            }
+            
+            return params;
+        }
+        
+        // Get step parameters from the edit form
+        function getEditStepParams() {
+            const stepType = $('#editStepType').val();
+            const params = {
+                action: stepType,
+                delay_after: parseInt($('#editDelayAfter').val()) || 0
+            };
+            
+            switch(stepType) {
+                case 'stepper_move':
+                    params.direction = $('input[name="editDirection"]:checked').val();
+                    params.steps = parseInt($('#editSteps').val());
+                    break;
+                case 'fire':
+                    params.duration = parseInt($('#editDuration').val());
+                    break;
+                case 'fire_fiber':
+                    // No additional parameters needed
+                    break;
+                case 'wait':
+                    params.duration = parseInt($('#editWaitDuration').val());
+                    break;
+                case 'wait_input':
+                    params.input_type = $('#editInputType').val();
+                    params.timeout = parseInt($('#editInputTimeout').val()) || 0;
+                    break;
+                case 'table_forward':
+                case 'table_backward':
+                    params.duration = parseInt($('#editTableDuration').val());
+                    break;
+            }
+            
+            return params;
+        }
+        
+        // Set edit form values based on step data
+        function setEditStepValues(step) {
+            $('#editStepType').val(step.action);
+            $('#editDelayAfter').val(step.delay_after || 0);
+            
+            // Populate parameters for the step type
+            populateStepParams(step.action, $('#editStepParams'));
+            
+            // Set specific parameter values based on step type
+            switch(step.action) {
+                case 'stepper_move':
+                    $(`input[name="editDirection"][value="${step.direction}"]`).prop('checked', true);
+                    $('#editSteps').val(step.steps);
+                    break;
+                case 'fire':
+                    $('#editDuration').val(step.duration);
+                    break;
+                case 'fire_fiber':
+                    // No parameters to set
+                    break;
+                case 'wait':
+                    $('#editWaitDuration').val(step.duration);
+                    break;
+                case 'wait_input':
+                    $('#editInputType').val(step.input_type);
+                    $('#editInputTimeout').val(step.timeout || 30000);
+                    break;
+                case 'table_forward':
+                case 'table_backward':
+                    $('#editTableDuration').val(step.duration);
+                    break;
+            }
+        }
+        
+        // Update status display for sequence execution
+        function updateStatus() {
+            $.ajax({
+                url: '/sequences/status',
+                type: 'GET',
+                success: function(response) {
+                    if (response.status === 'success') {
+                        const sequenceStatus = response.sequence_status;
+                        
+                        // Update status displays
+                        $('#sequenceStatus').text(sequenceStatus.status);
+                        $('#currentStep').text(sequenceStatus.current_step > 0 ? 
+                                               `${sequenceStatus.current_step} of ${sequenceStatus.total_steps}` : 
+                                               '-');
+                        $('#currentSequence').text(sequenceStatus.sequence_name || 'None');
+                        
+                        // Update progress bar
+                        $('#sequenceProgress').css('width', `${sequenceStatus.progress_percent}%`);
+                        $('#sequenceProgress').text(`${sequenceStatus.progress_percent}%`);
+                        
+                        // Update log
+                        updateExecutionLog(sequenceStatus.execution_log);
+                        
+                        // Update button states based on status
+                        if (sequenceStatus.status === 'RUNNING') {
+                            $('#playBtn').prop('disabled', true);
+                            $('#pauseBtn').prop('disabled', false);
+                            $('#stopBtn').prop('disabled', false);
+                        } else if (sequenceStatus.status === 'PAUSED') {
+                            $('#playBtn').prop('disabled', false);
+                            $('#pauseBtn').prop('disabled', true);
+                            $('#stopBtn').prop('disabled', false);
+                        } else {
+                            // IDLE, COMPLETED, ERROR
+                            $('#playBtn').prop('disabled', runningSequenceId === null);
+                            $('#pauseBtn').prop('disabled', true);
+                            $('#stopBtn').prop('disabled', true);
+                            
+                            // Clear running sequence if complete/error/idle
+                            if (sequenceStatus.status !== 'PAUSED') {
+                                runningSequenceId = null;
+                            }
+                            
+                            // Clear status update interval if sequence is done
+                            if (sequenceStatus.status === 'COMPLETED' || 
+                                sequenceStatus.status === 'ERROR' || 
+                                sequenceStatus.status === 'IDLE') {
+                                clearInterval(statusInterval);
+                                statusInterval = null;
+                            }
+                        }
+                    } else {
+                        console.error('Error getting sequence status:', response.message);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error getting sequence status:', error);
+                }
+            });
+        }
+        
+        // Update the execution log display
+        function updateExecutionLog(logs) {
+            const $log = $('#executionLog');
+            $log.empty();
+            
+            if (!logs || logs.length === 0) {
+                $log.append(`
+                    <div class="list-group-item">
+                        <small class="text-muted">Execution log will appear here</small>
+                    </div>
+                `);
+                return;
+            }
+            
+            logs.forEach(log => {
+                $log.append(`
+                    <div class="list-group-item">
+                        <small>${log}</small>
+                    </div>
+                `);
+            });
+            
+            // Scroll to bottom
+            $log.scrollTop($log[0].scrollHeight);
+        }
+        
+        // Event Handlers
+        
+        // Step Type Change
+        $('#stepType').change(function() {
+            const stepType = $(this).val();
+            if (stepType) {
+                populateStepParams(stepType, $('#stepParams'));
+            } else {
+                $('#stepParams').empty();
+            }
+        });
+        
+        // Edit Step Type Change
+        $('#editStepType').change(function() {
+            const stepType = $(this).val();
+            if (stepType) {
+                populateStepParams(stepType, $('#editStepParams'));
+            } else {
+                $('#editStepParams').empty();
+            }
+        });
+        
+        // New Sequence Button
+        $('#newSequenceBtn').click(function() {
+            createNewSequence();
+        });
+        
+        // Add Step Button
+        $('#addStepBtn').click(function() {
+            // Reset form
+            $('#stepType').val('');
+            $('#stepParams').empty();
+            $('#delayAfter').val(0);
+            
+            // Show modal
+            $('#addStepModal').modal('show');
+        });
+        
+        // Save Step Button
+        $('#saveStepBtn').click(function() {
+            const stepType = $('#stepType').val();
+            
+            if (!stepType) {
+                alert('Please select a step type');
+                return;
+            }
+            
+            // Get step parameters
+            const stepParams = getStepParams();
+            
+            // Add to current sequence
+            currentSequence.steps.push(stepParams);
+            
+            // Update UI
+            updateStepsList();
+            
+            // Hide modal
+            $('#addStepModal').modal('hide');
+        });
+        
+        // Edit Step Button
+        $(document).on('click', '.edit-step-btn', function() {
+            const stepIndex = $(this).closest('.list-group-item').data('index');
+            const step = currentSequence.steps[stepIndex];
+            
+            // Store index for update
+            $('#editStepIndex').val(stepIndex);
+            
+            // Set form values
+            $('#editStepType').val(step.action);
+            setEditStepValues(step);
+            
+            // Show modal
+            $('#editStepModal').modal('show');
+        });
+        
+        // Update Step Button
+        $('#updateStepBtn').click(function() {
+            const stepIndex = parseInt($('#editStepIndex').val());
+            const stepType = $('#editStepType').val();
+            
+            if (!stepType) {
+                alert('Please select a step type');
+                return;
+            }
+            
+            // Get step parameters
+            const stepParams = getEditStepParams();
+            
+            // Update step in current sequence
+            currentSequence.steps[stepIndex] = stepParams;
+            
+            // Update UI
+            updateStepsList();
+            
+            // Hide modal
+            $('#editStepModal').modal('hide');
+        });
+        
+        // Delete Step Button
+        $(document).on('click', '.delete-step-btn', function() {
+            if (confirm('Are you sure you want to delete this step?')) {
+                const stepIndex = $(this).closest('.list-group-item').data('index');
+                
+                // Remove step from current sequence
+                currentSequence.steps.splice(stepIndex, 1);
+                
+                // Update UI
+                updateStepsList();
+            }
+        });
+        
+        // Save Sequence Button
+        $('#saveSequenceBtn').click(function() {
+            // Update sequence data from form
+            currentSequence.name = $('#sequenceName').val();
+            currentSequence.description = $('#sequenceDescription').val();
+            
+            if (!currentSequence.name) {
+                alert('Please enter a sequence name');
+                return;
+            }
+            
+            // Save sequence
+            $.ajax({
+                url: '/sequences/save',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    sequence_id: currentSequence.id,
+                    sequence_data: currentSequence
+                }),
+                success: function(response) {
+                    if (response.status === 'success') {
+                        alert('Sequence saved successfully');
+                        
+                        // Reload sequences list
+                        window.location.reload();
+                    } else {
+                        alert('Error saving sequence: ' + response.message);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert('Error saving sequence: ' + error);
+                }
+            });
+        });
+        
+        // Delete Sequence Button
+        $('#deleteSequenceBtn').click(function() {
+            if (confirm('Are you sure you want to delete this sequence?')) {
+                const sequenceId = $('#sequenceId').val();
+                
+                // Delete sequence
+                $.ajax({
+                    url: `/sequences/delete/${sequenceId}`,
+                    type: 'POST',
+                    success: function(response) {
+                        if (response.status === 'success') {
+                            alert('Sequence deleted successfully');
+                            
+                            // Reload sequences list
+                            window.location.reload();
+                        } else {
+                            alert('Error deleting sequence: ' + response.message);
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        alert('Error deleting sequence: ' + error);
+                    }
+                });
+            }
+        });
+        
+        // Load Sequence
+        $(document).on('click', '.sequence-item', function() {
+            const sequenceId = $(this).data('id');
+            loadSequence(sequenceId);
+        });
+        
+        // Play Button
+        $('#playBtn').click(function() {
+            const sequenceId = $('#sequenceId').val();
+            
+            if (runningSequenceId === null) {
+                // Start a new sequence
+                $.ajax({
+                    url: `/sequences/run/${sequenceId}`,
+                    type: 'POST',
+                    success: function(response) {
+                        if (response.status === 'success') {
+                            runningSequenceId = sequenceId;
+                            
+                            // Update buttons
+                            $('#playBtn').prop('disabled', true);
+                            $('#pauseBtn').prop('disabled', false);
+                            $('#stopBtn').prop('disabled', false);
+                            
+                            // Start status updates
+                            if (!statusInterval) {
+                                statusInterval = setInterval(updateStatus, 500);
+                            }
+                        } else {
+                            alert('Error starting sequence: ' + response.message);
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        alert('Error starting sequence: ' + error);
+                    }
+                });
+            } else {
+                // Resume a paused sequence
+                $.ajax({
+                    url: '/sequences/resume',
+                    type: 'POST',
+                    success: function(response) {
+                        if (response.status === 'success') {
+                            // Update buttons
+                            $('#playBtn').prop('disabled', true);
+                            $('#pauseBtn').prop('disabled', false);
+                        } else {
+                            alert('Error resuming sequence: ' + response.message);
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        alert('Error resuming sequence: ' + error);
+                    }
+                });
+            }
+        });
+        
+        // Pause Button
+        $('#pauseBtn').click(function() {
+            $.ajax({
+                url: '/sequences/pause',
+                type: 'POST',
+                success: function(response) {
+                    if (response.status === 'success') {
+                        // Update buttons
+                        $('#playBtn').prop('disabled', false);
+                        $('#pauseBtn').prop('disabled', true);
+                    } else {
+                        alert('Error pausing sequence: ' + response.message);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert('Error pausing sequence: ' + error);
+                }
+            });
+        });
+        
+        // Stop Button
+        $('#stopBtn').click(function() {
+            $.ajax({
+                url: '/sequences/stop',
+                type: 'POST',
+                success: function(response) {
+                    if (response.status === 'success') {
+                        runningSequenceId = null;
+                        
+                        // Update buttons
+                        $('#playBtn').prop('disabled', false);
+                        $('#pauseBtn').prop('disabled', true);
+                        $('#stopBtn').prop('disabled', true);
+                        
+                        // Get final status
+                        updateStatus();
+                        
+                        // Stop updates
+                        clearInterval(statusInterval);
+                        statusInterval = null;
+                    } else {
+                        alert('Error stopping sequence: ' + response.message);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert('Error stopping sequence: ' + error);
+                }
+            });
+        });
+        
+        // Initial update of sequence status
+        updateStatus();
+    });
+</script>
+{% endblock %}

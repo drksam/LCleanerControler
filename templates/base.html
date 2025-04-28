@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NooyenLaserRoom - {% block title %}Control System{% endblock %}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    
+    <style>
+        body {
+            min-height: 100vh;
+            padding-top: 70px; /* Increased padding to prevent content overlap */
+            display: flex;
+            flex-direction: column;
+            background-color: var(--bs-dark);
+            color: var(--bs-light);
+        }
+        
+        .main-content {
+            flex: 1;
+            padding-bottom: 20px; /* Add padding at bottom for better spacing */
+        }
+        
+        .navbar-brand {
+            font-weight: bold;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+        
+        .status-indicator.online {
+            background-color: var(--bs-success);
+        }
+        
+        .status-indicator.offline {
+            background-color: var(--bs-danger);
+        }
+        
+        .status-indicator.warning {
+            background-color: var(--bs-warning);
+        }
+        
+        .sidebar {
+            background-color: var(--bs-gray-900);
+            height: 100%;
+        }
+        
+        .card {
+            background-color: var(--bs-gray-900);
+            border-color: var(--bs-gray-800);
+            margin-bottom: 20px;
+        }
+        
+        .card-header {
+            background-color: var(--bs-gray-800);
+            border-color: var(--bs-gray-700);
+        }
+        
+        .nav-pills .nav-link {
+            color: var(--bs-light);
+        }
+        
+        .nav-pills .nav-link.active {
+            background-color: var(--bs-primary);
+        }
+        
+        .table {
+            color: var(--bs-light);
+        }
+        
+        /* Access Badge Styling */
+        .access-badge {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            z-index: 1030;
+            border-radius: 8px;
+            padding: 8px 15px;
+            font-weight: bold;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            display: none;
+        }
+        
+        .access-badge.granted {
+            background-color: var(--bs-success);
+            color: white;
+        }
+        
+        .access-badge.denied {
+            background-color: var(--bs-danger);
+            color: white;
+        }
+        
+        /* Custom additional styling */
+        {% block additional_styles %}{% endblock %}
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <i class="fas fa-laser-pointer me-2"></i>NooyenLaserRoom
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link {% if page == 'operation' %}active{% endif %}" href="{{ url_for('index') }}">
+                            <i class="fas fa-home me-1"></i> Operation
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if page == 'cleaning_head' %}active{% endif %}" href="{{ url_for('cleaning_head') }}">
+                            <i class="fas fa-arrows-alt me-1"></i> Cleaning Head
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if page == 'trigger_servo' %}active{% endif %}" href="{{ url_for('trigger_servo') }}">
+                            <i class="fas fa-cog me-1"></i> Trigger Servo
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if page == 'table' %}active{% endif %}" href="{{ url_for('table') }}">
+                            <i class="fas fa-table me-1"></i> Table
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if page == 'statistics' %}active{% endif %}" href="{{ url_for('statistics') }}">
+                            <i class="fas fa-chart-bar me-1"></i> Statistics
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if page == 'sequences' %}active{% endif %}" href="{{ url_for('sequences') }}">
+                            <i class="fas fa-list-ol me-1"></i> Sequences
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if page == 'temperature' %}active{% endif %}" href="{{ url_for('temperature') }}">
+                            <i class="fas fa-thermometer-half me-1"></i> Temperature
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if page == 'settings' %}active{% endif %}" href="{{ url_for('settings') }}">
+                            <i class="fas fa-sliders-h me-1"></i> Settings
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if page == 'pinout' %}active{% endif %}" href="{{ url_for('pinout') }}">
+                            <i class="fas fa-microchip me-1"></i> Pinout
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if page == 'rfid' %}active{% endif %}" href="{{ url_for('rfid') }}">
+                            <i class="fas fa-id-card me-1"></i> RFID Access
+                        </a>
+                    </li>
+                </ul>
+                
+                <ul class="navbar-nav ms-auto">
+                    {% if current_user.is_authenticated %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user me-1"></i> {{ current_user.username }} 
+                            <span class="badge {% if current_user.access_level == 'admin' %}bg-danger{% else %}bg-primary{% endif %}">
+                                {{ current_user.access_level }}
+                            </span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
+                            <li><a class="dropdown-item" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                        </ul>
+                    </li>
+                    {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('login') }}">
+                            <i class="fas fa-sign-in-alt me-1"></i> Login
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Access Badge (shows when access is granted/denied) -->
+    <div id="access-badge" class="access-badge">
+        <i class="fas fa-check-circle me-1"></i> <span id="access-badge-text">Access Granted</span>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="container-fluid main-content py-4">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <!-- Content Block -->
+        {% block content %}{% endblock %}
+        
+        <!-- Global Status Log -->
+        <div class="card mt-4">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">System Status Log</h5>
+                {% if current_user.is_authenticated and current_user.access_level == 'admin' %}
+                <button class="btn btn-sm btn-outline-light" id="clear-status-log">Clear</button>
+                {% endif %}
+            </div>
+            <div class="card-body p-2" style="background-color: #212529; max-height: 200px; overflow-y: auto;">
+                <div id="status-log">
+                    <!-- Log entries will be loaded from localStorage -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-light py-3 text-center">
+        <div class="container">
+            <small>
+                NooyenLaserRoom Control System &copy; 2025 - Part of the Nooyen Machine Suite
+            </small>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Common scripts -->
+    <script>
+        // Persistent log storage using localStorage
+        const LOG_STORAGE_KEY = 'nooyenLaserRoom_log';
+        const MAX_LOG_ITEMS = 50;
+        
+        // Load logs from localStorage
+        function loadLogsFromStorage() {
+            try {
+                const storedLogs = localStorage.getItem(LOG_STORAGE_KEY);
+                return storedLogs ? JSON.parse(storedLogs) : [];
+            } catch (error) {
+                console.error('Error loading logs from storage:', error);
+                return [];
+            }
+        }
+        
+        // Save logs to localStorage
+        function saveLogsToStorage(logs) {
+            try {
+                // Ensure we don't exceed max items
+                const trimmedLogs = logs.slice(0, MAX_LOG_ITEMS);
+                localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(trimmedLogs));
+            } catch (error) {
+                console.error('Error saving logs to storage:', error);
+            }
+        }
+        
+        // Clear logs from localStorage
+        function clearLogsFromStorage() {
+            try {
+                localStorage.removeItem(LOG_STORAGE_KEY);
+            } catch (error) {
+                console.error('Error clearing logs from storage:', error);
+            }
+        }
+        
+        // Add timestamp to messages
+        function getTimestampedMessage(message) {
+            const now = new Date();
+            const timestamp = now.toLocaleTimeString();
+            return `${timestamp} - ${message}`;
+        }
+        
+        // Render logs to the DOM
+        function renderLogs() {
+            const statusLog = document.getElementById('status-log');
+            if (!statusLog) return;
+            
+            // Clear current DOM logs
+            statusLog.innerHTML = '';
+            
+            // Get logs from storage
+            const logs = loadLogsFromStorage();
+            
+            // Render logs in reverse order (newest first)
+            logs.forEach(log => {
+                const logItem = document.createElement('div');
+                logItem.className = log.className;
+                logItem.textContent = log.message;
+                statusLog.appendChild(logItem);
+            });
+        }
+        
+        // Global log function available to all components
+        window.addLogMessage = function(message, isError = false, logType = 'info') {
+            console.log(message);
+            
+            // Determine log item styling
+            let className;
+            if (isError) {
+                className = 'alert alert-danger mb-1 py-1 small';
+            } else if (logType === 'success') {
+                className = 'alert alert-success mb-1 py-1 small';
+            } else if (logType === 'action') {
+                className = 'alert alert-primary mb-1 py-1 small';
+            } else if (logType === 'config') {
+                className = 'alert alert-warning mb-1 py-1 small text-dark';
+            } else {
+                className = 'alert alert-info mb-1 py-1 small';
+            }
+            
+            // Add timestamp to message
+            const timestampedMessage = getTimestampedMessage(message);
+            
+            // Create log object
+            const logItem = {
+                message: timestampedMessage,
+                className: className,
+                timestamp: new Date().getTime()
+            };
+            
+            // Get existing logs
+            const logs = loadLogsFromStorage();
+            
+            // Add new log at the beginning
+            logs.unshift(logItem);
+            
+            // Trim logs if needed
+            if (logs.length > MAX_LOG_ITEMS) {
+                logs.length = MAX_LOG_ITEMS;
+            }
+            
+            // Save updated logs
+            saveLogsToStorage(logs);
+            
+            // Update the DOM if status log exists
+            const statusLog = document.getElementById('status-log');
+            if (statusLog) {
+                const domLogItem = document.createElement('div');
+                domLogItem.className = className;
+                domLogItem.textContent = timestampedMessage;
+                statusLog.insertBefore(domLogItem, statusLog.firstChild);
+                
+                // Limit visible DOM log items for performance
+                const items = statusLog.children;
+                if (items.length > MAX_LOG_ITEMS) {
+                    for (let i = MAX_LOG_ITEMS; i < items.length; i++) {
+                        statusLog.removeChild(items[i]);
+                    }
+                }
+            }
+        };
+        
+        // Check RFID authentication status periodically
+        function checkAuthStatus() {
+            fetch('/api/rfid/status')
+                .then(response => response.json())
+                .then(data => {
+                    const badge = document.getElementById('access-badge');
+                    const badgeText = document.getElementById('access-badge-text');
+                    
+                    if (data.authenticated) {
+                        badge.className = 'access-badge granted';
+                        badgeText.textContent = `Access Granted: ${data.user.username}`;
+                        badge.style.display = 'block';
+                        
+                        // Hide after 5 seconds
+                        setTimeout(() => {
+                            badge.style.display = 'none';
+                        }, 5000);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking auth status:', error);
+                });
+        }
+        
+        // Check status when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initial status check
+            checkAuthStatus();
+            
+            // Check every 30 seconds
+            setInterval(checkAuthStatus, 30000);
+            
+            // Load and render existing logs
+            renderLogs();
+            
+            // Set up clear log button
+            const clearLogButton = document.getElementById('clear-status-log');
+            if (clearLogButton) {
+                clearLogButton.addEventListener('click', function() {
+                    const statusLog = document.getElementById('status-log');
+                    if (statusLog) {
+                        // Clear DOM
+                        statusLog.innerHTML = '';
+                        
+                        // Clear storage
+                        clearLogsFromStorage();
+                        
+                        // Add "Log cleared" message
+                        window.addLogMessage('Log cleared.', false, 'info');
+                    }
+                });
+            }
+            
+            // Add initialization message if logs are empty
+            const logs = loadLogsFromStorage();
+            if (logs.length === 0) {
+                window.addLogMessage('System initialized and ready.', false, 'info');
+            }
+        });
+    </script>
+    
+    <!-- Page-specific scripts -->
+    {% block scripts %}{% endblock %}
+</body>
+</html>

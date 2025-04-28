@@ -1,0 +1,189 @@
+/* Additional custom styles */
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.15);
+}
+
+#position-display {
+    font-size: 3rem;
+    font-weight: bold;
+    margin: 0.5rem 0;
+}
+
+#status-log {
+    font-family: monospace;
+    background-color: #212529;
+}
+
+.btn-lg {
+    padding: 0.75rem 1.25rem;
+}
+
+/* Custom progress bar styling */
+.progress {
+    height: 1rem;
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+.progress-bar {
+    transition: width 0.3s ease;
+}
+
+/* Button hover effects */
+.btn {
+    transition: all 0.2s ease;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.btn:active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+/* Switch toggle styling */
+.form-switch .form-check-input {
+    width: 3em;
+    height: 1.5em;
+}
+
+/* Card header icons */
+.card-header i {
+    margin-right: 0.5rem;
+}
+
+/* Responsive padding adjustments */
+@media (max-width: 768px) {
+    .container {
+        padding: 0.5rem;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+}
+
+/* Dropdown Menu Enhancements */
+.dropdown-item.active, 
+.dropdown-item:active {
+    background-color: var(--bs-primary);
+    color: white;
+}
+
+.navbar-nav .dropdown-menu {
+    background-color: var(--bs-dark);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.dropdown-item {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.dropdown-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+/* Custom Pinout Styles */
+#pinout-grid-container {
+    background-color: #121212; /* Darker background for better contrast */
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 30px;
+    position: relative;
+}
+
+.pin-outline {
+    position: absolute;
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.9em;
+    cursor: pointer;
+    z-index: 10;
+    border: 2px solid rgba(255, 255, 255, 0.2); /* Add border to all pins for visibility */
+}
+
+.pin-outline[data-pin-type="3V3"] {
+    background-color: #ff5722; /* Orange-red */
+}
+
+.pin-outline[data-pin-type="5V"] {
+    background-color: #e91e63; /* Pink */
+}
+
+.pin-outline[data-pin-type="GND"] {
+    background-color: #212121; /* Almost black */
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.5); /* Brighter border for ground pins */
+}
+
+.pin-outline[data-pin-type="GPIO"] {
+    background-color: #4caf50; /* Green */
+}
+
+.pin-outline[data-pin-type="SPI"] {
+    background-color: #9c27b0; /* Purple */
+}
+
+.pin-outline[data-pin-type="I2C"] {
+    background-color: #2196f3; /* Blue */
+}
+
+.pin-outline[data-pin-type="UART"] {
+    background-color: #ff9800; /* Orange */
+}
+
+.pin-outline[data-pin-type="PWM"] {
+    background-color: #00bcd4; /* Cyan */
+}
+
+.pin-outline[data-pin-type="other"] {
+    background-color: #757575; /* Gray */
+}
+
+.pin-outline.pin-used {
+    border: 3px solid #ffeb3b; /* Yellow border for pins in use */
+    box-shadow: 0 0 5px rgba(255, 235, 59, 0.7); /* Add glow effect */
+}
+
+.pin-outline:hover {
+    transform: scale(1.2);
+    z-index: 20;
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+}
+
+.pin-tooltip {
+    position: absolute;
+    background-color: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 0.9em;
+    z-index: 30;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s, visibility 0.3s;
+    pointer-events: none;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+}
+
+.pin-outline:hover .pin-tooltip {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Basic board outline */
+.board-outline {
+    position: absolute;
+    background-color: #121212; /* Match with container */
+    border: 2px solid #444; /* Lighter border for visibility */
+    border-radius: 10px;
+    z-index: 1;
+}

@@ -1,0 +1,650 @@
+"""
+GPIO Controller Wrapper for NooyenLaserRoom application.
+This module provides wrapper classes for GPIOController library to replace gpiozero.
+"""
+import os
+import time
+import logging
+import threading
+from typing import Optional, Callable, Dict, Any
+
+# Conditional import for GPIOController
+try:
+    from gpioctrl import GPIOController
+    GPIOCTRL_AVAILABLE = True
+except ImportError:
+    GPIOCTRL_AVAILABLE = False
+    logging.warning("GPIOController library not available. Simulation mode will be used.")
+
+# Conditional import for local GPIO control via gpiod
+try:
+    import gpiod
+    GPIOD_AVAILABLE = True
+except ImportError:
+    GPIOD_AVAILABLE = False
+    logging.warning("gpiod library not available. Local GPIO will use simulation mode.")
+
+class ServoWrapper:
+    """
+    Wrapper for GPIOController servo functionality to replace gpiozero.AngularServo.
+    Implements compatible functionality while using GPIOController under the hood.
+    """
+    
+    def __init__(self, 
+                 pin, 
+                 initial_angle=0,
+                 min_angle=-90, 
+                 max_angle=90, 
+                 min_pulse_width=0.5/1000, 
+                 max_pulse_width=2.5/1000,
+                 frame_width=20/1000,
+                 simulation_mode=False,
+                 serial_port="/dev/ttyUSB0"):
+        """
+        Initialize the servo wrapper.
+        
+        Args:
+            pin: GPIO pin number for the servo
+            initial_angle: Initial angle to set
+            min_angle: Minimum allowed angle
+            max_angle: Maximum allowed angle
+            min_pulse_width: Minimum pulse width (for compatibility, not used)
+            max_pulse_width: Maximum pulse width (for compatibility, not used)
+            frame_width: Frame width (for compatibility, not used)
+            simulation_mode: Whether to run in simulation mode
+            serial_port: Serial port for the GPIOController
+        """
+        self.pin = pin
+        self.min_angle = min_angle
+        self.max_angle = max_angle
+        self._angle = initial_angle
+        self.simulation_mode = simulation_mode
+        self.serial_port = serial_port
+        self._controller = None
+        
+        # Initialize controller if not in simulation mode
+        if not simulation_mode and GPIOCTRL_AVAILABLE:
+            try:
+                self._controller = GPIOController(port=serial_port)
+                # Set initial angle
+                self._controller.set_servo(pin=pin, angle=initial_angle)
+                logging.info(f"Initialized ServoWrapper with GPIOController on pin {pin}")
+            except Exception as e:
+                logging.error(f"Failed to initialize GPIOController: {e}")
+                self.simulation_mode = True
+        else:
+            self.simulation_mode = True
+            logging.info(f"ServoWrapper initialized in simulation mode")
+    
+    @property
+    def angle(self):
+        """Get the current angle."""
+        return self._angle
+    
+    @angle.setter
+    def angle(self, value):
+        """Set the servo angle."""
+        # Clamp value to min/max
+        if value < self.min_angle:
+            value = self.min_angle
+        elif value > self.max_angle:
+            value = self.max_angle
+            
+        self._angle = value
+        
+        if not self.simulation_mode and self._controller:
+            try:
+                self._controller.set_servo(pin=self.pin, angle=value)
+                logging.debug(f"Set servo on pin {self.pin} to {value} degrees")
+            except Exception as e:
+                logging.error(f"Failed to set servo angle: {e}")
+        else:
+            logging.debug(f"Simulation: Set servo on pin {self.pin} to {value} degrees")
+    
+    def close(self):
+        """Close and cleanup the servo."""
+        if not self.simulation_mode and self._controller:
+            try:
+                # Set servo to middle position to minimize power consumption
+                middle_position = (self.min_angle + self.max_angle) / 2
+                self._controller.set_servo(pin=self.pin, angle=middle_position)
+                time.sleep(0.5)  # Give servo time to move
+                # No explicit detach method in GPIOController, but stop will clean up
+                self._controller.stop()
+                logging.info(f"Closed servo on pin {self.pin}")
+            except Exception as e:
+                logging.error(f"Error closing servo: {e}")
+        else:
+            logging.debug(f"Simulation: Closed servo on pin {self.pin}")
+
+
+class StepperWrapper:
+    """
+    Wrapper for GPIOController stepper functionality to replace our current implementation.
+    """
+    
+    def __init__(self, 
+                 step_pin, 
+                 dir_pin, 
+                 enable_pin=None,
+                 min_position=-1000, 
+                 max_position=1000,
+                 simulation_mode=False,
+                 serial_port="/dev/ttyUSB0"):
+        """
+        Initialize the stepper wrapper.
+        
+        Args:
+            step_pin: Step pin number
+            dir_pin: Direction pin number
+            enable_pin: Enable pin number (optional)
+            min_position: Minimum allowed position
+            max_position: Maximum allowed position
+            simulation_mode: Whether to run in simulation mode
+            serial_port: Serial port for the GPIOController
+        """
+        self.step_pin = step_pin
+        self.dir_pin = dir_pin
+        self.enable_pin = enable_pin if enable_pin else 0
+        self.min_position = min_position
+        self.max_position = max_position
+        self.simulation_mode = simulation_mode
+        self.serial_port = serial_port
+        self._controller = None
+        self._position = 0
+        self._stepper_id = 0  # Default stepper ID
+        self._enabled = False
+        self.lock = threading.Lock()
+        self._moving = False
+        self._speed = 1000  # Default speed
+        
+        # Initialize controller if not in simulation mode
+        if not simulation_mode and GPIOCTRL_AVAILABLE:
+            try:
+                self._controller = GPIOController(port=serial_port)
+                # Initialize stepper
+                self._controller.init_stepper(
+                    id=self._stepper_id,
+                    step_pin=step_pin,
+                    dir_pin=dir_pin,
+                    limit_a=0,  # Not using limit switches via GPIOController
+                    limit_b=0,  # Not using limit switches via GPIOController
+                    home=0,     # Not using home switch via GPIOController
+                    min_limit=min_position,
+                    max_limit=max_position,
+                    enable_pin=self.enable_pin
+                )
+                logging.info(f"Initialized StepperWrapper with GPIOController")
+            except Exception as e:
+                logging.error(f"Failed to initialize GPIOController for stepper: {e}")
+                self.simulation_mode = True
+        else:
+            self.simulation_mode = True
+            logging.info(f"StepperWrapper initialized in simulation mode")
+    
+    def enable(self):
+        """Enable the stepper motor."""
+        with self.lock:
+            if self.simulation_mode:
+                logging.debug("Simulation: Stepper motor enabled")
+                self._enabled = True
+                return True
+                
+            if self._controller:
+                try:
+                    # GPIOController doesn't have a dedicated enable method,
+                    # but we can use move_stepper with 0 steps to enable
+                    self._controller.move_stepper(
+                        id=self._stepper_id, 
+                        steps=0, 
+                        direction=1, 
+                        speed=self._speed
+                    )
+                    self._enabled = True
+                    logging.info("Stepper motor enabled")
+                    return True
+                except Exception as e:
+                    logging.error(f"Failed to enable stepper motor: {e}")
+                    return False
+            return False
+    
+    def disable(self):
+        """Disable the stepper motor."""
+        with self.lock:
+            if self.simulation_mode:
+                logging.debug("Simulation: Stepper motor disabled")
+                self._enabled = False
+                return True
+                
+            if self._controller:
+                try:
+                    # GPIOController doesn't have a dedicated disable method,
+                    # but we can stop the stepper which should release it
+                    self._controller.stop_stepper(id=self._stepper_id)
+                    self._enabled = False
+                    logging.info("Stepper motor disabled")
+                    return True
+                except Exception as e:
+                    logging.error(f"Failed to disable stepper motor: {e}")
+                    return False
+            return False
+    
+    def move_steps(self, steps, direction, wait=False):
+        """
+        Move the stepper a specified number of steps in the given direction.
+        
+        Args:
+            steps: Number of steps to move
+            direction: 1 for forward, 0 for backward
+            wait: Whether to wait for the movement to complete
+        
+        Returns:
+            True if the movement was started successfully, False otherwise
+        """
+        with self.lock:
+            if not self._enabled:
+                logging.warning("Cannot move: Stepper motor is disabled")
+                return False
+            
+            if self.simulation_mode:
+                # Update position in simulation mode
+                step_change = steps * (1 if direction == 1 else -1)
+                new_position = self._position + step_change
+                
+                # Check position limits
+                if new_position < self.min_position:
+                    new_position = self.min_position
+                    logging.warning(f"Simulation: Stepper hit minimum limit at {self.min_position}")
+                elif new_position > self.max_position:
+                    new_position = self.max_position
+                    logging.warning(f"Simulation: Stepper hit maximum limit at {self.max_position}")
+                
+                # Simulate movement time based on steps and speed
+                self._moving = True
+                move_time = steps / self._speed  # Simple estimation
+                
+                def simulate_move():
+                    time.sleep(move_time)
+                    with self.lock:
+                        self._position = new_position
+                        self._moving = False
+                    logging.debug(f"Simulation: Stepper moved to position {new_position}")
+                
+                if wait:
+                    simulate_move()
+                else:
+                    threading.Thread(target=simulate_move, daemon=True).start()
+                
+                return True
+            
+            if self._controller:
+                try:
+                    # Calculate actual steps to move based on limits
+                    step_change = steps * (1 if direction == 1 else -1)
+                    new_position = self._position + step_change
+                    
+                    # Check position limits and adjust steps if needed
+                    if new_position < self.min_position:
+                        adjusted_steps = abs(self._position - self.min_position)
+                        new_position = self.min_position
+                        logging.warning(f"Adjusting steps to {adjusted_steps} due to min limit")
+                    elif new_position > self.max_position:
+                        adjusted_steps = abs(self.max_position - self._position)
+                        new_position = self.max_position
+                        logging.warning(f"Adjusting steps to {adjusted_steps} due to max limit")
+                    else:
+                        adjusted_steps = steps
+                    
+                    # If no steps to move after adjustment, return early
+                    if adjusted_steps == 0:
+                        return True
+                    
+                    self._moving = True
+                    
+                    def move_and_update():
+                        try:
+                            self._controller.move_stepper(
+                                id=self._stepper_id,
+                                steps=adjusted_steps,
+                                direction=direction,
+                                speed=self._speed,
+                                wait=True
+                            )
+                            
+                            # Update position after movement is complete
+                            with self.lock:
+                                self._position = new_position
+                                self._moving = False
+                                
+                            logging.debug(f"Stepper moved to position {new_position}")
+                        except Exception as e:
+                            logging.error(f"Error during stepper movement: {e}")
+                            with self.lock:
+                                self._moving = False
+                    
+                    if wait:
+                        move_and_update()
+                    else:
+                        threading.Thread(target=move_and_update, daemon=True).start()
+                    
+                    return True
+                except Exception as e:
+                    logging.error(f"Failed to move stepper: {e}")
+                    self._moving = False
+                    return False
+            
+            return False
+    
+    def stop(self):
+        """Stop any ongoing movement."""
+        with self.lock:
+            if self.simulation_mode:
+                logging.debug("Simulation: Stepper movement stopped")
+                self._moving = False
+                return True
+                
+            if self._controller:
+                try:
+                    self._controller.stop_stepper(id=self._stepper_id)
+                    self._moving = False
+                    logging.info("Stepper movement stopped")
+                    return True
+                except Exception as e:
+                    logging.error(f"Failed to stop stepper movement: {e}")
+                    return False
+            return False
+    
+    def home(self, speed=None, wait=True):
+        """
+        Home the stepper motor.
+        
+        Args:
+            speed: Homing speed (optional)
+            wait: Whether to wait for homing to complete
+        
+        Returns:
+            True if homing was started successfully, False otherwise
+        """
+        with self.lock:
+            if not self._enabled:
+                logging.warning("Cannot home: Stepper motor is disabled")
+                return False
+            
+            if self.simulation_mode:
+                # Simulate homing in simulation mode
+                self._moving = True
+                
+                def simulate_home():
+                    # Simulate movement time for homing
+                    home_time = abs(self._position) / (speed or self._speed)
+                    time.sleep(home_time)
+                    with self.lock:
+                        self._position = 0
+                        self._moving = False
+                    logging.debug("Simulation: Stepper homed to position 0")
+                
+                if wait:
+                    simulate_home()
+                else:
+                    threading.Thread(target=simulate_home, daemon=True).start()
+                
+                return True
+            
+            if self._controller:
+                try:
+                    self._moving = True
+                    
+                    def home_and_update():
+                        try:
+                            self._controller.home_stepper(
+                                id=self._stepper_id,
+                                wait=True
+                            )
+                            
+                            # Update position after homing is complete
+                            with self.lock:
+                                self._position = 0
+                                self._moving = False
+                                
+                            logging.debug("Stepper homed to position 0")
+                        except Exception as e:
+                            logging.error(f"Error during stepper homing: {e}")
+                            with self.lock:
+                                self._moving = False
+                    
+                    if wait:
+                        home_and_update()
+                    else:
+                        threading.Thread(target=home_and_update, daemon=True).start()
+                    
+                    return True
+                except Exception as e:
+                    logging.error(f"Failed to home stepper: {e}")
+                    self._moving = False
+                    return False
+            
+            return False
+    
+    def set_speed(self, speed):
+        """Set the stepper speed."""
+        self._speed = speed
+        logging.debug(f"Stepper speed set to {speed}")
+        return True
+    
+    def get_position(self):
+        """Get the current position."""
+        return self._position
+    
+    def set_position(self, position):
+        """
+        Set the current position (without moving) for tracking purposes.
+        
+        This doesn't physically move the stepper, just updates the internal position counter.
+        """
+        with self.lock:
+            self._position = position
+            logging.debug(f"Stepper position set to {position} (no movement)")
+            return True
+    
+    def is_moving(self):
+        """Check if the stepper is currently moving."""
+        return self._moving
+    
+    def close(self):
+        """Clean up resources."""
+        self.stop()
+        self.disable()
+        if self._controller:
+            try:
+                self._controller.stop()
+                logging.info("Stepper controller closed")
+            except Exception as e:
+                logging.error(f"Error closing stepper controller: {e}")
+
+
+class LocalGPIOWrapper:
+    """
+    Wrapper for local GPIO control using gpiod library.
+    Provides a simple interface for controlling digital outputs.
+    """
+    
+    def __init__(self, simulation_mode=False):
+        """
+        Initialize the local GPIO wrapper.
+        
+        Args:
+            simulation_mode: Whether to run in simulation mode
+        """
+        self.simulation_mode = simulation_mode
+        self._chip = None
+        self._lines = {}
+        
+        # Initialize gpiod if not in simulation mode
+        if not simulation_mode and GPIOD_AVAILABLE:
+            try:
+                # For Raspberry Pi 5, GPIO pins are typically on gpiochip4
+                # This might need to be adjusted based on the specific device
+                self._chip = gpiod.Chip('gpiochip4')
+                logging.info("LocalGPIOWrapper initialized with gpiod")
+            except Exception as e:
+                logging.error(f"Failed to initialize gpiod: {e}")
+                self.simulation_mode = True
+        else:
+            self.simulation_mode = True
+            logging.info("LocalGPIOWrapper initialized in simulation mode")
+    
+    def setup_output(self, pin, initial_value=0):
+        """
+        Set up a GPIO pin as an output.
+        
+        Args:
+            pin: GPIO pin number
+            initial_value: Initial pin value (0 or 1)
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        if self.simulation_mode:
+            logging.debug(f"Simulation: Set up GPIO pin {pin} as output with value {initial_value}")
+            return True
+            
+        if self._chip:
+            try:
+                line = self._chip.get_line(pin)
+                line.request(consumer="NooyenLaserRoom", type=gpiod.LINE_REQ_DIR_OUT)
+                line.set_value(initial_value)
+                self._lines[pin] = line
+                logging.debug(f"Set up GPIO pin {pin} as output with value {initial_value}")
+                return True
+            except Exception as e:
+                logging.error(f"Failed to set up GPIO pin {pin}: {e}")
+                return False
+        
+        return False
+    
+    def setup_input(self, pin, pull_up=False):
+        """
+        Set up a GPIO pin as an input.
+        
+        Args:
+            pin: GPIO pin number
+            pull_up: Whether to use pull-up resistor
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        if self.simulation_mode:
+            logging.debug(f"Simulation: Set up GPIO pin {pin} as input")
+            return True
+            
+        if self._chip:
+            try:
+                line = self._chip.get_line(pin)
+                
+                # Set up with appropriate flags
+                flags = 0
+                if pull_up:
+                    flags |= gpiod.LINE_REQ_FLAG_BIAS_PULL_UP
+                
+                line.request(consumer="NooyenLaserRoom", type=gpiod.LINE_REQ_DIR_IN, flags=flags)
+                self._lines[pin] = line
+                logging.debug(f"Set up GPIO pin {pin} as input")
+                return True
+            except Exception as e:
+                logging.error(f"Failed to set up GPIO pin {pin}: {e}")
+                return False
+        
+        return False
+    
+    def write(self, pin, value):
+        """
+        Write a value to a GPIO pin.
+        
+        Args:
+            pin: GPIO pin number
+            value: Pin value (0 or 1)
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        if self.simulation_mode:
+            logging.debug(f"Simulation: Set GPIO pin {pin} to {value}")
+            return True
+            
+        if pin in self._lines:
+            try:
+                self._lines[pin].set_value(value)
+                logging.debug(f"Set GPIO pin {pin} to {value}")
+                return True
+            except Exception as e:
+                logging.error(f"Failed to write to GPIO pin {pin}: {e}")
+                return False
+        
+        return False
+    
+    def read(self, pin):
+        """
+        Read a value from a GPIO pin.
+        
+        Args:
+            pin: GPIO pin number
+        
+        Returns:
+            Pin value (0 or 1) or None if error
+        """
+        if self.simulation_mode:
+            # In simulation mode, randomly return 0 or 1 for inputs
+            import random
+            value = random.choice([0, 1])
+            logging.debug(f"Simulation: Read GPIO pin {pin} as {value}")
+            return value
+            
+        if pin in self._lines:
+            try:
+                value = self._lines[pin].get_value()
+                logging.debug(f"Read GPIO pin {pin} as {value}")
+                return value
+            except Exception as e:
+                logging.error(f"Failed to read from GPIO pin {pin}: {e}")
+                return None
+        
+        return None
+    
+    def cleanup(self, pin=None):
+        """
+        Clean up GPIO resources.
+        
+        Args:
+            pin: Specific pin to clean up, or None for all
+        """
+        if self.simulation_mode:
+            logging.debug("Simulation: GPIO cleanup")
+            return
+            
+        if pin is not None:
+            if pin in self._lines:
+                try:
+                    self._lines[pin].release()
+                    del self._lines[pin]
+                    logging.debug(f"Released GPIO pin {pin}")
+                except Exception as e:
+                    logging.error(f"Error releasing GPIO pin {pin}: {e}")
+        else:
+            # Clean up all pins
+            for pin, line in list(self._lines.items()):
+                try:
+                    line.release()
+                    logging.debug(f"Released GPIO pin {pin}")
+                except Exception as e:
+                    logging.error(f"Error releasing GPIO pin {pin}: {e}")
+            
+            self._lines.clear()
+            
+            # Close the chip
+            if self._chip:
+                try:
+                    self._chip.close()
+                    self._chip = None
+                    logging.info("Closed GPIO chip")
+                except Exception as e:
+                    logging.error(f"Error closing GPIO chip: {e}")

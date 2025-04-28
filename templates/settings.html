@@ -1,0 +1,452 @@
+{% extends "base.html" %}
+
+{% block title %}Machine Settings{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">
+        <i class="fas fa-cog me-2"></i>
+        Machine Settings
+    </h1>
+
+    <div class="row">
+        <div class="col-lg-6 mb-4">
+            <!-- Stepper Motor Configuration -->
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-cog me-2"></i>
+                        Stepper Motor Settings
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="stepper-settings-form">
+                        <div class="mb-3">
+                            <label for="max_speed" class="form-label">Maximum Speed (steps/sec)</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="max_speed" name="max_speed" 
+                                       value="{{ stepper_config.max_speed }}" min="100" max="10000">
+                                <button class="btn btn-primary" type="button" 
+                                        onclick="updateConfig('stepper', 'max_speed', document.getElementById('max_speed').value)">
+                                    Save
+                                </button>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="acceleration" class="form-label">Acceleration (steps/sec²)</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="acceleration" name="acceleration" 
+                                       value="{{ stepper_config.acceleration }}" min="100" max="10000">
+                                <button class="btn btn-primary" type="button" 
+                                        onclick="updateConfig('stepper', 'acceleration', document.getElementById('acceleration').value)">
+                                    Save
+                                </button>
+                            </div>
+                        </div>
+                        <!-- Index Distance removed: now controlled in mm from Cleaning Head page -->
+                        <div class="mb-3">
+                            <label for="jog_speed" class="form-label">Jog Speed (steps/sec)</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="jog_speed" name="jog_speed" 
+                                       value="{{ stepper_config.jog_speed }}" min="100" max="5000">
+                                <button class="btn btn-primary" type="button" 
+                                        onclick="updateConfig('stepper', 'jog_speed', document.getElementById('jog_speed').value)">
+                                    Save
+                                </button>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="jog_step_size" class="form-label">Jog Step Size</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="jog_step_size" name="jog_step_size" 
+                                       value="{{ stepper_config.jog_step_size }}" min="1" max="1000">
+                                <button class="btn btn-primary" type="button" 
+                                        onclick="updateConfig('stepper', 'jog_step_size', document.getElementById('jog_step_size').value)">
+                                    Save
+                                </button>
+                            </div>
+                            <div class="form-text">Steps to move per jog button press</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="steps_per_mm" class="form-label">Steps per mm</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="steps_per_mm" name="steps_per_mm" 
+                                       value="{{ stepper_config.steps_per_mm|default(100) }}" min="1" max="10000" step="0.1">
+                                <button class="btn btn-primary" type="button" 
+                                        onclick="updateConfig('stepper', 'steps_per_mm', document.getElementById('steps_per_mm').value)">
+                                    Save
+                                </button>
+                            </div>
+                            <div class="form-text">Conversion factor for displaying distances in mm</div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6 mb-4">
+            <!-- Servo Configuration -->
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-sliders-h me-2"></i>
+                        Servo Settings
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="servo-settings-form">
+                        <div class="mb-3">
+                            <label for="position_normal" class="form-label">Normal Position (degrees)</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="position_normal" name="position_normal" 
+                                       value="{{ servo_config.position_normal }}" min="-90" max="90">
+                                <button class="btn btn-info" type="button" 
+                                        onclick="updateConfig('servo', 'position_normal', document.getElementById('position_normal').value)">
+                                    Save
+                                </button>
+                            </div>
+                            <div class="form-text">Position A - Normal (non-fire) position</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="position_inverted" class="form-label">Fire Position (degrees)</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="position_inverted" name="position_inverted" 
+                                       value="{{ servo_config.position_inverted }}" min="-90" max="90">
+                                <button class="btn btn-info" type="button" 
+                                        onclick="updateConfig('servo', 'position_inverted', document.getElementById('position_inverted').value)">
+                                    Save
+                                </button>
+                            </div>
+                            <div class="form-text">Position B - Fire position</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="detach_delay" class="form-label">Detach Delay (seconds)</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="detach_delay" name="detach_delay" 
+                                       value="{{ servo_config.detach_delay }}" min="0.1" max="10" step="0.1">
+                                <button class="btn btn-info" type="button" 
+                                        onclick="updateConfig('servo', 'detach_delay', document.getElementById('detach_delay').value)">
+                                    Save
+                                </button>
+                            </div>
+                            <div class="form-text">Time to wait before detaching servo to prevent jitter</div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Timing Configuration -->
+            <div class="card mt-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-clock me-2"></i>
+                        Timing Settings
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="timing-settings-form">
+                        <div class="mb-3">
+                            <label for="fan_off_delay" class="form-label">Fan Off Delay (ms)</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="fan_off_delay" name="fan_off_delay" 
+                                       value="{{ timing_config.fan_off_delay }}" min="1000" max="3600000">
+                                <button class="btn btn-success" type="button" 
+                                        onclick="updateConfig('timing', 'fan_off_delay', document.getElementById('fan_off_delay').value)">
+                                    Save
+                                </button>
+                            </div>
+                            <div class="form-text">Time in milliseconds before fan turns off (600000 = 10 minutes)</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="red_lights_off_delay" class="form-label">Red Lights Off Delay (ms)</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="red_lights_off_delay" name="red_lights_off_delay" 
+                                       value="{{ timing_config.red_lights_off_delay }}" min="1000" max="3600000">
+                                <button class="btn btn-success" type="button" 
+                                        onclick="updateConfig('timing', 'red_lights_off_delay', document.getElementById('red_lights_off_delay').value)">
+                                    Save
+                                </button>
+                            </div>
+                            <div class="form-text">Time in milliseconds before red lights turn off (60000 = 1 minute)</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="debounce_delay" class="form-label">Button Debounce Delay (ms)</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="debounce_delay" name="debounce_delay" 
+                                       value="{{ timing_config.debounce_delay }}" min="50" max="1000">
+                                <button class="btn btn-success" type="button" 
+                                        onclick="updateConfig('timing', 'debounce_delay', document.getElementById('debounce_delay').value)">
+                                    Save
+                                </button>
+                            </div>
+                            <div class="form-text">Minimum time between button presses</div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- System Mode & Debugging Settings -->
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-cogs me-2"></i>
+                        System Mode & Debugging
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Warning:</strong> Changing operation mode will restart the system. Save any unsaved work before changing.
+                    </div>
+                    
+                    <form id="system-settings-form">
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Operation Mode</label>
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <div class="card h-100">
+                                        <div class="card-header bg-info">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="operation_mode" 
+                                                       id="mode-simulation" value="simulation"
+                                                       {% if system_config.operation_mode == 'simulation' %}checked{% endif %}>
+                                                <label class="form-check-label fw-bold" for="mode-simulation">
+                                                    Simulation Mode
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="card-body">
+                                            <p class="small">Runs in full simulation mode without GPIO access. All hardware interactions are simulated.</p>
+                                            <p class="small">Ideal for development and testing without physical hardware.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <div class="card h-100">
+                                        <div class="card-header bg-warning text-dark">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="operation_mode" 
+                                                       id="mode-prototype" value="prototype"
+                                                       {% if system_config.operation_mode == 'prototype' %}checked{% endif %}>
+                                                <label class="form-check-label fw-bold" for="mode-prototype">
+                                                    Prototype/Debug Mode
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="card-body">
+                                            <p class="small">Enables real hardware with comprehensive debugging information.</p>
+                                            <p class="small">Shows detailed logs and error information. Can operate with incomplete hardware configurations.</p>
+                                            <div class="form-check form-switch mt-2">
+                                                <input class="form-check-input" type="checkbox" id="bypass-safety" 
+                                                      {% if system_config.bypass_safety %}checked{% endif %}>
+                                                <label class="form-check-label" for="bypass-safety">Bypass Safety Checks</label>
+                                                <div class="form-text small text-danger">Warning: Only use during setup and testing!</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <div class="card h-100">
+                                        <div class="card-header bg-success text-white">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="operation_mode" 
+                                                       id="mode-normal" value="normal"
+                                                       {% if system_config.operation_mode == 'normal' %}checked{% endif %}>
+                                                <label class="form-check-label fw-bold" for="mode-normal">
+                                                    Normal Operation
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="card-body">
+                                            <p class="small">Full production mode with all safety systems enabled.</p>
+                                            <p class="small">Minimal logging, optimized for reliability and performance.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="debug-level" class="form-label fw-bold">Debug Level</label>
+                            <select class="form-select" id="debug-level">
+                                <option value="debug" {% if system_config.debug_level == 'debug' %}selected{% endif %}>
+                                    Debug - Most Verbose
+                                </option>
+                                <option value="info" {% if system_config.debug_level == 'info' %}selected{% endif %}>
+                                    Info - Standard Information
+                                </option>
+                                <option value="warning" {% if system_config.debug_level == 'warning' %}selected{% endif %}>
+                                    Warning - Only Problems
+                                </option>
+                                <option value="error" {% if system_config.debug_level == 'error' %}selected{% endif %}>
+                                    Error - Critical Issues Only
+                                </option>
+                            </select>
+                            <div class="form-text">Controls the level of detail in system logs</div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="button" id="save-system-settings" class="btn btn-danger">
+                                <i class="fas fa-save me-2"></i> Save System Settings
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- GPIO configuration moved to the GPIO Pinout page -->
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        GPIO Configuration
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-arrow-right me-2"></i>
+                        <strong>Note:</strong> GPIO pin configuration has been moved to the 
+                        <a href="/pinout" class="alert-link">GPIO Pinout</a> page for easier reference with the pin diagram.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Status toast for notifications -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+    <div id="statusToast" class="toast align-items-center text-white bg-success" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body">
+                <i class="fas fa-check-circle me-2"></i>
+                <span id="toastMessage">Settings saved successfully!</span>
+            </div>
+            <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Toast instance
+    const statusToast = document.getElementById('statusToast');
+    
+    // Function to update configuration - returns a Promise
+    function updateConfig(section, key, value) {
+        // Prepare request data
+        const requestData = {
+            section: section,
+            key: key,
+            value: value
+        };
+        
+        // Return a Promise that resolves when the update is complete
+        return fetch('/update_config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Update UI with success message
+                document.getElementById('toastMessage').textContent = data.message;
+                statusToast.classList.remove('bg-danger');
+                statusToast.classList.add('bg-success');
+                
+                const bsToast = new bootstrap.Toast(statusToast);
+                bsToast.show();
+                
+                // Check if restart is needed
+                if (data.restart_needed) {
+                    // Show confirmation dialog
+                    if (confirm("GPIO settings updated. Application needs to restart for changes to take effect. Restart now?")) {
+                        location.reload();
+                    }
+                }
+                
+                // Return the data for chaining
+                return data;
+            } else {
+                // Show error message
+                document.getElementById('toastMessage').textContent = data.message || 'Error updating configuration.';
+                statusToast.classList.remove('bg-success');
+                statusToast.classList.add('bg-danger');
+                
+                const bsToast = new bootstrap.Toast(statusToast);
+                bsToast.show();
+                
+                // Reject the promise with the error message
+                return Promise.reject(new Error(data.message || 'Error updating configuration'));
+            }
+        })
+        .catch(error => {
+            // Show error message
+            document.getElementById('toastMessage').textContent = 'Error: ' + error.message;
+            statusToast.classList.remove('bg-success');
+            statusToast.classList.add('bg-danger');
+            
+            const bsToast = new bootstrap.Toast(statusToast);
+            bsToast.show();
+            
+            // Re-throw the error for the Promise chain
+            throw error;
+        });
+    }
+    
+    // System settings save handler
+    document.getElementById('save-system-settings').addEventListener('click', function() {
+        // Get selected operation mode
+        const operationMode = document.querySelector('input[name="operation_mode"]:checked').value;
+        
+        // Get debug level
+        const debugLevel = document.getElementById('debug-level').value;
+        
+        // Get bypass safety status (only relevant for prototype mode)
+        const bypassSafety = document.getElementById('bypass-safety').checked;
+        
+        // Show confirmation dialog as this will restart the application
+        if (confirm("Changing system settings will restart the application. Continue?")) {
+            // Update operation mode
+            updateConfig('system', 'operation_mode', operationMode)
+                .then(() => {
+                    // Update debug level
+                    return updateConfig('system', 'debug_level', debugLevel);
+                })
+                .then(() => {
+                    // Update bypass safety
+                    return updateConfig('system', 'bypass_safety', bypassSafety);
+                })
+                .then(() => {
+                    // Show restart message
+                    document.getElementById('toastMessage').textContent = "System settings updated. Restarting application...";
+                    statusToast.classList.remove('bg-danger');
+                    statusToast.classList.add('bg-success');
+                    
+                    const bsToast = new bootstrap.Toast(statusToast);
+                    bsToast.show();
+                    
+                    // Reload page after a brief delay
+                    setTimeout(() => {
+                        location.reload();
+                    }, 2000);
+                })
+                .catch(error => {
+                    console.error("Error updating system settings:", error);
+                });
+        }
+    });
+</script>
+{% endblock %}
