@@ -40,8 +40,12 @@ class OutputController:
         # Check if running in simulation mode
         self.simulation_mode = os.environ.get('SIMULATION_MODE', 'False').lower() == 'true'
         
+        # Check if we should force hardware mode (used in prototype mode)
+        self.force_hardware = os.environ.get('FORCE_HARDWARE', 'False').lower() == 'true'
+        
         if self.simulation_mode:
             logging.info("Output controller running in simulation mode")
+            self.pins_initialized = False
         else:
             try:
                 # Initialize output pins
@@ -69,10 +73,16 @@ class OutputController:
                 logging.info("Output pins initialized successfully")
                 self.pins_initialized = True
             except Exception as e:
-                logging.error(f"Failed to initialize output pins: {e}")
-                logging.info("Falling back to simulation mode")
-                self.simulation_mode = True
-                self.pins_initialized = False
+                if self.force_hardware:
+                    # In prototype mode with FORCE_HARDWARE, we should raise the exception
+                    # rather than falling back to simulation mode
+                    logging.error(f"Failed to initialize output pins with FORCE_HARDWARE enabled: {e}")
+                    raise
+                else:
+                    logging.error(f"Failed to initialize output pins: {e}")
+                    logging.info("Falling back to simulation mode")
+                    self.simulation_mode = True
+                    self.pins_initialized = False
     
     def set_fan(self, state):
         """Set the fan output state"""

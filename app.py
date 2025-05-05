@@ -23,6 +23,11 @@ if operation_mode == 'simulation':
 else:
     # Clear simulation mode for prototype or normal operation
     os.environ.pop('SIMULATION_MODE', None)
+    
+    # Set FORCE_HARDWARE flag for prototype mode to prevent fallback to simulation
+    if operation_mode == 'prototype':
+        os.environ['FORCE_HARDWARE'] = 'True'
+        logging.info("PROTOTYPE MODE: Setting FORCE_HARDWARE flag to prevent simulation fallback")
 
 # Configure logging based on debug level setting
 log_level = {
@@ -92,6 +97,8 @@ stepper_config = config.get_stepper_config()
 servo_config = config.get_servo_config()
 
 # Initialize stepper motor with configuration
+force_hardware = os.environ.get('FORCE_HARDWARE', 'False').lower() == 'true'
+
 try:
     if use_gpioctrl:
         # Use GPIOController-based stepper
@@ -110,15 +117,23 @@ try:
     logger.info("Stepper motor initialized successfully")
 except Exception as e:
     logger.error(f"Error initializing stepper motor: {e}")
-    logger.info("Falling back to simulation mode")
-    # Create a simulated stepper motor for development purposes
-    try:
-        stepper = StepperMotor()  # Both implementations support no-arg constructor for simulation
-        motor_initialized = True
-    except Exception as inner_e:
-        logger.error(f"Failed to create simulated stepper motor: {inner_e}")
+    if force_hardware:
+        logger.error("FORCE_HARDWARE is enabled in prototype mode - not falling back to simulation mode")
         motor_initialized = False
         stepper = None
+        # In prototype mode, we raise the error to prevent silently degrading to simulation
+        if operation_mode == 'prototype':
+            raise
+    else:
+        logger.info("Falling back to simulation mode")
+        # Create a simulated stepper motor for development purposes
+        try:
+            stepper = StepperMotor()  # Both implementations support no-arg constructor for simulation
+            motor_initialized = True
+        except Exception as inner_e:
+            logger.error(f"Failed to create simulated stepper motor: {inner_e}")
+            motor_initialized = False
+            stepper = None
 
 # Initialize servo controller with configuration
 try:
@@ -137,19 +152,27 @@ try:
     logger.info("Servo initialized successfully")
 except Exception as e:
     logger.error(f"Failed to initialize servo: {e}")
-    logger.info("Falling back to simulation mode")
-    # Create a simulated servo for development purposes
-    try:
-        if use_gpioctrl:
-            servo = ServoController()  # Both implementations support no-arg constructor for simulation
-        else:
-            servo = ServoController(simulation_mode=True)
-        servo_initialized = True
-        logger.info("Simulated servo controller created successfully")
-    except Exception as inner_e:
-        logger.error(f"Failed to create simulated servo: {inner_e}")
+    if force_hardware:
+        logger.error("FORCE_HARDWARE is enabled in prototype mode - not falling back to simulation mode")
         servo_initialized = False
         servo = None
+        # In prototype mode, we raise the error to prevent silently degrading to simulation
+        if operation_mode == 'prototype':
+            raise
+    else:
+        logger.info("Falling back to simulation mode")
+        # Create a simulated servo for development purposes
+        try:
+            if use_gpioctrl:
+                servo = ServoController()  # Both implementations support no-arg constructor for simulation
+            else:
+                servo = ServoController(simulation_mode=True)
+            servo_initialized = True
+            logger.info("Simulated servo controller created successfully")
+        except Exception as inner_e:
+            logger.error(f"Failed to create simulated servo: {inner_e}")
+            servo_initialized = False
+            servo = None
 
 # Initialize output controller for fan and red lights
 try:
@@ -158,15 +181,23 @@ try:
     logger.info("Output controller initialized successfully")
 except Exception as e:
     logger.error(f"Failed to initialize output controller: {e}")
-    logger.info("Falling back to simulation mode")
-    # Create a simulated output controller for development purposes
-    try:
-        output_controller = OutputController()
-        outputs_initialized = True
-    except Exception as inner_e:
-        logger.error(f"Failed to create simulated output controller: {inner_e}")
+    if force_hardware:
+        logger.error("FORCE_HARDWARE is enabled in prototype mode - not falling back to simulation mode")
         outputs_initialized = False
         output_controller = None
+        # In prototype mode, we raise the error to prevent silently degrading to simulation
+        if operation_mode == 'prototype':
+            raise
+    else:
+        logger.info("Falling back to simulation mode")
+        # Create a simulated output controller for development purposes
+        try:
+            output_controller = OutputController()
+            outputs_initialized = True
+        except Exception as inner_e:
+            logger.error(f"Failed to create simulated output controller: {inner_e}")
+            outputs_initialized = False
+            output_controller = None
 
 # Store the current position in memory
 current_position = 0
@@ -444,14 +475,22 @@ try:
     app.logger.info("Temperature controller initialized successfully")
 except Exception as e:
     logger.error(f"Failed to initialize temperature controller: {e}")
-    logger.info("Falling back to simulation mode")
-    try:
-        temp_controller = TemperatureController(stop_callback=stop_all_operations)
-        temp_initialized = True
-    except Exception as inner_e:
-        logger.error(f"Failed to create simulated temperature controller: {inner_e}")
+    if force_hardware:
+        logger.error("FORCE_HARDWARE is enabled in prototype mode - not falling back to simulation mode")
         temp_initialized = False
         temp_controller = None
+        # In prototype mode, we raise the error to prevent silently degrading to simulation
+        if operation_mode == 'prototype':
+            raise
+    else:
+        logger.info("Falling back to simulation mode")
+        try:
+            temp_controller = TemperatureController(stop_callback=stop_all_operations)
+            temp_initialized = True
+        except Exception as inner_e:
+            logger.error(f"Failed to create simulated temperature controller: {inner_e}")
+            temp_initialized = False
+            temp_controller = None
 
 # Initialize sequence runner for automated operation sequences
 try:

@@ -3,6 +3,7 @@ Output control module for managing outputs (fan, red lights, table movement) usi
 """
 import time
 import logging
+import os
 import threading
 from config import get_gpio_config, get_system_config
 from gpio_controller_wrapper import LocalGPIOWrapper
@@ -21,8 +22,11 @@ class OutputController:
         # Get operation mode from system config
         operation_mode = system_config.get('operation_mode', 'simulation')
         
-        # Set simulation mode based on system configuration
-        self.simulation_mode = operation_mode == 'simulation'
+        # Set simulation mode based on system configuration or environment
+        self.simulation_mode = (operation_mode == 'simulation') or (os.environ.get('SIMULATION_MODE', 'False').lower() == 'true')
+        
+        # Check if we should force hardware mode (used in prototype mode)
+        self.force_hardware = os.environ.get('FORCE_HARDWARE', 'False').lower() == 'true'
         
         # GPIO pin assignments
         self.fan_pin = config.get('fan_pin', 17)
@@ -75,10 +79,16 @@ class OutputController:
                 
                 logging.info("Output controller initialized with gpiod")
             except Exception as e:
-                logging.error(f"Failed to initialize output controller with gpiod: {e}")
-                self.simulation_mode = True
-                self.gpio = LocalGPIOWrapper(simulation_mode=True)
-                logging.info("Falling back to simulation mode for output controller")
+                if self.force_hardware:
+                    # In prototype mode with FORCE_HARDWARE, we should raise the exception
+                    # rather than falling back to simulation mode
+                    logging.error(f"Failed to initialize output controller with FORCE_HARDWARE enabled: {e}")
+                    raise
+                else:
+                    logging.error(f"Failed to initialize output controller with gpiod: {e}")
+                    self.simulation_mode = True
+                    self.gpio = LocalGPIOWrapper(simulation_mode=True)
+                    logging.info("Falling back to simulation mode for output controller")
     
     def start_monitor_thread(self):
         """Start a background thread to monitor limit switches"""
