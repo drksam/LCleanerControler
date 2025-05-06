@@ -516,19 +516,22 @@ class LocalGPIOWrapper:
         # Initialize gpiod if not in simulation mode
         if not simulation_mode and GPIOD_AVAILABLE:
             try:
-                # Check which version of gpiod we're using
-                if hasattr(gpiod, 'Chip'):
+                # Check which version of gpiod we're using by looking at available functions/attributes
+                # gpiod v2.x has chip() function while v1.x has Chip class
+                if hasattr(gpiod, 'chip'):
+                    # New API (v2.x)
+                    self._gpiod_v2 = True
+                    # In v2, chips are accessed differently
+                    self._chip = 'gpiochip4'  # Just store the name for now
+                    logging.info("LocalGPIOWrapper initialized with gpiod v2.x API")
+                elif hasattr(gpiod, 'Chip'):
                     # Old API (v1.x)
                     self._gpiod_v2 = False
                     # For Raspberry Pi 5, GPIO pins are typically on gpiochip4
                     self._chip = gpiod.Chip('gpiochip4')
                     logging.info("LocalGPIOWrapper initialized with gpiod v1.x API")
                 else:
-                    # New API (v2.x)
-                    self._gpiod_v2 = True
-                    # In v2, chips are accessed differently
-                    self._chip = 'gpiochip4'  # Just store the name for now
-                    logging.info("LocalGPIOWrapper initialized with gpiod v2.x API")
+                    raise ImportError("Could not detect gpiod API version")
             except Exception as e:
                 logging.error(f"Failed to initialize gpiod: {e}")
                 if FORCE_HARDWARE:
@@ -566,10 +569,14 @@ class LocalGPIOWrapper:
                 config = gpiod.line_request()
                 config.consumer = "NooyenLaserRoom"
                 config.request_type = gpiod.line_request.DIRECTION_OUTPUT
+                
+                # In v2.x, get_line and request are handled differently
                 line = chip.get_line(pin)
                 line.request(config)
                 line.set_value(initial_value)
-                self._lines[pin] = line
+                
+                # Store both chip and line for cleanup
+                self._lines[pin] = {"line": line, "chip": chip}
             else:
                 # Old gpiod v1.x API
                 line = self._chip.get_line(pin)
@@ -606,12 +613,15 @@ class LocalGPIOWrapper:
                 config.consumer = "NooyenLaserRoom"
                 config.request_type = gpiod.line_request.DIRECTION_INPUT
                 
+                # Handle pull-up for v2.x API
                 if pull_up:
                     config.flags = gpiod.line_request.FLAG_BIAS_PULL_UP
                 
                 line = chip.get_line(pin)
                 line.request(config)
-                self._lines[pin] = line
+                
+                # Store both chip and line for cleanup
+                self._lines[pin] = {"line": line, "chip": chip}
             else:
                 # Old gpiod v1.x API
                 line = self._chip.get_line(pin)
@@ -647,7 +657,13 @@ class LocalGPIOWrapper:
             
         if pin in self._lines:
             try:
-                self._lines[pin].set_value(value)
+                if self._gpiod_v2:
+                    # In v2.x, lines are stored as dict with line and chip
+                    self._lines[pin]["line"].set_value(value)
+                else:
+                    # In v1.x, lines are stored directly
+                    self._lines[pin].set_value(value)
+                
                 logging.debug(f"Set GPIO pin {pin} to {value}")
                 return True
             except Exception as e:
@@ -675,7 +691,13 @@ class LocalGPIOWrapper:
             
         if pin in self._lines:
             try:
-                value = self._lines[pin].get_value()
+                if self._gpiod_v2:
+                    # In v2.x, lines are stored as dict with line and chip
+                    value = self._lines[pin]["line"].get_value()
+                else:
+                    # In v1.x, lines are stored directly
+                    value = self._lines[pin].get_value()
+                
                 logging.debug(f"Read GPIO pin {pin} as {value}")
                 return value
             except Exception as e:
@@ -696,29 +718,63 @@ class LocalGPIOWrapper:
             return
             
         if pin is not None:
+            # Clean up a specific pin
             if pin in self._lines:
                 try:
-                    self._lines[pin].release()
+                    if self._gpiod_v2:
+                        # In v2.x, lines are stored as dict with line and chip
+                        self._lines[pin]["line"].release()
+                        # Close chip if this is the last pin using it
+                        if len(self._lines) == 1:
+                            self._lines[pin]["chip"].close()
+                    else:
+                        # In v1.x, lines are stored directly
+                        self._lines[pin].release()
+                        
                     del self._lines[pin]
                     logging.debug(f"Released GPIO pin {pin}")
                 except Exception as e:
                     logging.error(f"Error releasing GPIO pin {pin}: {e}")
         else:
             # Clean up all pins
-            for pin, line in list(self._lines.items()):
-                try:
-                    line.release()
-                    logging.debug(f"Released GPIO pin {pin}")
-                except Exception as e:
-                    logging.error(f"Error releasing GPIO pin {pin}: {e}")
-            
-            self._lines.clear()
-            
-            # Close the chip
-            if not self._gpiod_v2 and self._chip:
-                try:
-                    self._chip.close()
-                    self._chip = None
-                    logging.info("Closed GPIO chip")
-                except Exception as e:
-                    logging.error(f"Error closing GPIO chip: {e}")
+            if self._gpiod_v2:
+                # In v2.x, need to handle chips separately
+                chips = set()
+                
+                # First release all lines
+                for pin, item in list(self._lines.items()):
+                    try:
+                        item["line"].release()
+                        # Track unique chips to close them after all lines are released
+                        chips.add(item["chip"])
+                        logging.debug(f"Released GPIO pin {pin}")
+                    except Exception as e:
+                        logging.error(f"Error releasing GPIO pin {pin}: {e}")
+                
+                # Then close all chips
+                for chip in chips:
+                    try:
+                        chip.close()
+                    except Exception as e:
+                        logging.error(f"Error closing chip: {e}")
+                
+                self._lines.clear()
+            else:
+                # Old API - release all lines
+                for pin, line in list(self._lines.items()):
+                    try:
+                        line.release()
+                        logging.debug(f"Released GPIO pin {pin}")
+                    except Exception as e:
+                        logging.error(f"Error releasing GPIO pin {pin}: {e}")
+                
+                self._lines.clear()
+                
+                # Close the chip
+                if self._chip:
+                    try:
+                        self._chip.close()
+                        self._chip = None
+                        logging.info("Closed GPIO chip")
+                    except Exception as e:
+                        logging.error(f"Error closing GPIO chip: {e}")

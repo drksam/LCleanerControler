@@ -7,6 +7,5 @@ psycopg2-binary==2.9.9
 werkzeug==2.3.7
 email-validator==2.1.0
 requests==2.31.0
-gpiozero==2.0
 gpiod==1.5.3
 mfrc522==0.0.7

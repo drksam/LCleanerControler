@@ -23,6 +23,9 @@ import sys
 import argparse
 import json
 import logging
+import shutil
+import subprocess
+from pathlib import Path
 
 def setup_parser():
     """Set up command line argument parser"""
@@ -50,6 +53,9 @@ def update_config(mode, debug_level):
         config['system']['operation_mode'] = mode
         config['system']['debug_level'] = debug_level
         
+        # Make sure gpioctrl is always used for stepper and servo
+        config['system']['use_gpioctrl'] = True
+        
         # Write updated config
         with open('machine_config.json', 'w') as f:
             json.dump(config, f, indent=2)
@@ -58,6 +64,47 @@ def update_config(mode, debug_level):
         return True
     except Exception as e:
         print(f"Error updating configuration: {e}")
+        return False
+
+def install_gpioctrl_package():
+    """Install the local gpioctrl package"""
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    gpioesp_dir = os.path.join(current_dir, 'gpioesp')
+    
+    if not os.path.exists(gpioesp_dir):
+        print("Warning: gpioesp directory not found, cannot install gpioctrl")
+        return False
+    
+    # Check if pip is available
+    pip_path = shutil.which('pip') or shutil.which('pip3')
+    
+    if not pip_path:
+        print("Error: pip not found. Please install pip first.")
+        return False
+    
+    print("Installing gpioctrl package from local directory...")
+    try:
+        # Install the package in development mode
+        result = subprocess.run(
+            [pip_path, 'install', '-e', gpioesp_dir],
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE,
+            text=True,
+            check=True
+        )
+        print("gpioctrl package installed successfully!")
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"Error installing gpioctrl package: {e}")
+        print(f"Error details: {e.stderr}")
+        return False
+
+def check_gpioctrl_installed():
+    """Check if gpioctrl is already installed"""
+    try:
+        import gpioctrl
+        return True
+    except ImportError:
         return False
 
 def main():
@@ -87,10 +134,21 @@ def main():
         os.environ['SIMULATION_MODE'] = 'False'
         os.environ['FORCE_HARDWARE'] = 'True'  # Additional flag to force hardware use
         print("PROTOTYPE MODE: Forcing hardware access regardless of I/O issues")
+        
+        # In prototype mode, ensure gpioctrl is installed
+        if not check_gpioctrl_installed():
+            if not install_gpioctrl_package():
+                print("Error: Failed to install gpioctrl package. Hardware access will not work correctly.")
+                sys.exit(1)
     else:
         # Normal mode
         os.environ.pop('SIMULATION_MODE', None)
         os.environ.pop('FORCE_HARDWARE', None)
+        
+        # Normal mode still requires gpioctrl for stepper and servo
+        if not check_gpioctrl_installed():
+            if not install_gpioctrl_package():
+                print("Warning: Failed to install gpioctrl package. Using with limited functionality.")
     
     # Configure basic logging
     log_level = getattr(logging, args.debug_level.upper())
@@ -132,10 +190,6 @@ def main():
         
         # Try to use gunicorn if available, otherwise install required dependencies
         try:
-            # Import necessary modules for automatic installation
-            import shutil
-            import subprocess
-            
             # Check if the requirements file exists
             req_file = os.path.join(current_dir, 'requirements.txt')
             if not os.path.exists(req_file):

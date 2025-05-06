@@ -60,28 +60,12 @@ from models import User, AccessLog, RFIDCard, ApiKey
 # Import the RFID controller
 from rfid_control import RFIDController
 
-# Import GPIO controllers - use GPIOController on RPi5
-from config import get_system_config
-
-# Determine which GPIO implementation to use based on system config
-system_config = get_system_config()
-operation_mode = system_config.get('operation_mode', 'simulation')
-use_gpioctrl = system_config.get('use_gpioctrl', True)  # Default to using GPIOController
-
-if use_gpioctrl:
-    # Import the GPIO controller wrappers
-    from stepper_control_gpioctrl import StepperMotor
-    from servo_control_gpioctrl import ServoController
-    from output_control_gpiod import OutputController
-    from input_control_gpiod import InputController
-    logger.info("Using GPIOController implementation for GPIO")
-else:
-    # Fall back to gpiozero implementation
-    from stepper_control_gpiozero import StepperMotor
-    from servo_control import ServoController
-    from output_control import OutputController
-    from input_control import InputController
-    logger.info("Using gpiozero implementation for GPIO")
+# Import GPIO controllers
+from stepper_control_gpioctrl import StepperMotor
+from servo_control_gpioctrl import ServoController
+from output_control_gpiod import OutputController
+from input_control_gpiod import InputController
+logger.info("Using GPIOController implementation for GPIO")
 
 # Import the sequence runner for automated operations
 from sequence_runner import SequenceRunner, SequenceStatus
@@ -100,24 +84,13 @@ servo_config = config.get_servo_config()
 force_hardware = os.environ.get('FORCE_HARDWARE', 'False').lower() == 'true'
 
 try:
-    if use_gpioctrl:
-        # Use GPIOController-based stepper
-        stepper = StepperMotor()
-    else:
-        # Use gpiozero-based stepper
-        stepper = StepperMotor(
-            dir_pin=gpio_config['dir_pin'],
-            step_pin=gpio_config['step_pin'],
-            enable_pin=gpio_config['enable_pin'],
-            home_switch_pin=gpio_config['home_switch_pin'],
-            step_delay=1.0/stepper_config['max_speed'],
-            max_steps=stepper_config['index_distance'] * 2
-        )
+    # Use GPIOController-based stepper
+    stepper = StepperMotor()
     motor_initialized = True
     logger.info("Stepper motor initialized successfully")
 except Exception as e:
     logger.error(f"Error initializing stepper motor: {e}")
-    if force_hardware:
+    if force_hardware or operation_mode == 'prototype':
         logger.error("FORCE_HARDWARE is enabled in prototype mode - not falling back to simulation mode")
         motor_initialized = False
         stepper = None
@@ -128,7 +101,7 @@ except Exception as e:
         logger.info("Falling back to simulation mode")
         # Create a simulated stepper motor for development purposes
         try:
-            stepper = StepperMotor()  # Both implementations support no-arg constructor for simulation
+            stepper = StepperMotor()  # GPIOController implementation supports simulation mode
             motor_initialized = True
         except Exception as inner_e:
             logger.error(f"Failed to create simulated stepper motor: {inner_e}")
@@ -137,22 +110,13 @@ except Exception as e:
 
 # Initialize servo controller with configuration
 try:
-    if use_gpioctrl:
-        # Use GPIOController-based servo
-        servo = ServoController()
-    else:
-        # Use gpiozero-based servo
-        servo = ServoController(
-            servo_pin=gpio_config['servo_pin'],
-            min_angle=-90,
-            max_angle=90,
-            initial_angle=servo_config['position_normal']
-        )
+    # Use GPIOController-based servo
+    servo = ServoController()
     servo_initialized = True
     logger.info("Servo initialized successfully")
 except Exception as e:
     logger.error(f"Failed to initialize servo: {e}")
-    if force_hardware:
+    if force_hardware or operation_mode == 'prototype':
         logger.error("FORCE_HARDWARE is enabled in prototype mode - not falling back to simulation mode")
         servo_initialized = False
         servo = None
@@ -163,10 +127,7 @@ except Exception as e:
         logger.info("Falling back to simulation mode")
         # Create a simulated servo for development purposes
         try:
-            if use_gpioctrl:
-                servo = ServoController()  # Both implementations support no-arg constructor for simulation
-            else:
-                servo = ServoController(simulation_mode=True)
+            servo = ServoController()  # GPIOController implementation supports simulation mode
             servo_initialized = True
             logger.info("Simulated servo controller created successfully")
         except Exception as inner_e:
@@ -252,15 +213,8 @@ def stepper_callback(action, **kwargs):
             step_size = stepper_config['jog_step_size']
             
             if motor_initialized and stepper is not None:
-                if use_gpioctrl:
-                    # GPIOController stepper uses jog method
-                    stepper.jog(direction_int, step_size)
-                    current_position = stepper.get_position()
-                else:
-                    # gpiozero implementation uses step method
-                    steps = step_size if direction_int == 1 else -step_size
-                    stepper.step(steps)
-                    current_position += steps
+                stepper.jog(direction_int, step_size)
+                current_position = stepper.get_position()
             else:
                 # Simulate in dev environment
                 steps = step_size if direction_int == 1 else -step_size
@@ -274,15 +228,8 @@ def stepper_callback(action, **kwargs):
             step_size = stepper_config['jog_step_size'] * 5  # Single press = 5x normal jog
             
             if motor_initialized and stepper is not None:
-                if use_gpioctrl:
-                    # GPIOController stepper uses jog method
-                    stepper.jog(direction_int, step_size)
-                    current_position = stepper.get_position()
-                else:
-                    # gpiozero implementation uses step method
-                    steps = step_size if direction_int == 1 else -step_size
-                    stepper.step(steps)
-                    current_position += steps
+                stepper.jog(direction_int, step_size)
+                current_position = stepper.get_position()
             else:
                 # Simulate in dev environment
                 steps = step_size if direction_int == 1 else -step_size
@@ -292,7 +239,7 @@ def stepper_callback(action, **kwargs):
             
         elif action == 'jog_stop':
             # Stop any ongoing movement
-            if motor_initialized and stepper is not None and use_gpioctrl:
+            if motor_initialized and stepper is not None:
                 stepper.stop()
                 current_position = stepper.get_position()
             logger.debug("Button jog stop")
@@ -303,15 +250,8 @@ def stepper_callback(action, **kwargs):
             index_distance = stepper_config['index_distance']
             
             if motor_initialized and stepper is not None:
-                if use_gpioctrl:
-                    # GPIOController stepper has move_index method
-                    stepper.move_index()
-                    current_position = stepper.get_position()
-                else:
-                    # gpiozero implementation uses step method
-                    steps = index_distance if direction_int == 1 else -index_distance
-                    stepper.step(steps)
-                    current_position += steps
+                stepper.move_index()
+                current_position = stepper.get_position()
             else:
                 # Simulate in dev environment
                 steps = index_distance if direction_int == 1 else -index_distance
@@ -321,14 +261,8 @@ def stepper_callback(action, **kwargs):
             
         elif action == 'home':
             if motor_initialized and stepper is not None:
-                if use_gpioctrl:
-                    # GPIOController stepper has home method
-                    stepper.home()
-                    current_position = stepper.get_position()  # Should be 0
-                else:
-                    # gpiozero implementation uses find_home method
-                    stepper.find_home()
-                    current_position = 0
+                stepper.home()
+                current_position = stepper.get_position()  # Should be 0
             else:
                 # Simulate in dev environment
                 current_position = 0
@@ -340,16 +274,8 @@ def stepper_callback(action, **kwargs):
             preset_pos = preset_positions.get(f"Position {preset}", 0)
             
             if motor_initialized and stepper is not None:
-                if use_gpioctrl:
-                    # GPIOController stepper has move_to method
-                    stepper.move_to(preset_pos)
-                    current_position = stepper.get_position()
-                else:
-                    # Calculate relative movement for gpiozero
-                    steps = preset_pos - current_position
-                    if steps != 0:
-                        stepper.step(steps)
-                        current_position = preset_pos
+                stepper.move_to(preset_pos)
+                current_position = stepper.get_position()
             else:
                 # Simulate in dev environment
                 current_position = preset_pos
@@ -654,24 +580,13 @@ def jog():
         direction = request.json.get('direction')
         steps = int(request.json.get('steps', 10))
         
-        if use_gpioctrl:
-            # Use GPIOController jog implementation
-            direction_int = 1 if direction == 'forward' else 0
-            result = stepper.jog(direction_int, steps)
-            if result:
-                current_position = stepper.get_position()
-            else:
-                return jsonify({"status": "error", "message": "Jog operation failed"}), 500
+        # Use GPIOController jog implementation
+        direction_int = 1 if direction == 'forward' else 0
+        result = stepper.jog(direction_int, steps)
+        if result:
+            current_position = stepper.get_position()
         else:
-            # Use gpiozero step implementation
-            if direction == 'forward':
-                stepper.step(steps)
-                current_position += steps
-            elif direction == 'backward':
-                stepper.step(-steps)
-                current_position -= steps
-            else:
-                return jsonify({"status": "error", "message": "Invalid direction"}), 400
+            return jsonify({"status": "error", "message": "Jog operation failed"}), 500
         
         return jsonify({
             "status": "success", 
@@ -731,17 +646,12 @@ def home():
             return jsonify({"status": "error", "message": str(e)}), 500
     
     try:
-        if use_gpioctrl:
-            # Use GPIOController home implementation
-            result = stepper.home()
-            if result:
-                current_position = stepper.get_position()  # Should be 0
-            else:
-                return jsonify({"status": "error", "message": "Home operation failed"}), 500
+        # Use GPIOController home implementation
+        result = stepper.home()
+        if result:
+            current_position = stepper.get_position()  # Should be 0
         else:
-            # Use gpiozero find_home implementation
-            stepper.find_home()
-            current_position = 0  # Reset position counter
+            return jsonify({"status": "error", "message": "Home operation failed"}), 500
             
         return jsonify({
             "status": "success", 
@@ -786,21 +696,12 @@ def move_to():
     try:
         target_position = int(request.json.get('position', 0))
         
-        if use_gpioctrl:
-            # Use GPIOController move_to implementation
-            result = stepper.move_to(target_position)
-            if result:
-                current_position = stepper.get_position()
-            else:
-                return jsonify({"status": "error", "message": "Move operation failed"}), 500
+        # Use GPIOController move_to implementation
+        result = stepper.move_to(target_position)
+        if result:
+            current_position = stepper.get_position()
         else:
-            # Use gpiozero step implementation
-            # Calculate steps needed to reach target
-            steps_needed = target_position - current_position
-            
-            # Move the motor
-            stepper.step(steps_needed)
-            current_position = target_position
+            return jsonify({"status": "error", "message": "Move operation failed"}), 500
         
         return jsonify({
             "status": "success", 
@@ -1217,26 +1118,14 @@ def index_move():
             return jsonify({"status": "error", "message": str(e)}), 500
     
     try:
-        if use_gpioctrl:
-            # Use GPIOController move_index implementation
-            direction_int = 1 if direction == 'forward' else 0
-            result = stepper.move_index()
-            if result:
-                current_position = stepper.get_position()
-                logger.info(f"Index moved {direction} to position {current_position}")
-            else:
-                return jsonify({"status": "error", "message": "Index move failed"}), 500
+        # Use GPIOController move_index implementation
+        direction_int = 1 if direction == 'forward' else 0
+        result = stepper.move_index()
+        if result:
+            current_position = stepper.get_position()
+            logger.info(f"Index moved {direction} to position {current_position}")
         else:
-            # Reset any stop flag before starting a movement with the legacy implementation
-            if stepper:
-                stepper.reset_stop_flag()
-            
-            # Move the motor on real hardware with legacy implementation
-            # Use the actual steps returned from stepper (in case of interruption)
-            actual_steps = stepper.step(steps_to_move)
-            current_position += actual_steps  # Use actual steps moved instead of requested
-            
-            logger.info(f"Index moved {direction} by {abs(actual_steps)} steps to position {current_position}")
+            return jsonify({"status": "error", "message": "Index move failed"}), 500
         
         return jsonify({
             "status": "success", 
