@@ -564,16 +564,24 @@ class LocalGPIOWrapper:
             
         try:
             if self._gpiod_v2:
-                # New gpiod v2.x API
+                # New gpiod v2.x API - completely revised approach
                 chip = gpiod.chip(self._chip)
-                config = gpiod.line_request()
-                config.consumer = "NooyenLaserRoom"
-                config.request_type = gpiod.line_request.DIRECTION_OUTPUT
                 
-                # In v2.x, get_line and request are handled differently
-                line = chip.get_line(pin)
-                line.request(config)
-                line.set_value(initial_value)
+                # In v2.x, we need to use line_request() differently
+                request = gpiod.line_request()
+                request.consumer = "NooyenLaserRoom"
+                request.request_type = gpiod.line_request.DIRECTION_OUTPUT
+                
+                # Get the line offset for this pin
+                offset = int(pin)
+                
+                # Request the line
+                line = chip.get_lines([offset])
+                line.request(request)
+                
+                # Set initial value
+                values = [initial_value]
+                line.set_values(values)
                 
                 # Store both chip and line for cleanup
                 self._lines[pin] = {"line": line, "chip": chip}
@@ -589,7 +597,7 @@ class LocalGPIOWrapper:
         except Exception as e:
             logging.error(f"Failed to set up GPIO pin {pin}: {e}")
             return False
-    
+            
     def setup_input(self, pin, pull_up=False):
         """
         Set up a GPIO pin as an input.
@@ -607,18 +615,24 @@ class LocalGPIOWrapper:
             
         try:
             if self._gpiod_v2:
-                # New gpiod v2.x API
+                # New gpiod v2.x API - completely revised approach
                 chip = gpiod.chip(self._chip)
-                config = gpiod.line_request()
-                config.consumer = "NooyenLaserRoom"
-                config.request_type = gpiod.line_request.DIRECTION_INPUT
+                
+                # In v2.x, we need to use line_request() differently
+                request = gpiod.line_request()
+                request.consumer = "NooyenLaserRoom"
+                request.request_type = gpiod.line_request.DIRECTION_INPUT
                 
                 # Handle pull-up for v2.x API
                 if pull_up:
-                    config.flags = gpiod.line_request.FLAG_BIAS_PULL_UP
+                    request.flags = gpiod.line_request.FLAG_BIAS_PULL_UP
                 
-                line = chip.get_line(pin)
-                line.request(config)
+                # Get the line offset for this pin
+                offset = int(pin)
+                
+                # Request the line
+                line = chip.get_lines([offset])
+                line.request(request)
                 
                 # Store both chip and line for cleanup
                 self._lines[pin] = {"line": line, "chip": chip}
@@ -658,8 +672,8 @@ class LocalGPIOWrapper:
         if pin in self._lines:
             try:
                 if self._gpiod_v2:
-                    # In v2.x, lines are stored as dict with line and chip
-                    self._lines[pin]["line"].set_value(value)
+                    # In v2.x, lines are stored as dict and use set_values with array
+                    self._lines[pin]["line"].set_values([value])
                 else:
                     # In v1.x, lines are stored directly
                     self._lines[pin].set_value(value)
@@ -692,8 +706,9 @@ class LocalGPIOWrapper:
         if pin in self._lines:
             try:
                 if self._gpiod_v2:
-                    # In v2.x, lines are stored as dict with line and chip
-                    value = self._lines[pin]["line"].get_value()
+                    # In v2.x, use get_values which returns an array
+                    values = self._lines[pin]["line"].get_values()
+                    value = values[0] if values else 0
                 else:
                     # In v1.x, lines are stored directly
                     value = self._lines[pin].get_value()
