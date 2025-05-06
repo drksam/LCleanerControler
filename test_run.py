@@ -216,22 +216,26 @@ def main():
                 response = input("This will run 'pip install -r requirements.txt' [y/N]: ")
                 
                 if response.lower() in ['y', 'yes']:
-                    print(f"Installing dependencies from {req_file}...")
+                    print("Installing dependencies...")
                     try:
+                        # Check if pip is available
+                        pip_path = shutil.which('pip') or shutil.which('pip3')
+                        
+                        if not pip_path:
+                            print("Error: pip not found. Please install pip first.")
+                            sys.exit(1)
+                            
                         # Install requirements
+                        # subprocess is already imported at the top level, no need to import again
                         result = subprocess.run([pip_path, 'install', '-r', req_file], 
                                                stdout=subprocess.PIPE, 
                                                stderr=subprocess.PIPE,
                                                text=True,
                                                check=True)
-                        print("Dependencies installed successfully!")
-                        
-                        # Check again for gunicorn
-                        gunicorn_path = shutil.which('gunicorn')
-                    except subprocess.CalledProcessError as e:
-                        print(f"Error installing dependencies: {e}")
-                        print(f"Error details: {e.stderr}")
-                        # Continue with what's available
+                        print("Dependencies installed successfully! Please run the script again.")
+                        sys.exit(0)
+                    except Exception as install_error:
+                        print(f"Error installing dependencies: {install_error}")
                 else:
                     print("Continuing without installing dependencies...")
             
@@ -286,7 +290,7 @@ def main():
                             sys.exit(1)
                             
                         # Install requirements
-                        import subprocess
+                        # subprocess is already imported at the top level, no need to import again
                         result = subprocess.run([pip_path, 'install', '-r', req_file], 
                                                stdout=subprocess.PIPE, 
                                                stderr=subprocess.PIPE,
