@@ -2,9 +2,11 @@
 Stepper motor control module using GPIOController for NooyenLaserRoom.
 This replaces the gpiozero-based implementation with our ESP32-based GPIOController.
 """
+import os
 import time
 import logging
 import threading
+import platform
 from config import get_stepper_config, get_system_config
 from gpio_controller_wrapper import StepperWrapper
 
@@ -39,6 +41,18 @@ class StepperMotor:
         # Set simulation mode based on system configuration
         self.simulation_mode = operation_mode == 'simulation'
         
+        # Check for FORCE_HARDWARE flag
+        self.force_hardware = os.environ.get('FORCE_HARDWARE', 'False').lower() == 'true'
+        
+        # Get serial port from config or use platform-specific default
+        serial_port = config.get('serial_port')
+        if not serial_port:
+            # Default port based on platform
+            if platform.system() == 'Windows':
+                serial_port = "COM3"  # Default Windows port
+            else:
+                serial_port = "/dev/ttyUSB0"  # Default Linux port
+        
         # Threading lock for thread safety
         self.lock = threading.Lock()
         
@@ -50,16 +64,22 @@ class StepperMotor:
                 enable_pin=self.enable_pin,
                 min_position=self.min_position,
                 max_position=self.max_position,
-                simulation_mode=self.simulation_mode
+                simulation_mode=self.simulation_mode,
+                serial_port=serial_port
             )
             
             # Set initial speed
             self.stepper.set_speed(self.speed)
             
-            logging.info(f"Stepper motor initialized with GPIOController")
+            logging.info(f"Stepper motor initialized with GPIOController on port {serial_port}")
         except Exception as e:
             logging.error(f"Failed to initialize stepper motor: {e}")
-            self.stepper = None
+            if self.force_hardware and operation_mode == 'prototype':
+                logging.error("FORCE_HARDWARE is enabled - cannot fall back to simulation mode")
+                raise  # Re-raise the exception to prevent fallback
+            else:
+                self.stepper = None
+                logging.info("Falling back to simulation mode")
     
     def enable(self):
         """Enable the stepper motor."""

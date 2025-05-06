@@ -2,9 +2,11 @@
 Servo control module using GPIOController for NooyenLaserRoom.
 This replaces the gpiozero-based implementation with our ESP32-based GPIOController.
 """
+import os
 import time
 import logging
 import threading
+import platform
 from config import get_servo_config, get_timing_config, get_system_config
 from config import increment_laser_counter, add_laser_fire_time
 from gpio_controller_wrapper import ServoWrapper
@@ -47,6 +49,18 @@ class ServoController:
         # Set simulation mode based on system configuration
         self.simulation_mode = operation_mode == 'simulation'
         
+        # Check for FORCE_HARDWARE flag
+        self.force_hardware = os.environ.get('FORCE_HARDWARE', 'False').lower() == 'true'
+        
+        # Get serial port from config or use platform-specific default
+        serial_port = config.get('serial_port')
+        if not serial_port:
+            # Default port based on platform
+            if platform.system() == 'Windows':
+                serial_port = "COM3"  # Default Windows port
+            else:
+                serial_port = "/dev/ttyUSB0"  # Default Linux port
+        
         # Initialize ServoWrapper
         self.initialized = False
         try:
@@ -55,14 +69,20 @@ class ServoController:
                 initial_angle=self.position_a,
                 min_angle=self.min_angle,
                 max_angle=self.max_angle,
-                simulation_mode=self.simulation_mode
+                simulation_mode=self.simulation_mode,
+                serial_port=serial_port
             )
             self.initialized = True
-            logging.info(f"Servo initialized on pin {self.servo_pin}")
+            logging.info(f"Servo initialized on pin {self.servo_pin} using port {serial_port}")
         except Exception as e:
             logging.error(f"Failed to initialize servo: {e}")
-            self.servo = None
-            self.initialized = False
+            if self.force_hardware and operation_mode == 'prototype':
+                logging.error("FORCE_HARDWARE is enabled - cannot fall back to simulation mode")
+                raise  # Re-raise the exception to prevent fallback
+            else:
+                self.servo = None
+                self.initialized = False
+                logging.info("Falling back to simulation mode")
     
     def set_position_a(self, angle):
         """Set the angle for position A"""

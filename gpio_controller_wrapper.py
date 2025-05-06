@@ -6,7 +6,17 @@ import os
 import time
 import logging
 import threading
+import platform
 from typing import Optional, Callable, Dict, Any
+
+# Determine default serial port based on platform
+if platform.system() == 'Windows':
+    DEFAULT_SERIAL_PORT = "COM3"  # Default Windows port, adjust as needed
+else:
+    DEFAULT_SERIAL_PORT = "/dev/ttyUSB0"  # Default Linux port
+
+# Check if FORCE_HARDWARE flag is set
+FORCE_HARDWARE = os.environ.get('FORCE_HARDWARE', 'False').lower() == 'true'
 
 # Conditional import for GPIOController
 try:
@@ -15,6 +25,9 @@ try:
 except ImportError:
     GPIOCTRL_AVAILABLE = False
     logging.warning("GPIOController library not available. Simulation mode will be used.")
+    if FORCE_HARDWARE:
+        logging.error("FORCE_HARDWARE is set but GPIOController library is not available!")
+        raise ImportError("GPIOController library is required when FORCE_HARDWARE is enabled")
 
 # Conditional import for local GPIO control via gpiod
 try:
@@ -23,6 +36,9 @@ try:
 except ImportError:
     GPIOD_AVAILABLE = False
     logging.warning("gpiod library not available. Local GPIO will use simulation mode.")
+    if FORCE_HARDWARE:
+        logging.error("FORCE_HARDWARE is set but gpiod library is not available!")
+        raise ImportError("gpiod library is required when FORCE_HARDWARE is enabled")
 
 class ServoWrapper:
     """
@@ -39,7 +55,7 @@ class ServoWrapper:
                  max_pulse_width=2.5/1000,
                  frame_width=20/1000,
                  simulation_mode=False,
-                 serial_port="/dev/ttyUSB0"):
+                 serial_port=None):
         """
         Initialize the servo wrapper.
         
@@ -59,20 +75,28 @@ class ServoWrapper:
         self.max_angle = max_angle
         self._angle = initial_angle
         self.simulation_mode = simulation_mode
-        self.serial_port = serial_port
+        self.serial_port = serial_port or DEFAULT_SERIAL_PORT
         self._controller = None
         
         # Initialize controller if not in simulation mode
         if not simulation_mode and GPIOCTRL_AVAILABLE:
             try:
-                self._controller = GPIOController(port=serial_port)
+                self._controller = GPIOController(port=self.serial_port)
                 # Set initial angle
                 self._controller.set_servo(pin=pin, angle=initial_angle)
                 logging.info(f"Initialized ServoWrapper with GPIOController on pin {pin}")
             except Exception as e:
                 logging.error(f"Failed to initialize GPIOController: {e}")
+                if FORCE_HARDWARE:
+                    logging.error("FORCE_HARDWARE is set - cannot fall back to simulation mode")
+                    raise
                 self.simulation_mode = True
+                logging.info("Falling back to simulation mode")
         else:
+            if FORCE_HARDWARE and not GPIOCTRL_AVAILABLE:
+                logging.error("FORCE_HARDWARE is set but GPIOController library is not available!")
+                raise ImportError("GPIOController library is required when FORCE_HARDWARE is enabled")
+            
             self.simulation_mode = True
             logging.info(f"ServoWrapper initialized in simulation mode")
     
@@ -130,7 +154,7 @@ class StepperWrapper:
                  min_position=-1000, 
                  max_position=1000,
                  simulation_mode=False,
-                 serial_port="/dev/ttyUSB0"):
+                 serial_port=None):
         """
         Initialize the stepper wrapper.
         
@@ -149,7 +173,7 @@ class StepperWrapper:
         self.min_position = min_position
         self.max_position = max_position
         self.simulation_mode = simulation_mode
-        self.serial_port = serial_port
+        self.serial_port = serial_port or DEFAULT_SERIAL_PORT
         self._controller = None
         self._position = 0
         self._stepper_id = 0  # Default stepper ID
@@ -161,7 +185,7 @@ class StepperWrapper:
         # Initialize controller if not in simulation mode
         if not simulation_mode and GPIOCTRL_AVAILABLE:
             try:
-                self._controller = GPIOController(port=serial_port)
+                self._controller = GPIOController(port=self.serial_port)
                 # Initialize stepper
                 self._controller.init_stepper(
                     id=self._stepper_id,
@@ -177,8 +201,16 @@ class StepperWrapper:
                 logging.info(f"Initialized StepperWrapper with GPIOController")
             except Exception as e:
                 logging.error(f"Failed to initialize GPIOController for stepper: {e}")
+                if FORCE_HARDWARE:
+                    logging.error("FORCE_HARDWARE is set - cannot fall back to simulation mode")
+                    raise
                 self.simulation_mode = True
+                logging.info("Falling back to simulation mode")
         else:
+            if FORCE_HARDWARE and not GPIOCTRL_AVAILABLE:
+                logging.error("FORCE_HARDWARE is set but GPIOController library is not available!")
+                raise ImportError("GPIOController library is required when FORCE_HARDWARE is enabled")
+            
             self.simulation_mode = True
             logging.info(f"StepperWrapper initialized in simulation mode")
     
@@ -488,8 +520,16 @@ class LocalGPIOWrapper:
                 logging.info("LocalGPIOWrapper initialized with gpiod")
             except Exception as e:
                 logging.error(f"Failed to initialize gpiod: {e}")
+                if FORCE_HARDWARE:
+                    logging.error("FORCE_HARDWARE is set - cannot fall back to simulation mode")
+                    raise
                 self.simulation_mode = True
+                logging.info("Falling back to simulation mode")
         else:
+            if FORCE_HARDWARE and not GPIOD_AVAILABLE and not simulation_mode:
+                logging.error("FORCE_HARDWARE is set but gpiod library is not available!")
+                raise ImportError("gpiod library is required when FORCE_HARDWARE is enabled")
+                
             self.simulation_mode = True
             logging.info("LocalGPIOWrapper initialized in simulation mode")
     
