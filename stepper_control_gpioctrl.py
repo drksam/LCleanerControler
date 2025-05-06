@@ -38,6 +38,16 @@ class StepperMotor:
         self.max_position = config.get('max_position', 500)
         self.min_position = config.get('min_position', -500)
         
+        # Physical limit switch pins
+        self.limit_a_pin = config.get('limit_a_pin', 0)  # Min limit switch
+        self.limit_b_pin = config.get('limit_b_pin', 0)  # Max limit switch
+        self.home_pin = config.get('home_switch_pin', 0) # Home position switch
+        
+        # Limit status
+        self.limit_a_triggered = False
+        self.limit_b_triggered = False
+        self.home_triggered = False
+        
         # Set simulation mode based on system configuration
         self.simulation_mode = operation_mode == 'simulation'
         
@@ -64,6 +74,9 @@ class StepperMotor:
                 enable_pin=self.enable_pin,
                 min_position=self.min_position,
                 max_position=self.max_position,
+                limit_a_pin=self.limit_a_pin,
+                limit_b_pin=self.limit_b_pin,
+                home_pin=self.home_pin,
                 simulation_mode=self.simulation_mode,
                 serial_port=serial_port
             )
@@ -71,6 +84,11 @@ class StepperMotor:
             # Set initial speed
             self.stepper.set_speed(self.speed)
             
+            # Auto-enable the stepper on initialization
+            if self.stepper.enable():
+                self.enabled = True
+                logging.info("Stepper motor auto-enabled during initialization")
+                
             logging.info(f"Stepper motor initialized with GPIOController on port {serial_port}")
         except Exception as e:
             logging.error(f"Failed to initialize stepper motor: {e}")
@@ -342,3 +360,49 @@ class StepperMotor:
         if self.stepper:
             self.stepper.close()
             logging.info("Stepper motor cleaned up")
+    
+    def get_limit_states(self):
+        """Get the current state of all limit switches.
+        
+        Returns:
+            dict: Dictionary with the state of all limit switches
+        """
+        with self.lock:
+            if self.stepper:
+                return self.stepper.update_limit_states()
+            else:
+                return {
+                    'limit_a': False,
+                    'limit_b': False,
+                    'home': False
+                }
+    
+    def is_at_min_limit(self):
+        """Check if the stepper is at minimum limit switch.
+        
+        Returns:
+            bool: True if at minimum limit, False otherwise
+        """
+        if self.stepper:
+            return self.stepper.get_limit_a_state()
+        return False
+    
+    def is_at_max_limit(self):
+        """Check if the stepper is at maximum limit switch.
+        
+        Returns:
+            bool: True if at maximum limit, False otherwise
+        """
+        if self.stepper:
+            return self.stepper.get_limit_b_state()
+        return False
+    
+    def is_at_home(self):
+        """Check if the stepper is at home position switch.
+        
+        Returns:
+            bool: True if at home position, False otherwise
+        """
+        if self.stepper:
+            return self.stepper.get_home_state()
+        return False

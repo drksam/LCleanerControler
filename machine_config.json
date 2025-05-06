@@ -10,7 +10,11 @@
         "index_distance": 5500,
         "jog_speed": 500,
         "jog_step_size": 20,
-        "steps_per_mm": 100
+        "steps_per_mm": 100,
+        "max_position": 50000,
+        "min_position": -50000,
+        "limit_a_pin": 27,
+        "limit_b_pin": 22
     },
     "servo": {
         "position_normal": 75,
