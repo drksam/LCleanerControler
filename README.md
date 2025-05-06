@@ -1,4 +1,4 @@
-# NooyenLaserRoom Control System v2.0.0
+# NooyenLaserRoom Control System v2.0.1
 
 ## Overview
 This is a sophisticated Raspberry Pi 5 control system for the NooyenLaserRoom laser cleaning machine. 
