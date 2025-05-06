@@ -498,6 +498,7 @@ class LocalGPIOWrapper:
     """
     Wrapper for local GPIO control using gpiod library.
     Provides a simple interface for controlling digital outputs.
+    Compatible with both old (v1.x) and new (v2.x) gpiod API.
     """
     
     def __init__(self, simulation_mode=False):
@@ -510,14 +511,24 @@ class LocalGPIOWrapper:
         self.simulation_mode = simulation_mode
         self._chip = None
         self._lines = {}
+        self._gpiod_v2 = False  # Flag to track which gpiod API version we're using
         
         # Initialize gpiod if not in simulation mode
         if not simulation_mode and GPIOD_AVAILABLE:
             try:
-                # For Raspberry Pi 5, GPIO pins are typically on gpiochip4
-                # This might need to be adjusted based on the specific device
-                self._chip = gpiod.Chip('gpiochip4')
-                logging.info("LocalGPIOWrapper initialized with gpiod")
+                # Check which version of gpiod we're using
+                if hasattr(gpiod, 'Chip'):
+                    # Old API (v1.x)
+                    self._gpiod_v2 = False
+                    # For Raspberry Pi 5, GPIO pins are typically on gpiochip4
+                    self._chip = gpiod.Chip('gpiochip4')
+                    logging.info("LocalGPIOWrapper initialized with gpiod v1.x API")
+                else:
+                    # New API (v2.x)
+                    self._gpiod_v2 = True
+                    # In v2, chips are accessed differently
+                    self._chip = 'gpiochip4'  # Just store the name for now
+                    logging.info("LocalGPIOWrapper initialized with gpiod v2.x API")
             except Exception as e:
                 logging.error(f"Failed to initialize gpiod: {e}")
                 if FORCE_HARDWARE:
@@ -548,19 +559,29 @@ class LocalGPIOWrapper:
             logging.debug(f"Simulation: Set up GPIO pin {pin} as output with value {initial_value}")
             return True
             
-        if self._chip:
-            try:
+        try:
+            if self._gpiod_v2:
+                # New gpiod v2.x API
+                chip = gpiod.chip(self._chip)
+                config = gpiod.line_request()
+                config.consumer = "NooyenLaserRoom"
+                config.request_type = gpiod.line_request.DIRECTION_OUTPUT
+                line = chip.get_line(pin)
+                line.request(config)
+                line.set_value(initial_value)
+                self._lines[pin] = line
+            else:
+                # Old gpiod v1.x API
                 line = self._chip.get_line(pin)
                 line.request(consumer="NooyenLaserRoom", type=gpiod.LINE_REQ_DIR_OUT)
                 line.set_value(initial_value)
                 self._lines[pin] = line
-                logging.debug(f"Set up GPIO pin {pin} as output with value {initial_value}")
-                return True
-            except Exception as e:
-                logging.error(f"Failed to set up GPIO pin {pin}: {e}")
-                return False
-        
-        return False
+                
+            logging.debug(f"Set up GPIO pin {pin} as output with value {initial_value}")
+            return True
+        except Exception as e:
+            logging.error(f"Failed to set up GPIO pin {pin}: {e}")
+            return False
     
     def setup_input(self, pin, pull_up=False):
         """
@@ -577,8 +598,22 @@ class LocalGPIOWrapper:
             logging.debug(f"Simulation: Set up GPIO pin {pin} as input")
             return True
             
-        if self._chip:
-            try:
+        try:
+            if self._gpiod_v2:
+                # New gpiod v2.x API
+                chip = gpiod.chip(self._chip)
+                config = gpiod.line_request()
+                config.consumer = "NooyenLaserRoom"
+                config.request_type = gpiod.line_request.DIRECTION_INPUT
+                
+                if pull_up:
+                    config.flags = gpiod.line_request.FLAG_BIAS_PULL_UP
+                
+                line = chip.get_line(pin)
+                line.request(config)
+                self._lines[pin] = line
+            else:
+                # Old gpiod v1.x API
                 line = self._chip.get_line(pin)
                 
                 # Set up with appropriate flags
@@ -588,13 +623,12 @@ class LocalGPIOWrapper:
                 
                 line.request(consumer="NooyenLaserRoom", type=gpiod.LINE_REQ_DIR_IN, flags=flags)
                 self._lines[pin] = line
-                logging.debug(f"Set up GPIO pin {pin} as input")
-                return True
-            except Exception as e:
-                logging.error(f"Failed to set up GPIO pin {pin}: {e}")
-                return False
-        
-        return False
+                
+            logging.debug(f"Set up GPIO pin {pin} as input")
+            return True
+        except Exception as e:
+            logging.error(f"Failed to set up GPIO pin {pin}: {e}")
+            return False
     
     def write(self, pin, value):
         """
@@ -681,7 +715,7 @@ class LocalGPIOWrapper:
             self._lines.clear()
             
             # Close the chip
-            if self._chip:
+            if not self._gpiod_v2 and self._chip:
                 try:
                     self._chip.close()
                     self._chip = None
