@@ -38,23 +38,23 @@
                                                                 <div class="col-6 text-end pe-2">
                                                                     <div class="mb-1"><span class="badge bg-warning">3.3V</span> Pin 1</div>
                                                                     <div class="mb-1"><span class="badge bg-warning">GPIO 2 (1-Wire)</span> Pin 3</div>
-                                                                    <div class="mb-1"><span class="badge bg-primary">GPIO 3 (Stepper Step)</span> Pin 5</div>
-                                                                    <div class="mb-1"><span class="badge bg-primary">GPIO 4 (Stepper Dir)</span> Pin 7</div>
+                                                                    <div class="mb-1"><span class="badge bg-primary">GPIO {{ gpio_config.step_pin }} (Stepper Step)</span> Pin 5</div>
+                                                                    <div class="mb-1"><span class="badge bg-primary">GPIO {{ gpio_config.dir_pin }} (Stepper Dir)</span> Pin 7</div>
                                                                     <div class="mb-1"><span class="badge bg-secondary">GND</span> Pin 9</div>
-                                                                    <div class="mb-1"><span class="badge bg-primary">GPIO 17 (Stepper Enable)</span> Pin 11</div>
-                                                                    <div class="mb-1"><span class="badge bg-primary">GPIO 27 (Home Switch)</span> Pin 13</div>
-                                                                    <div class="mb-1"><span class="badge bg-danger">GPIO 22 (Servo PWM)</span> Pin 15</div>
+                                                                    <div class="mb-1"><span class="badge bg-primary">GPIO {{ gpio_config.enable_pin }} (Stepper Enable)</span> Pin 11</div>
+                                                                    <div class="mb-1"><span class="badge bg-primary">GPIO {{ gpio_config.home_switch_pin }} (Home Switch)</span> Pin 13</div>
+                                                                    <div class="mb-1"><span class="badge bg-danger">GPIO {{ gpio_config.servo_pin }} (Servo PWM)</span> Pin 15</div>
                                                                     <div class="mb-1"><span class="badge bg-warning">3.3V</span> Pin 17</div>
                                                                     <div class="mb-1"><span class="badge bg-info">GPIO 10 (SPI0_MOSI)</span> Pin 19</div>
                                                                     <div class="mb-1"><span class="badge bg-info">GPIO 9 (SPI0_MISO)</span> Pin 21</div>
                                                                     <div class="mb-1"><span class="badge bg-info">GPIO 11 (SPI0_SCLK)</span> Pin 23</div>
                                                                     <div class="mb-1"><span class="badge bg-secondary">GND</span> Pin 25</div>
                                                                     <div class="mb-1"><span class="badge bg-secondary">ID_SD</span> Pin 27</div>
-                                                                    <div class="mb-1"><span class="badge bg-secondary">GPIO 5 (Servo Invert)</span> Pin 29</div>
-                                                                    <div class="mb-1"><span class="badge bg-success">GPIO 6 (Fan)</span> Pin 31</div>
-                                                                    <div class="mb-1"><span class="badge bg-success">GPIO 13 (Red Lights)</span> Pin 33</div>
-                                                                    <div class="mb-1"><span class="badge bg-success">GPIO 19 (Table Forward)</span> Pin 35</div>
-                                                                    <div class="mb-1"><span class="badge bg-success">GPIO 26 (Table Back)</span> Pin 37</div>
+                                                                    <div class="mb-1"><span class="badge bg-secondary">GPIO {{ gpio_config.servo_invert_pin }} (Servo Invert)</span> Pin 29</div>
+                                                                    <div class="mb-1"><span class="badge bg-success">GPIO {{ gpio_config.fan_pin }} (Fan)</span> Pin 31</div>
+                                                                    <div class="mb-1"><span class="badge bg-success">GPIO {{ gpio_config.red_lights_pin }} (Red Lights)</span> Pin 33</div>
+                                                                    <div class="mb-1"><span class="badge bg-success">GPIO {{ gpio_config.table_forward_pin }} (Table Forward)</span> Pin 35</div>
+                                                                    <div class="mb-1"><span class="badge bg-success">GPIO {{ gpio_config.table_backward_pin }} (Table Back)</span> Pin 37</div>
                                                                     <div class="mb-1"><span class="badge bg-secondary">GND</span> Pin 39</div>
                                                                 </div>
                                                                 <div class="col-6 text-start ps-2">
@@ -65,10 +65,10 @@
                                                                     <div class="mb-1">Pin 10 <span class="badge bg-info">GPIO 15 (UART)</span></div>
                                                                     <div class="mb-1">Pin 12 <span class="badge bg-info">GPIO 18 (SPI0_PWM0)</span></div>
                                                                     <div class="mb-1">Pin 14 <span class="badge bg-secondary">GND</span></div>
-                                                                    <div class="mb-1">Pin 16 <span class="badge bg-secondary">GPIO 23 (IN Button)</span></div>
-                                                                    <div class="mb-1">Pin 18 <span class="badge bg-secondary">GPIO 24 (OUT Button)</span></div>
+                                                                    <div class="mb-1">Pin 16 <span class="badge bg-secondary">GPIO {{ gpio_config.in_button_pin }} (IN Button)</span></div>
+                                                                    <div class="mb-1">Pin 18 <span class="badge bg-secondary">GPIO {{ gpio_config.out_button_pin }} (OUT Button)</span></div>
                                                                     <div class="mb-1">Pin 20 <span class="badge bg-secondary">GND</span></div>
-                                                                    <div class="mb-1">Pin 22 <span class="badge bg-secondary">GPIO 25 (Fire Button)</span></div>
+                                                                    <div class="mb-1">Pin 22 <span class="badge bg-secondary">GPIO {{ gpio_config.fire_button_pin }} (Fire Button)</span></div>
                                                                     <div class="mb-1">Pin 24 <span class="badge bg-info">GPIO 8 (SPI0_CE0)</span></div>
                                                                     <div class="mb-1">Pin 26 <span class="badge bg-info">GPIO 7 (SPI0_CE1)</span></div>
                                                                     <div class="mb-1">Pin 28 <span class="badge bg-secondary">ID_SC</span></div>
@@ -76,12 +76,13 @@
                                                                     <div class="mb-1">Pin 32 <span class="badge bg-info">GPIO 12 (RFID IRQ)</span></div>
                                                                     <div class="mb-1">Pin 34 <span class="badge bg-secondary">GND</span></div>
                                                                     <div class="mb-1">Pin 36 <span class="badge bg-info">GPIO 16 (RFID RST)</span></div>
-                                                                    <div class="mb-1">Pin 38 <span class="badge bg-warning">GPIO 20 (Back Limit)</span></div>
-                                                                    <div class="mb-1">Pin 40 <span class="badge bg-warning">GPIO 21 (Front Limit)</span></div>
+                                                                    <div class="mb-1">Pin 38 <span class="badge bg-warning">GPIO {{ gpio_config.table_back_limit_pin }} (Back Limit)</span></div>
+                                                                    <div class="mb-1">Pin 40 <span class="badge bg-warning">GPIO {{ gpio_config.table_front_limit_pin }} (Front Limit)</span></div>
                                                                 </div>
                                                             </div>
                                                         </div>
                                                     </div>
+                                                </div> <!-- Added missing closing div tag for Raspberry Pi Board -->
                                                 
                                                 <!-- Color Legend -->
                                                 <div class="col-md-6">
@@ -107,7 +108,7 @@
                                                     <div class="card bg-primary text-white mb-2">
                                                         <div class="card-body p-2">
                                                             <h6 class="card-title mb-0">Stepper Motor (Cleaning Head)</h6>
-                                                            <div class="small">Connected to: GPIO 3, 4, 17, 27</div>
+                                                            <div class="small">Connected to: GPIO {{ gpio_config.step_pin }}, {{ gpio_config.dir_pin }}, {{ gpio_config.enable_pin }}, {{ gpio_config.home_switch_pin }}</div>
                                                         </div>
                                                     </div>
                                                     
@@ -115,7 +116,7 @@
                                                     <div class="card bg-danger text-white mb-2">
                                                         <div class="card-body p-2">
                                                             <h6 class="card-title mb-0">Servo Motor (Trigger)</h6>
-                                                            <div class="small">Connected to: GPIO 22</div>
+                                                            <div class="small">Connected to: GPIO {{ gpio_config.servo_pin }}</div>
                                                         </div>
                                                     </div>
                                                     
@@ -123,7 +124,7 @@
                                                     <div class="card bg-secondary text-white mb-2">
                                                         <div class="card-body p-2">
                                                             <h6 class="card-title mb-0">Input Buttons/Switches</h6>
-                                                            <div class="small">Connected to: GPIO 5, 23, 24, 25</div>
+                                                            <div class="small">Connected to: GPIO {{ gpio_config.servo_invert_pin }}, {{ gpio_config.in_button_pin }}, {{ gpio_config.out_button_pin }}, {{ gpio_config.fire_button_pin }}</div>
                                                             <div class="small">Each button has dedicated pin - no pin sharing</div>
                                                         </div>
                                                     </div>
@@ -132,7 +133,7 @@
                                                     <div class="card bg-success text-white mb-2">
                                                         <div class="card-body p-2">
                                                             <h6 class="card-title mb-0">Output Controls</h6>
-                                                            <div class="small">Connected to: GPIO 6, 13, 19, 26</div>
+                                                            <div class="small">Connected to: GPIO {{ gpio_config.fan_pin }}, {{ gpio_config.red_lights_pin }}, {{ gpio_config.table_forward_pin }}, {{ gpio_config.table_backward_pin }}</div>
                                                         </div>
                                                     </div>
                                                     
@@ -148,17 +149,7 @@
                                                     <div class="card bg-warning text-dark mb-2">
                                                         <div class="card-body p-2">
                                                             <h6 class="card-title mb-0">Table Limit Switches</h6>
-                                                            <div class="small">Connected to: GPIO 20, 21</div>
-                                                        </div>
-                                                    </div>
-                                                    
-                                                    <!-- RFID Reader -->
-                                                    <div class="card bg-info text-white mb-2">
-                                                        <div class="card-body p-2">
-                                                            <h6 class="card-title mb-0">RFID Reader (Access Control)</h6>
-                                                            <div class="small">Connected to: GPIO 8, 9, 10, 11 (SPI0)</div>
-                                                            <div class="small">Additional: GPIO 12 (IRQ), GPIO 16 (RST)</div>
-                                                            <div class="small text-success fw-bold">Dedicated pins for RFID - no pin sharing</div>
+                                                            <div class="small">Connected to: GPIO {{ gpio_config.table_back_limit_pin }}, {{ gpio_config.table_front_limit_pin }}</div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -191,56 +182,56 @@
                                     <td>For DS18B20 sensors with 4.7kΩ pull-up resistor</td>
                                 </tr>
                                 <tr>
-                                    <td>GPIO 3</td>
+                                    <td>GPIO {{ gpio_config.step_pin }}</td>
                                     <td>5</td>
                                     <td>Stepper</td>
                                     <td>Step pulse</td>
                                     <td>Connected to stepper driver</td>
                                 </tr>
                                 <tr>
-                                    <td>GPIO 4</td>
+                                    <td>GPIO {{ gpio_config.dir_pin }}</td>
                                     <td>7</td>
                                     <td>Stepper</td>
                                     <td>Direction</td>
                                     <td>Connected to stepper driver</td>
                                 </tr>
                                 <tr>
-                                    <td>GPIO 17</td>
+                                    <td>GPIO {{ gpio_config.enable_pin }}</td>
                                     <td>11</td>
                                     <td>Stepper</td>
                                     <td>Enable</td>
                                     <td>Connected to stepper driver</td>
                                 </tr>
                                 <tr>
-                                    <td>GPIO 27</td>
+                                    <td>GPIO {{ gpio_config.home_switch_pin }}</td>
                                     <td>13</td>
                                     <td>Stepper</td>
                                     <td>Home switch</td>
                                     <td>Limit switch with pull-up resistor</td>
                                 </tr>
                                 <tr>
-                                    <td>GPIO 22</td>
+                                    <td>GPIO {{ gpio_config.servo_pin }}</td>
                                     <td>15</td>
                                     <td>Servo</td>
                                     <td>PWM signal</td>
                                     <td>Connected to servo signal wire</td>
                                 </tr>
                                 <tr>
-                                    <td>GPIO 23</td>
+                                    <td>GPIO {{ gpio_config.in_button_pin }}</td>
                                     <td>16</td>
                                     <td>Input</td>
                                     <td>IN button</td>
                                     <td>With pull-up resistor - dedicated input</td>
                                 </tr>
                                 <tr>
-                                    <td>GPIO 24</td>
+                                    <td>GPIO {{ gpio_config.out_button_pin }}</td>
                                     <td>18</td>
                                     <td>Input</td>
                                     <td>OUT button</td>
                                     <td>With pull-up resistor - dedicated input</td>
                                 </tr>
                                 <tr>
-                                    <td>GPIO 25</td>
+                                    <td>GPIO {{ gpio_config.fire_button_pin }}</td>
                                     <td>22</td>
                                     <td>Input</td>
                                     <td>FIRE button</td>
@@ -275,35 +266,35 @@
                                     <td>SPI Chip Enable 0 for RFID reader</td>
                                 </tr>
                                 <tr>
-                                    <td>GPIO 5</td>
+                                    <td>GPIO {{ gpio_config.servo_invert_pin }}</td>
                                     <td>29</td>
                                     <td>Input</td>
                                     <td>Servo invert switch</td>
                                     <td>With pull-up resistor</td>
                                 </tr>
                                 <tr>
-                                    <td>GPIO 6</td>
+                                    <td>GPIO {{ gpio_config.fan_pin }}</td>
                                     <td>31</td>
                                     <td>Output</td>
                                     <td>Fan control</td>
                                     <td>Connected to relay/transistor</td>
                                 </tr>
                                 <tr>
-                                    <td>GPIO 13</td>
+                                    <td>GPIO {{ gpio_config.red_lights_pin }}</td>
                                     <td>33</td>
                                     <td>Output</td>
                                     <td>Red lights</td>
                                     <td>Connected to relay/transistor</td>
                                 </tr>
                                 <tr>
-                                    <td>GPIO 19</td>
+                                    <td>GPIO {{ gpio_config.table_forward_pin }}</td>
                                     <td>35</td>
                                     <td>Output</td>
                                     <td>Table forward</td>
                                     <td>Connected to relay</td>
                                 </tr>
                                 <tr>
-                                    <td>GPIO 26</td>
+                                    <td>GPIO {{ gpio_config.table_backward_pin }}</td>
                                     <td>37</td>
                                     <td>Output</td>
                                     <td>Table backward</td>
@@ -324,14 +315,14 @@
                                     <td>Reset signal - dedicated pin</td>
                                 </tr>
                                 <tr>
-                                    <td>GPIO 21</td>
+                                    <td>GPIO {{ gpio_config.table_front_limit_pin }}</td>
                                     <td>40</td>
                                     <td>Input</td>
                                     <td>Table front limit</td>
                                     <td>With pull-up resistor</td>
                                 </tr>
                                 <tr>
-                                    <td>GPIO 20</td>
+                                    <td>GPIO {{ gpio_config.table_back_limit_pin }}</td>
                                     <td>38</td>
                                     <td>Input</td>
                                     <td>Table back limit</td>
@@ -521,39 +512,39 @@ sudo modprobe w1-therm</pre>
                                 </thead>
                                 <tbody>
                                     <tr>
-                                        <td>GPIO 23</td>
+                                        <td>GPIO {{ gpio_config.in_button_pin }}</td>
                                         <td>IN Button</td>
-                                        <td><span id="gpio23-state" class="badge bg-dark">Unknown</span></td>
+                                        <td><span id="gpio{{ gpio_config.in_button_pin }}-state" class="badge bg-dark">Unknown</span></td>
                                     </tr>
                                     <tr>
-                                        <td>GPIO 24</td>
+                                        <td>GPIO {{ gpio_config.out_button_pin }}</td>
                                         <td>OUT Button</td>
-                                        <td><span id="gpio24-state" class="badge bg-dark">Unknown</span></td>
+                                        <td><span id="gpio{{ gpio_config.out_button_pin }}-state" class="badge bg-dark">Unknown</span></td>
                                     </tr>
                                     <tr>
-                                        <td>GPIO 25</td>
+                                        <td>GPIO {{ gpio_config.fire_button_pin }}</td>
                                         <td>FIRE Button</td>
-                                        <td><span id="gpio25-state" class="badge bg-dark">Unknown</span></td>
+                                        <td><span id="gpio{{ gpio_config.fire_button_pin }}-state" class="badge bg-dark">Unknown</span></td>
                                     </tr>
                                     <tr>
-                                        <td>GPIO 5</td>
+                                        <td>GPIO {{ gpio_config.servo_invert_pin }}</td>
                                         <td>Servo Invert</td>
-                                        <td><span id="gpio5-state" class="badge bg-dark">Unknown</span></td>
+                                        <td><span id="gpio{{ gpio_config.servo_invert_pin }}-state" class="badge bg-dark">Unknown</span></td>
                                     </tr>
                                     <tr>
-                                        <td>GPIO 27</td>
+                                        <td>GPIO {{ gpio_config.home_switch_pin }}</td>
                                         <td>Home Switch</td>
-                                        <td><span id="gpio27-state" class="badge bg-dark">Unknown</span></td>
+                                        <td><span id="gpio{{ gpio_config.home_switch_pin }}-state" class="badge bg-dark">Unknown</span></td>
                                     </tr>
                                     <tr>
-                                        <td>GPIO 20</td>
+                                        <td>GPIO {{ gpio_config.table_back_limit_pin }}</td>
                                         <td>Table Back Limit</td>
-                                        <td><span id="gpio20-state" class="badge bg-dark">Unknown</span></td>
+                                        <td><span id="gpio{{ gpio_config.table_back_limit_pin }}-state" class="badge bg-dark">Unknown</span></td>
                                     </tr>
                                     <tr>
-                                        <td>GPIO 21</td>
+                                        <td>GPIO {{ gpio_config.table_front_limit_pin }}</td>
                                         <td>Table Front Limit</td>
-                                        <td><span id="gpio21-state" class="badge bg-dark">Unknown</span></td>
+                                        <td><span id="gpio{{ gpio_config.table_front_limit_pin }}-state" class="badge bg-dark">Unknown</span></td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -574,7 +565,7 @@ sudo modprobe w1-therm</pre>
                     <div class="card-body">
                         <p>Control output pins individually for testing:</p>
                         <div class="mb-3">
-                            <label class="form-label">Fan (GPIO 6)</label>
+                            <label class="form-label">Fan (GPIO {{ gpio_config.fan_pin }})</label>
                             <div class="d-flex">
                                 <button id="fan-on" class="btn btn-sm btn-success me-2">
                                     <i class="fas fa-power-off me-1"></i> ON
@@ -585,7 +576,7 @@ sudo modprobe w1-therm</pre>
                             </div>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Red Lights (GPIO 13)</label>
+                            <label class="form-label">Red Lights (GPIO {{ gpio_config.red_lights_pin }})</label>
                             <div class="d-flex">
                                 <button id="lights-on" class="btn btn-sm btn-success me-2">
                                     <i class="fas fa-power-off me-1"></i> ON
@@ -596,7 +587,7 @@ sudo modprobe w1-therm</pre>
                             </div>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Table Forward (GPIO 19)</label>
+                            <label class="form-label">Table Forward (GPIO {{ gpio_config.table_forward_pin }})</label>
                             <div class="d-flex">
                                 <button id="table-forward-on" class="btn btn-sm btn-success me-2">
                                     <i class="fas fa-power-off me-1"></i> ON
@@ -607,7 +598,7 @@ sudo modprobe w1-therm</pre>
                             </div>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Table Backward (GPIO 26)</label>
+                            <label class="form-label">Table Backward (GPIO {{ gpio_config.table_backward_pin }})</label>
                             <div class="d-flex">
                                 <button id="table-backward-on" class="btn btn-sm btn-success me-2">
                                     <i class="fas fa-power-off me-1"></i> ON
@@ -621,212 +612,212 @@ sudo modprobe w1-therm</pre>
                             <i class="fas fa-exclamation-triangle me-1"></i> Output testing may affect machine operation. Ensure machine is in a safe state before testing.
                         </div>
                     </div>
+                </div>
                     
-                    <!-- GPIO Pin Configuration Section moved from settings page -->
-                    <div class="card mt-4">
-                        <div class="card-header bg-warning text-dark">
-                            <h5 class="card-title mb-0">
-                                <i class="fas fa-microchip me-2"></i>
-                                GPIO Pin Configuration
-                            </h5>
+                <!-- GPIO Pin Configuration Section moved from settings page -->
+                <div class="card mt-4">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-microchip me-2"></i>
+                            GPIO Pin Configuration
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Warning:</strong> Changing GPIO pin assignments will require a system restart to take effect.
                         </div>
-                        <div class="card-body">
-                            <div class="alert alert-warning">
-                                <i class="fas fa-exclamation-triangle me-2"></i>
-                                <strong>Warning:</strong> Changing GPIO pin assignments will require a system restart to take effect.
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5>Stepper Motor Pins</h5>
+                                <form id="gpio-stepper-form">
+                                    <div class="mb-3">
+                                        <label for="dir_pin" class="form-label">DIR Pin (BCM)</label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="dir_pin" name="dir_pin" 
+                                                value="{{ gpio_config.dir_pin }}" min="0" max="27">
+                                            <button class="btn btn-warning" type="button" 
+                                                    onclick="updateConfig('gpio', 'dir_pin', document.getElementById('dir_pin').value)">
+                                                Save
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="step_pin" class="form-label">STEP Pin (BCM)</label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="step_pin" name="step_pin" 
+                                                value="{{ gpio_config.step_pin }}" min="0" max="27">
+                                            <button class="btn btn-warning" type="button" 
+                                                    onclick="updateConfig('gpio', 'step_pin', document.getElementById('step_pin').value)">
+                                                Save
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="enable_pin" class="form-label">ENABLE Pin (BCM)</label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="enable_pin" name="enable_pin" 
+                                                value="{{ gpio_config.enable_pin }}" min="0" max="27">
+                                            <button class="btn btn-warning" type="button" 
+                                                    onclick="updateConfig('gpio', 'enable_pin', document.getElementById('enable_pin').value)">
+                                                Save
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="home_switch_pin" class="form-label">Home Switch Pin (BCM)</label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="home_switch_pin" name="home_switch_pin" 
+                                                value="{{ gpio_config.home_switch_pin }}" min="0" max="27">
+                                            <button class="btn btn-warning" type="button" 
+                                                    onclick="updateConfig('gpio', 'home_switch_pin', document.getElementById('home_switch_pin').value)">
+                                                Save
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
                             </div>
                             
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <h5>Stepper Motor Pins</h5>
-                                    <form id="gpio-stepper-form">
-                                        <div class="mb-3">
-                                            <label for="dir_pin" class="form-label">DIR Pin (BCM)</label>
-                                            <div class="input-group">
-                                                <input type="number" class="form-control" id="dir_pin" name="dir_pin" 
-                                                    value="{{ gpio_config.dir_pin }}" min="0" max="27">
-                                                <button class="btn btn-warning" type="button" 
-                                                        onclick="updateConfig('gpio', 'dir_pin', document.getElementById('dir_pin').value)">
-                                                    Save
-                                                </button>
-                                            </div>
+                            <div class="col-md-6">
+                                <h5>Servo & Input Pins</h5>
+                                <form id="gpio-servo-form">
+                                    <div class="mb-3">
+                                        <label for="servo_pin" class="form-label">Servo Pin (BCM)</label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="servo_pin" name="servo_pin" 
+                                                value="{{ gpio_config.servo_pin }}" min="0" max="27">
+                                            <button class="btn btn-warning" type="button" 
+                                                    onclick="updateConfig('gpio', 'servo_pin', document.getElementById('servo_pin').value)">
+                                                Save
+                                            </button>
                                         </div>
-                                        <div class="mb-3">
-                                            <label for="step_pin" class="form-label">STEP Pin (BCM)</label>
-                                            <div class="input-group">
-                                                <input type="number" class="form-control" id="step_pin" name="step_pin" 
-                                                    value="{{ gpio_config.step_pin }}" min="0" max="27">
-                                                <button class="btn btn-warning" type="button" 
-                                                        onclick="updateConfig('gpio', 'step_pin', document.getElementById('step_pin').value)">
-                                                    Save
-                                                </button>
-                                            </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="in_button_pin" class="form-label">IN Button Pin (BCM)</label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="in_button_pin" name="in_button_pin" 
+                                                value="{{ gpio_config.in_button_pin }}" min="0" max="27">
+                                            <button class="btn btn-warning" type="button" 
+                                                    onclick="updateConfig('gpio', 'in_button_pin', document.getElementById('in_button_pin').value)">
+                                                Save
+                                            </button>
                                         </div>
-                                        <div class="mb-3">
-                                            <label for="enable_pin" class="form-label">ENABLE Pin (BCM)</label>
-                                            <div class="input-group">
-                                                <input type="number" class="form-control" id="enable_pin" name="enable_pin" 
-                                                    value="{{ gpio_config.enable_pin }}" min="0" max="27">
-                                                <button class="btn btn-warning" type="button" 
-                                                        onclick="updateConfig('gpio', 'enable_pin', document.getElementById('enable_pin').value)">
-                                                    Save
-                                                </button>
-                                            </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="out_button_pin" class="form-label">OUT Button Pin (BCM)</label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="out_button_pin" name="out_button_pin" 
+                                                value="{{ gpio_config.out_button_pin }}" min="0" max="27">
+                                            <button class="btn btn-warning" type="button" 
+                                                    onclick="updateConfig('gpio', 'out_button_pin', document.getElementById('out_button_pin').value)">
+                                                Save
+                                            </button>
                                         </div>
-                                        <div class="mb-3">
-                                            <label for="home_switch_pin" class="form-label">Home Switch Pin (BCM)</label>
-                                            <div class="input-group">
-                                                <input type="number" class="form-control" id="home_switch_pin" name="home_switch_pin" 
-                                                    value="{{ gpio_config.home_switch_pin }}" min="0" max="27">
-                                                <button class="btn btn-warning" type="button" 
-                                                        onclick="updateConfig('gpio', 'home_switch_pin', document.getElementById('home_switch_pin').value)">
-                                                    Save
-                                                </button>
-                                            </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="fire_button_pin" class="form-label">FIRE Button Pin (BCM)</label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="fire_button_pin" name="fire_button_pin" 
+                                                value="{{ gpio_config.fire_button_pin }}" min="0" max="27">
+                                            <button class="btn btn-warning" type="button" 
+                                                    onclick="updateConfig('gpio', 'fire_button_pin', document.getElementById('fire_button_pin').value)">
+                                                Save
+                                            </button>
                                         </div>
-                                    </form>
-                                </div>
-                                
-                                <div class="col-md-6">
-                                    <h5>Servo & Input Pins</h5>
-                                    <form id="gpio-servo-form">
-                                        <div class="mb-3">
-                                            <label for="servo_pin" class="form-label">Servo Pin (BCM)</label>
-                                            <div class="input-group">
-                                                <input type="number" class="form-control" id="servo_pin" name="servo_pin" 
-                                                    value="{{ gpio_config.servo_pin }}" min="0" max="27">
-                                                <button class="btn btn-warning" type="button" 
-                                                        onclick="updateConfig('gpio', 'servo_pin', document.getElementById('servo_pin').value)">
-                                                    Save
-                                                </button>
-                                            </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="servo_invert_pin" class="form-label">Servo Invert Switch Pin (BCM)</label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="servo_invert_pin" name="servo_invert_pin" 
+                                                value="{{ gpio_config.servo_invert_pin }}" min="0" max="27">
+                                            <button class="btn btn-warning" type="button" 
+                                                    onclick="updateConfig('gpio', 'servo_invert_pin', document.getElementById('servo_invert_pin').value)">
+                                                Save
+                                            </button>
                                         </div>
-                                        <div class="mb-3">
-                                            <label for="in_button_pin" class="form-label">IN Button Pin (BCM)</label>
-                                            <div class="input-group">
-                                                <input type="number" class="form-control" id="in_button_pin" name="in_button_pin" 
-                                                    value="{{ gpio_config.in_button_pin }}" min="0" max="27">
-                                                <button class="btn btn-warning" type="button" 
-                                                        onclick="updateConfig('gpio', 'in_button_pin', document.getElementById('in_button_pin').value)">
-                                                    Save
-                                                </button>
-                                            </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <h5>Output Pins</h5>
+                                <form id="gpio-output-form">
+                                    <div class="mb-3">
+                                        <label for="fan_pin" class="form-label">Fan Control Pin (BCM)</label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="fan_pin" name="fan_pin" 
+                                                value="{{ gpio_config.fan_pin }}" min="0" max="27">
+                                            <button class="btn btn-warning" type="button" 
+                                                    onclick="updateConfig('gpio', 'fan_pin', document.getElementById('fan_pin').value)">
+                                                Save
+                                            </button>
                                         </div>
-                                        <div class="mb-3">
-                                            <label for="out_button_pin" class="form-label">OUT Button Pin (BCM)</label>
-                                            <div class="input-group">
-                                                <input type="number" class="form-control" id="out_button_pin" name="out_button_pin" 
-                                                    value="{{ gpio_config.out_button_pin }}" min="0" max="27">
-                                                <button class="btn btn-warning" type="button" 
-                                                        onclick="updateConfig('gpio', 'out_button_pin', document.getElementById('out_button_pin').value)">
-                                                    Save
-                                                </button>
-                                            </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="red_lights_pin" class="form-label">Red Lights Pin (BCM)</label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="red_lights_pin" name="red_lights_pin" 
+                                                value="{{ gpio_config.red_lights_pin }}" min="0" max="27">
+                                            <button class="btn btn-warning" type="button" 
+                                                    onclick="updateConfig('gpio', 'red_lights_pin', document.getElementById('red_lights_pin').value)">
+                                                Save
+                                            </button>
                                         </div>
-                                        <div class="mb-3">
-                                            <label for="fire_button_pin" class="form-label">FIRE Button Pin (BCM)</label>
-                                            <div class="input-group">
-                                                <input type="number" class="form-control" id="fire_button_pin" name="fire_button_pin" 
-                                                    value="{{ gpio_config.fire_button_pin }}" min="0" max="27">
-                                                <button class="btn btn-warning" type="button" 
-                                                        onclick="updateConfig('gpio', 'fire_button_pin', document.getElementById('fire_button_pin').value)">
-                                                    Save
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="servo_invert_pin" class="form-label">Servo Invert Switch Pin (BCM)</label>
-                                            <div class="input-group">
-                                                <input type="number" class="form-control" id="servo_invert_pin" name="servo_invert_pin" 
-                                                    value="{{ gpio_config.servo_invert_pin }}" min="0" max="27">
-                                                <button class="btn btn-warning" type="button" 
-                                                        onclick="updateConfig('gpio', 'servo_invert_pin', document.getElementById('servo_invert_pin').value)">
-                                                    Save
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </form>
-                                </div>
+                                    </div>
+                                </form>
                             </div>
                             
-                            <div class="row mt-3">
-                                <div class="col-md-6">
-                                    <h5>Output Pins</h5>
-                                    <form id="gpio-output-form">
-                                        <div class="mb-3">
-                                            <label for="fan_pin" class="form-label">Fan Control Pin (BCM)</label>
-                                            <div class="input-group">
-                                                <input type="number" class="form-control" id="fan_pin" name="fan_pin" 
-                                                    value="{{ gpio_config.fan_pin }}" min="0" max="27">
-                                                <button class="btn btn-warning" type="button" 
-                                                        onclick="updateConfig('gpio', 'fan_pin', document.getElementById('fan_pin').value)">
-                                                    Save
-                                                </button>
-                                            </div>
+                            <div class="col-md-6">
+                                <h5>Table Control Pins</h5>
+                                <form id="gpio-table-form">
+                                    <div class="mb-3">
+                                        <label for="table_forward_pin" class="form-label">Table Forward Pin (BCM)</label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="table_forward_pin" name="table_forward_pin" 
+                                                value="{{ gpio_config.table_forward_pin }}" min="0" max="27">
+                                            <button class="btn btn-warning" type="button" 
+                                                    onclick="updateConfig('gpio', 'table_forward_pin', document.getElementById('table_forward_pin').value)">
+                                                Save
+                                            </button>
                                         </div>
-                                        <div class="mb-3">
-                                            <label for="red_lights_pin" class="form-label">Red Lights Pin (BCM)</label>
-                                            <div class="input-group">
-                                                <input type="number" class="form-control" id="red_lights_pin" name="red_lights_pin" 
-                                                    value="{{ gpio_config.red_lights_pin }}" min="0" max="27">
-                                                <button class="btn btn-warning" type="button" 
-                                                        onclick="updateConfig('gpio', 'red_lights_pin', document.getElementById('red_lights_pin').value)">
-                                                    Save
-                                                </button>
-                                            </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="table_backward_pin" class="form-label">Table Backward Pin (BCM)</label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="table_backward_pin" name="table_backward_pin" 
+                                                value="{{ gpio_config.table_backward_pin }}" min="0" max="27">
+                                            <button class="btn btn-warning" type="button" 
+                                                    onclick="updateConfig('gpio', 'table_backward_pin', document.getElementById('table_backward_pin').value)">
+                                                Save
+                                            </button>
                                         </div>
-                                    </form>
-                                </div>
-                                
-                                <div class="col-md-6">
-                                    <h5>Table Control Pins</h5>
-                                    <form id="gpio-table-form">
-                                        <div class="mb-3">
-                                            <label for="table_forward_pin" class="form-label">Table Forward Pin (BCM)</label>
-                                            <div class="input-group">
-                                                <input type="number" class="form-control" id="table_forward_pin" name="table_forward_pin" 
-                                                    value="{{ gpio_config.table_forward_pin }}" min="0" max="27">
-                                                <button class="btn btn-warning" type="button" 
-                                                        onclick="updateConfig('gpio', 'table_forward_pin', document.getElementById('table_forward_pin').value)">
-                                                    Save
-                                                </button>
-                                            </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="table_front_limit_pin" class="form-label">Table Front Limit Switch Pin (BCM)</label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="table_front_limit_pin" name="table_front_limit_pin" 
+                                                value="{{ gpio_config.table_front_limit_pin }}" min="0" max="27">
+                                            <button class="btn btn-warning" type="button" 
+                                                    onclick="updateConfig('gpio', 'table_front_limit_pin', document.getElementById('table_front_limit_pin').value)">
+                                                Save
+                                            </button>
                                         </div>
-                                        <div class="mb-3">
-                                            <label for="table_backward_pin" class="form-label">Table Backward Pin (BCM)</label>
-                                            <div class="input-group">
-                                                <input type="number" class="form-control" id="table_backward_pin" name="table_backward_pin" 
-                                                    value="{{ gpio_config.table_backward_pin }}" min="0" max="27">
-                                                <button class="btn btn-warning" type="button" 
-                                                        onclick="updateConfig('gpio', 'table_backward_pin', document.getElementById('table_backward_pin').value)">
-                                                    Save
-                                                </button>
-                                            </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="table_back_limit_pin" class="form-label">Table Back Limit Switch Pin (BCM)</label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="table_back_limit_pin" name="table_back_limit_pin" 
+                                                value="{{ gpio_config.table_back_limit_pin }}" min="0" max="27">
+                                            <button class="btn btn-warning" type="button" 
+                                                    onclick="updateConfig('gpio', 'table_back_limit_pin', document.getElementById('table_back_limit_pin').value)">
+                                                Save
+                                            </button>
                                         </div>
-                                        <div class="mb-3">
-                                            <label for="table_front_limit_pin" class="form-label">Table Front Limit Switch Pin (BCM)</label>
-                                            <div class="input-group">
-                                                <input type="number" class="form-control" id="table_front_limit_pin" name="table_front_limit_pin" 
-                                                    value="{{ gpio_config.table_front_limit_pin }}" min="0" max="27">
-                                                <button class="btn btn-warning" type="button" 
-                                                        onclick="updateConfig('gpio', 'table_front_limit_pin', document.getElementById('table_front_limit_pin').value)">
-                                                    Save
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="table_back_limit_pin" class="form-label">Table Back Limit Switch Pin (BCM)</label>
-                                            <div class="input-group">
-                                                <input type="number" class="form-control" id="table_back_limit_pin" name="table_back_limit_pin" 
-                                                    value="{{ gpio_config.table_back_limit_pin }}" min="0" max="27">
-                                                <button class="btn btn-warning" type="button" 
-                                                        onclick="updateConfig('gpio', 'table_back_limit_pin', document.getElementById('table_back_limit_pin').value)">
-                                                    Save
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </form>
-                                </div>
+                                    </div>
+                                </form>
                             </div>
                         </div>
                     </div>
@@ -928,6 +919,21 @@ sudo modprobe w1-therm</pre>
 {% block head %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Store GPIO pin mapping for dynamic access
+    const gpioPins = {
+        inButton: {{ gpio_config.in_button_pin }},
+        outButton: {{ gpio_config.out_button_pin }},
+        fireButton: {{ gpio_config.fire_button_pin }},
+        servoInvert: {{ gpio_config.servo_invert_pin }},
+        homeSwitch: {{ gpio_config.home_switch_pin }},
+        tableBackLimit: {{ gpio_config.table_back_limit_pin }},
+        tableFrontLimit: {{ gpio_config.table_front_limit_pin }},
+        fan: {{ gpio_config.fan_pin }},
+        redLights: {{ gpio_config.red_lights_pin }},
+        tableForward: {{ gpio_config.table_forward_pin }},
+        tableBackward: {{ gpio_config.table_backward_pin }}
+    };
+
     // Input refresh functionality
     document.getElementById('refresh-inputs').addEventListener('click', function() {
         refreshInputStates();
@@ -943,10 +949,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Lights control
     document.getElementById('lights-on').addEventListener('click', function() {
-        setOutput('lights', true);
+        setOutput('red_lights', true);
     });
     document.getElementById('lights-off').addEventListener('click', function() {
-        setOutput('lights', false);
+        setOutput('red_lights', false);
     });
 
     // Table forward control
@@ -976,13 +982,14 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
-                    updateInputState('gpio23-state', data.gpio23);
-                    updateInputState('gpio24-state', data.gpio24);
-                    updateInputState('gpio25-state', data.gpio25);
-                    updateInputState('gpio5-state', data.gpio5);
-                    updateInputState('gpio27-state', data.gpio27);
-                    updateInputState('gpio20-state', data.gpio20);
-                    updateInputState('gpio21-state', data.gpio21);
+                    // Map pin numbers to their element IDs and update states
+                    updateInputState('gpio' + gpioPins.inButton + '-state', data['gpio' + gpioPins.inButton]);
+                    updateInputState('gpio' + gpioPins.outButton + '-state', data['gpio' + gpioPins.outButton]);
+                    updateInputState('gpio' + gpioPins.fireButton + '-state', data['gpio' + gpioPins.fireButton]);
+                    updateInputState('gpio' + gpioPins.servoInvert + '-state', data['gpio' + gpioPins.servoInvert]);
+                    updateInputState('gpio' + gpioPins.homeSwitch + '-state', data['gpio' + gpioPins.homeSwitch]);
+                    updateInputState('gpio' + gpioPins.tableBackLimit + '-state', data['gpio' + gpioPins.tableBackLimit]);
+                    updateInputState('gpio' + gpioPins.tableFrontLimit + '-state', data['gpio' + gpioPins.tableFrontLimit]);
                 } else {
                     console.error('Error refreshing input states:', data.message);
                 }
@@ -1031,4 +1038,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
+{% endblock %}
+
+{% block scripts %}
+<!-- Include the GPIO testing JavaScript -->
+<script src="{{ url_for('static', filename='js/gpio_test.js') }}"></script>
 {% endblock %}

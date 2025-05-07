@@ -1,0 +1,4 @@
+todo 
+
+add soft limits to ui
+fix pin lables and info on pinout page ==

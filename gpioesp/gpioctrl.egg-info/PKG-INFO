@@ -1,6 +1,11 @@
-Metadata-Version: 2.1
+Metadata-Version: 2.4
 Name: gpioctrl
 Version: 0.3
 Summary: Python interface for controlling ESP32 GPIO with servo and stepper support
 Author: Your Name
 Requires-Python: >=3.6
+Requires-Dist: pyserial
+Dynamic: author
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary

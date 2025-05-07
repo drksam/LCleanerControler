@@ -5,8 +5,8 @@ import time
 import logging
 import os
 import threading
-from gpiozero import DigitalOutputDevice, DigitalInputDevice
-from config import get_gpio_config, get_timing_config
+from config import get_gpio_config, get_timing_config, get_system_config
+from gpio_controller_wrapper import LocalGPIOWrapper
 
 class OutputController:
     """
@@ -40,35 +40,42 @@ class OutputController:
         # Check if running in simulation mode
         self.simulation_mode = os.environ.get('SIMULATION_MODE', 'False').lower() == 'true'
         
+        # Get operation mode from system config if available
+        try:
+            system_config = get_system_config()
+            operation_mode = system_config.get('operation_mode', 'normal')
+            if operation_mode == 'simulation':
+                self.simulation_mode = True
+        except Exception:
+            pass
+        
         # Check if we should force hardware mode (used in prototype mode)
         self.force_hardware = os.environ.get('FORCE_HARDWARE', 'False').lower() == 'true'
         
         if self.simulation_mode:
             logging.info("Output controller running in simulation mode")
-            self.pins_initialized = False
+            self.gpio = LocalGPIOWrapper(simulation_mode=True)
+            self.pins_initialized = True
         else:
             try:
+                # Initialize GPIO wrapper for hardware access
+                self.gpio = LocalGPIOWrapper(simulation_mode=False)
+                
                 # Initialize output pins
-                self.fan_pin = DigitalOutputDevice(self.gpio_config['fan_pin'])
-                self.red_lights_pin = DigitalOutputDevice(self.gpio_config['red_lights_pin'])
-                self.table_forward_pin = DigitalOutputDevice(self.gpio_config['table_forward_pin'])
-                self.table_backward_pin = DigitalOutputDevice(self.gpio_config['table_backward_pin'])
+                self.gpio.setup_output(self.gpio_config['fan_pin'], 0)
+                self.gpio.setup_output(self.gpio_config['red_lights_pin'], 0)
+                self.gpio.setup_output(self.gpio_config['table_forward_pin'], 0)
+                self.gpio.setup_output(self.gpio_config['table_backward_pin'], 0)
                 
-                # Initialize input pins for table end switches
-                self.table_front_switch = DigitalInputDevice(
-                    self.gpio_config['table_front_switch_pin'],
-                    pull_up=True,
-                    bounce_time=self.timing_config['debounce_delay'] / 1000.0
-                )
-                self.table_back_switch = DigitalInputDevice(
-                    self.gpio_config['table_back_switch_pin'], 
-                    pull_up=True,
-                    bounce_time=self.timing_config['debounce_delay'] / 1000.0
-                )
+                # Initialize input pins for table end switches with pull-up
+                self.gpio.setup_input(self.gpio_config['table_front_limit_pin'], pull_up=True)
+                self.gpio.setup_input(self.gpio_config['table_back_limit_pin'], pull_up=True)
                 
-                # Set up callbacks for end switches
-                self.table_front_switch.when_activated = self._on_table_front_limit
-                self.table_back_switch.when_activated = self._on_table_back_limit
+                # Start monitor thread for limit switches
+                self.update_thread_running = True
+                self.update_thread = threading.Thread(target=self._monitor_limit_switches)
+                self.update_thread.daemon = True
+                self.update_thread.start()
                 
                 logging.info("Output pins initialized successfully")
                 self.pins_initialized = True
@@ -82,7 +89,32 @@ class OutputController:
                     logging.error(f"Failed to initialize output pins: {e}")
                     logging.info("Falling back to simulation mode")
                     self.simulation_mode = True
-                    self.pins_initialized = False
+                    self.gpio = LocalGPIOWrapper(simulation_mode=True)
+                    self.pins_initialized = True
+    
+    def _monitor_limit_switches(self):
+        """Background thread to monitor limit switches"""
+        while self.update_thread_running:
+            try:
+                # Read limit switch inputs (inverted logic with pull-up resistors)
+                front_limit = not bool(self.gpio.read(self.gpio_config['table_front_limit_pin']))
+                back_limit = not bool(self.gpio.read(self.gpio_config['table_back_limit_pin']))
+                
+                # Handle state changes
+                if front_limit != self.table_front_switch_state:
+                    self.table_front_switch_state = front_limit
+                    if front_limit:
+                        self._on_table_front_limit()
+                
+                if back_limit != self.table_back_switch_state:
+                    self.table_back_switch_state = back_limit
+                    if back_limit:
+                        self._on_table_back_limit()
+            except Exception as e:
+                logging.error(f"Error monitoring limit switches: {e}")
+            
+            # Check every 100ms
+            time.sleep(0.1)
     
     def set_fan(self, state):
         """Set the fan output state"""
@@ -92,9 +124,9 @@ class OutputController:
                 self.fan_delay_start = int(time.time() * 1000)  # Current time in ms
                 logging.debug("Fan turned ON")
             
-            # Apply the state to the GPIO if not in simulation mode
-            if not self.simulation_mode and self.pins_initialized:
-                self.fan_pin.value = 1 if state else 0
+            # Apply the state to the GPIO
+            if self.pins_initialized:
+                self.gpio.write(self.gpio_config['fan_pin'], 1 if state else 0)
     
     def set_red_lights(self, state):
         """Set the red lights output state"""
@@ -104,9 +136,9 @@ class OutputController:
                 self.red_lights_delay_start = int(time.time() * 1000)  # Current time in ms
                 logging.debug("Red lights turned ON")
             
-            # Apply the state to the GPIO if not in simulation mode
-            if not self.simulation_mode and self.pins_initialized:
-                self.red_lights_pin.value = 1 if state else 0
+            # Apply the state to the GPIO
+            if self.pins_initialized:
+                self.gpio.write(self.gpio_config['red_lights_pin'], 1 if state else 0)
     
     def set_table_forward(self, state):
         """
@@ -123,17 +155,17 @@ class OutputController:
         # Don't allow both directions at the same time
         if state and self.table_backward_state:
             self.table_backward_state = False
-            # Apply the state to the GPIO if not in simulation mode
-            if not self.simulation_mode and self.pins_initialized:
-                self.table_backward_pin.value = 0
+            # Apply the state to the GPIO
+            if self.pins_initialized:
+                self.gpio.write(self.gpio_config['table_backward_pin'], 0)
         
         self.table_forward_state = state
         if state:
             logging.debug("Table moving FORWARD")
         
-        # Apply the state to the GPIO if not in simulation mode
-        if not self.simulation_mode and self.pins_initialized:
-            self.table_forward_pin.value = 1 if state else 0
+        # Apply the state to the GPIO
+        if self.pins_initialized:
+            self.gpio.write(self.gpio_config['table_forward_pin'], 1 if state else 0)
         
         return True
     
@@ -152,17 +184,17 @@ class OutputController:
         # Don't allow both directions at the same time
         if state and self.table_forward_state:
             self.table_forward_state = False
-            # Apply the state to the GPIO if not in simulation mode
-            if not self.simulation_mode and self.pins_initialized:
-                self.table_forward_pin.value = 0
+            # Apply the state to the GPIO
+            if self.pins_initialized:
+                self.gpio.write(self.gpio_config['table_forward_pin'], 0)
         
         self.table_backward_state = state
         if state:
             logging.debug("Table moving BACKWARD")
         
-        # Apply the state to the GPIO if not in simulation mode
-        if not self.simulation_mode and self.pins_initialized:
-            self.table_backward_pin.value = 1 if state else 0
+        # Apply the state to the GPIO
+        if self.pins_initialized:
+            self.gpio.write(self.gpio_config['table_backward_pin'], 1 if state else 0)
         
         return True
     
@@ -229,22 +261,25 @@ class OutputController:
     
     def cleanup(self):
         """Clean up GPIO pins"""
-        if not self.simulation_mode and self.pins_initialized:
+        if self.pins_initialized:
             try:
                 with self.lock:
                     # Turn off all outputs
-                    self.fan_pin.off()
-                    self.red_lights_pin.off()
-                    self.table_forward_pin.off()
-                    self.table_backward_pin.off()
+                    if hasattr(self, 'gpio_config'):
+                        self.gpio.write(self.gpio_config['fan_pin'], 0)
+                        self.gpio.write(self.gpio_config['red_lights_pin'], 0)
+                        self.gpio.write(self.gpio_config['table_forward_pin'], 0)
+                        self.gpio.write(self.gpio_config['table_backward_pin'], 0)
                     
-                    # Close all pins
-                    self.fan_pin.close()
-                    self.red_lights_pin.close()
-                    self.table_forward_pin.close()
-                    self.table_backward_pin.close()
-                    self.table_front_switch.close()
-                    self.table_back_switch.close()
+                    # Stop the monitor thread if it exists
+                    if hasattr(self, 'update_thread_running'):
+                        self.update_thread_running = False
+                        if hasattr(self, 'update_thread') and self.update_thread:
+                            self.update_thread.join(timeout=1.0)
+                    
+                    # Clean up GPIO resources
+                    if hasattr(self, 'gpio'):
+                        self.gpio.cleanup()
                     
                     logging.info("Output pins cleaned up")
             except Exception as e:
