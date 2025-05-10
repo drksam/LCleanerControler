@@ -1,6 +1,26 @@
+/**
+ * main.js - Main control interface for the Laser Cleaner Controller
+ * 
+ * This module handles the main UI components including:
+ * - Temperature monitoring
+ * - Stepper motor control
+ * - Position presets
+ * - Fan and light controls
+ * - System logging
+ * 
+ * @requires ShopUtils
+ */
+
+// Get access to utility functions if available
+const ShopUtils = window.ShopUtils || {};
+
 // Get steps per mm conversion factor is defined in cleaning_head.js
 // This prevents duplication of the function if it's already defined
 if (typeof getStepsPerMm !== 'function') {
+    /**
+     * Get the steps per mm conversion factor from the UI
+     * @returns {number} Steps per mm value (default: 100)
+     */
     function getStepsPerMm() {
         let stepsPerMm = 100; // Default value
         const stepsPerMmBadge = document.querySelector('.badge.bg-info');
@@ -97,6 +117,64 @@ document.addEventListener('DOMContentLoaded', function() {
         updatePositionDisplay(currentPosition);
     }
     
+    /**
+     * Makes a standardized AJAX request with consistent error handling
+     * @param {string} url - URL to make the request to
+     * @param {string} [method='GET'] - HTTP method to use
+     * @param {Object} [data=null] - Data to send with the request
+     * @param {Function} [successCallback=null] - Function to call on success
+     * @param {Function} [errorCallback=null] - Function to call on error
+     * @param {Function} [finallyCallback=null] - Function to call regardless of success/failure
+     */
+    const makeRequest = ShopUtils.makeRequest || function(url, method = 'GET', data = null, successCallback = null, errorCallback = null, finallyCallback = null) {
+        const options = {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        };
+        
+        if (data && (method === 'POST' || method === 'PUT')) {
+            options.body = JSON.stringify(data);
+        }
+        
+        fetch(url, options)
+            .then(response => response.json())
+            .then(data => {
+                if (typeof successCallback === 'function') {
+                    successCallback(data);
+                }
+                return data;
+            })
+            .catch(error => {
+                console.error(`Error making ${method} request to ${url}:`, error);
+                if (typeof errorCallback === 'function') {
+                    errorCallback(error);
+                }
+            })
+            .finally(() => {
+                if (typeof finallyCallback === 'function') {
+                    finallyCallback();
+                }
+            });
+    };
+    
+    /**
+     * Update button state during async operation
+     * @param {HTMLButtonElement} button - Button to update
+     * @param {boolean} isLoading - Whether the button is in loading state
+     * @param {string} loadingText - Text to display while loading
+     * @param {string} defaultText - Text to display when not loading
+     */
+    const updateButtonState = ShopUtils.updateButtonState || function(button, isLoading, loadingText, defaultText) {
+        if (!button) return;
+        
+        button.disabled = isLoading;
+        button.innerHTML = isLoading 
+            ? `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> ${loadingText}`
+            : defaultText;
+    };
+
     // Update step size value display
     if (stepSizeInput) {
         stepSizeInput.addEventListener('input', function() {
@@ -104,37 +182,42 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    /**
+     * Jog the motor in specified direction
+     * @param {string} direction - Direction to jog ('forward' or 'backward')
+     * @param {number} steps - Number of steps to jog
+     */
+    function jogMotor(direction, steps) {
+        // Log before jogging
+        addLogMessage(`Jogging ${direction} ${steps} steps...`, false, 'action');
+        
+        makeRequest(
+            '/jog',
+            'POST',
+            {
+                direction: direction,
+                steps: steps
+            },
+            function(data) {
+                if (data.status === 'success') {
+                    currentPosition = data.position;
+                    updatePositionDisplay(currentPosition);
+                    addLogMessage(`Jog ${direction} complete - position: ${currentPosition}`, false, 'success');
+                } else {
+                    addLogMessage(`Error during jog ${direction}: ${data.message}`, true);
+                }
+            },
+            function(error) {
+                addLogMessage(`Error: ${error.message}`, true);
+            }
+        );
+    }
+    
     // Jog backward
     if (jogBackwardBtn) {
         jogBackwardBtn.addEventListener('click', function() {
             const steps = parseInt(stepSizeInput.value);
-            // Log before jogging
-            addLogMessage(`Jogging backward ${steps} steps...`, false, 'action');
-            
-            // Send jog request
-            fetch('/jog', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    direction: 'backward',
-                    steps: steps
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    currentPosition = data.position;
-                    updatePositionDisplay(currentPosition);
-                    addLogMessage(`Jog backward complete - position: ${currentPosition}`, false, 'success');
-                } else {
-                    addLogMessage(`Error during jog backward: ${data.message}`, true);
-                }
-            })
-            .catch(error => {
-                addLogMessage(`Error: ${error.message}`, true);
-            });
+            jogMotor('backward', steps);
         });
     }
     
@@ -142,66 +225,38 @@ document.addEventListener('DOMContentLoaded', function() {
     if (jogForwardBtn) {
         jogForwardBtn.addEventListener('click', function() {
             const steps = parseInt(stepSizeInput.value);
-            // Log before jogging
-            addLogMessage(`Jogging forward ${steps} steps...`, false, 'action');
-            
-            // Send jog request
-            fetch('/jog', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    direction: 'forward',
-                    steps: steps
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    currentPosition = data.position;
-                    updatePositionDisplay(currentPosition);
-                    addLogMessage(`Jog forward complete - position: ${currentPosition}`, false, 'success');
-                } else {
-                    addLogMessage(`Error during jog forward: ${data.message}`, true);
-                }
-            })
-            .catch(error => {
-                addLogMessage(`Error: ${error.message}`, true);
-            });
+            jogMotor('forward', steps);
         });
     }
     
     // Home motor
     if (homeMotorBtn) {
         homeMotorBtn.addEventListener('click', function() {
-            addLogMessage('Starting homing sequence...');
-            homeMotorBtn.disabled = true;
-            homeMotorBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Homing...';
+            addLogMessage('Starting homing sequence...', false, 'action');
             
-            fetch('/home', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
+            const originalButtonHtml = homeMotorBtn.innerHTML;
+            updateButtonState(homeMotorBtn, true, 'Homing...', originalButtonHtml);
+            
+            makeRequest(
+                '/home',
+                'POST',
+                null,
+                function(data) {
+                    if (data.status === 'success') {
+                        currentPosition = data.position;
+                        updatePositionDisplay(currentPosition);
+                        addLogMessage('Homing complete.', false, 'success');
+                    } else {
+                        addLogMessage('Error: ' + data.message, true);
+                    }
+                },
+                function(error) {
+                    addLogMessage('Error: ' + error.message, true);
+                },
+                function() {
+                    updateButtonState(homeMotorBtn, false, '', originalButtonHtml);
                 }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    currentPosition = data.position;
-                    updatePositionDisplay(currentPosition);
-                    addLogMessage('Homing complete.');
-                } else {
-                    addLogMessage('Error: ' + data.message, true);
-                }
-            })
-            .catch(error => {
-                addLogMessage('Error: ' + error.message, true);
-            })
-            .finally(() => {
-                homeMotorBtn.disabled = false;
-                homeMotorBtn.innerHTML = '<i class="fas fa-home me-2"></i> Home Motor';
-            });
+            );
         });
     }
     
@@ -210,30 +265,27 @@ document.addEventListener('DOMContentLoaded', function() {
         motorEnabledSwitch.addEventListener('change', function() {
             const enabled = this.checked;
             
-            fetch('/enable_motor', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
+            makeRequest(
+                '/enable_motor',
+                'POST',
+                {
                     enable: enabled
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    addLogMessage(`Motor ${enabled ? 'enabled' : 'disabled'}.`);
-                } else {
-                    addLogMessage('Error: ' + data.message, true);
+                },
+                function(data) {
+                    if (data.status === 'success') {
+                        addLogMessage(`Motor ${enabled ? 'enabled' : 'disabled'}.`, false, 'info');
+                    } else {
+                        addLogMessage('Error: ' + data.message, true);
+                        // Revert switch state if failed
+                        motorEnabledSwitch.checked = !enabled;
+                    }
+                },
+                function(error) {
+                    addLogMessage('Error: ' + error.message, true);
                     // Revert switch state if failed
-                    this.checked = !enabled;
+                    motorEnabledSwitch.checked = !enabled;
                 }
-            })
-            .catch(error => {
-                addLogMessage('Error: ' + error.message, true);
-                // Revert switch state if failed
-                this.checked = !enabled;
-            });
+            );
         });
     }
     
@@ -247,28 +299,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            fetch('/save_position', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
+            makeRequest(
+                '/save_position',
+                'POST',
+                {
                     name: presetName
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    addLogMessage(`Position saved as "${presetName}".`);
-                    newPresetNameInput.value = '';
-                    updatePresetsList(data.preset_positions);
-                } else {
-                    addLogMessage('Error: ' + data.message, true);
+                },
+                function(data) {
+                    if (data.status === 'success') {
+                        addLogMessage(`Position saved as "${presetName}".`, false, 'success');
+                        newPresetNameInput.value = '';
+                        updatePresetsList(data.preset_positions);
+                    } else {
+                        addLogMessage('Error: ' + data.message, true);
+                    }
+                },
+                function(error) {
+                    addLogMessage('Error: ' + error.message, true);
                 }
-            })
-            .catch(error => {
-                addLogMessage('Error: ' + error.message, true);
-            });
+            );
         });
     }
     
@@ -285,36 +334,39 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Function to move to an absolute position
+    /**
+     * Move to an absolute position
+     * @param {number} position - Position to move to in steps
+     */
     function moveToPosition(position) {
         // Log the action
         addLogMessage(`Moving to position ${position}...`, false, 'action');
         
-        fetch('/move_to', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
+        makeRequest(
+            '/move_to',
+            'POST',
+            {
                 position: position
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                currentPosition = data.position;
-                updatePositionDisplay(currentPosition);
-                addLogMessage(`Move complete - position: ${currentPosition}`, false, 'success');
-            } else {
-                addLogMessage(`Error during move: ${data.message}`, true);
+            },
+            function(data) {
+                if (data.status === 'success') {
+                    currentPosition = data.position;
+                    updatePositionDisplay(currentPosition);
+                    addLogMessage(`Move complete - position: ${currentPosition}`, false, 'success');
+                } else {
+                    addLogMessage(`Error during move: ${data.message}`, true);
+                }
+            },
+            function(error) {
+                addLogMessage(`Error: ${error.message}`, true);
             }
-        })
-        .catch(error => {
-            addLogMessage(`Error: ${error.message}`, true);
-        });
+        );
     }
     
-    // Function to update position display
+    /**
+     * Update position display in UI
+     * @param {number} position - Current position in steps
+     */
     function updatePositionDisplay(position) {
         if (positionDisplay) {
             positionDisplay.textContent = position;
@@ -344,31 +396,28 @@ document.addEventListener('DOMContentLoaded', function() {
             // Log before moving
             addLogMessage(`Moving to ${mmPosition} mm (${position} steps)...`, false, 'action');
             
-            fetch('/move_to', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
+            makeRequest(
+                '/move_to',
+                'POST',
+                {
                     position: position
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    currentPosition = data.position;
-                    updatePositionDisplay(currentPosition);
-                    
-                    // Calculate the mm position for the log message
-                    const mmPositionCurrent = (currentPosition / stepsPerMm).toFixed(2);
-                    addLogMessage(`Move complete - position: ${currentPosition} steps (${mmPositionCurrent} mm)`, false, 'success');
-                } else {
-                    addLogMessage(`Error during move: ${data.message}`, true);
+                },
+                function(data) {
+                    if (data.status === 'success') {
+                        currentPosition = data.position;
+                        updatePositionDisplay(currentPosition);
+                        
+                        // Calculate the mm position for the log message
+                        const mmPositionCurrent = (currentPosition / stepsPerMm).toFixed(2);
+                        addLogMessage(`Move complete - position: ${currentPosition} steps (${mmPositionCurrent} mm)`, false, 'success');
+                    } else {
+                        addLogMessage(`Error during move: ${data.message}`, true);
+                    }
+                },
+                function(error) {
+                    addLogMessage(`Error: ${error.message}`, true);
                 }
-            })
-            .catch(error => {
-                addLogMessage(`Error: ${error.message}`, true);
-            });
+            );
         });
     }
     
@@ -386,18 +435,17 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Function to update temperature monitor on main page
+    /**
+     * Update temperature monitor on main page
+     */
     function updateTemperatureMonitor() {
         if (!temperatureMonitor) return;
         
-        fetch('/temperature/status')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
+        makeRequest(
+            '/temperature/status',
+            'GET',
+            null,
+            function(data) {
                 // Check if we have sensors data in any format
                 if (data.sensors && Object.keys(data.sensors).length > 0) {
                     // Find existing sensor divs and update them
@@ -535,8 +583,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         temperatureStatusIcon.querySelector('i').className = 'fas fa-thermometer-half fa-2x text-secondary';
                     }
                 }
-            })
-            .catch(error => {
+            },
+            function(error) {
                 console.error('Error updating temperature status:', error);
                 
                 // Show error in status indicator
@@ -545,52 +593,59 @@ document.addEventListener('DOMContentLoaded', function() {
                     temperatureStatus.textContent = 'Error';
                     temperatureStatus.className = 'badge bg-danger';
                 }
-            });
+            }
+        );
     }
     
-    // Check if addLogMessage is already defined in base.html
-    // If not, provide a fallback implementation
-    if (typeof window.addLogMessage !== 'function') {
-        console.log('Defining addLogMessage function in main.js');
-        window.addLogMessage = function(message, isError = false, logType = 'info') {
-            const statusLog = document.getElementById('status-log');
-            if (!statusLog) return;
-            
-            console.log(message); // Always log to console
-            
-            const logItem = document.createElement('div');
-            
-            // Apply appropriate styling based on log type
-            if (isError) {
-                logItem.className = 'alert alert-danger mb-1 py-1 small';
-            } else if (logType === 'success') {
-                logItem.className = 'alert alert-success mb-1 py-1 small';
-            } else if (logType === 'action') {
-                logItem.className = 'alert alert-primary mb-1 py-1 small';
-            } else if (logType === 'warning') {
-                logItem.className = 'alert alert-warning mb-1 py-1 small';
-            } else if (logType === 'temperature') {
-                logItem.className = 'alert alert-info mb-1 py-1 small';
-            } else {
-                logItem.className = 'alert alert-info mb-1 py-1 small';
+    /**
+     * Add a message to the status log
+     * @param {string} message - Message to log
+     * @param {boolean} [isError=false] - Whether this is an error message
+     * @param {string} [logType='info'] - Type of log message ('info', 'warning', 'error', 'success', etc.)
+     */
+    const originalAddLogMessage = window.addLogMessage;
+    window.addLogMessage = function(message, isError = false, logType = 'info') {
+        // If the original function exists in base.html, use it
+        if (typeof originalAddLogMessage === 'function') {
+            originalAddLogMessage(message, isError, logType);
+            return;
+        }
+        
+        const statusLog = document.getElementById('status-log');
+        if (!statusLog) return;
+        
+        console.log(message); // Always log to console
+        
+        const logItem = document.createElement('div');
+        
+        // Apply appropriate styling based on log type
+        if (isError) {
+            logItem.className = 'alert alert-danger mb-1 py-1 small';
+        } else if (logType === 'success') {
+            logItem.className = 'alert alert-success mb-1 py-1 small';
+        } else if (logType === 'action') {
+            logItem.className = 'alert alert-primary mb-1 py-1 small';
+        } else if (logType === 'warning') {
+            logItem.className = 'alert alert-warning mb-1 py-1 small';
+        } else if (logType === 'temperature') {
+            logItem.className = 'alert alert-info mb-1 py-1 small';
+        } else {
+            logItem.className = 'alert alert-info mb-1 py-1 small';
+        }
+        
+        logItem.textContent = message;
+        
+        statusLog.prepend(logItem);
+        
+        // Limit log items
+        const maxItems = 20;
+        const items = statusLog.querySelectorAll('div');
+        if (items.length > maxItems) {
+            for (let i = maxItems; i < items.length; i++) {
+                statusLog.removeChild(items[i]);
             }
-            
-            logItem.textContent = message;
-            
-            statusLog.prepend(logItem);
-            
-            // Limit log items
-            const maxItems = 20;
-            const items = statusLog.querySelectorAll('div');
-            if (items.length > maxItems) {
-                for (let i = maxItems; i < items.length; i++) {
-                    statusLog.removeChild(items[i]);
-                }
-            }
-        };
-    } else {
-        console.log('Using addLogMessage function from base.html');
-    }
+        }
+    };
     
     // Listen for temperature status changes to add to log
     document.addEventListener('temperature-update', function(e) {
@@ -614,16 +669,153 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Initialize fan status
-    function updateFanStatus() {
-        fetch('/fan/status')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
+    /**
+     * Set the fan state
+     * @param {boolean} state - New fan state (true for on, false for off)
+     */
+    function setFanState(state) {
+        makeRequest(
+            '/fan',
+            'POST',
+            {
+                state: state
+            },
+            function(data) {
+                if (data.status === 'success') {
+                    // Update UI state
+                    if (fanSwitch) fanSwitch.checked = state;
+                    addLogMessage(`Fan turned ${state ? 'ON' : 'OFF'}`, false);
+                    updateFanStatus(); // Update UI immediately
+                } else {
+                    addLogMessage(`Error controlling fan: ${data.message || 'Unknown error'}`, true);
+                    // Revert switch if it failed
+                    if (fanSwitch) fanSwitch.checked = !state;
                 }
-                return response.json();
-            })
-            .then(data => {
+            },
+            function(error) {
+                addLogMessage(`Error controlling fan: ${error.message}`, true);
+                // Revert switch if it failed
+                if (fanSwitch) fanSwitch.checked = !state;
+            }
+        );
+    }
+
+    /**
+     * Set the lights state
+     * @param {boolean} state - New lights state (true for on, false for off)
+     */
+    function setLightsState(state) {
+        makeRequest(
+            '/lights',
+            'POST',
+            {
+                state: state
+            },
+            function(data) {
+                if (data.status === 'success') {
+                    // Update UI state
+                    if (lightsSwitch) lightsSwitch.checked = state;
+                    addLogMessage(`Lights turned ${state ? 'ON' : 'OFF'}`, false);
+                    updateLightsStatus(); // Update UI immediately
+                } else {
+                    addLogMessage(`Error controlling lights: ${data.message || 'Unknown error'}`, true);
+                    // Revert switch if it failed
+                    if (lightsSwitch) lightsSwitch.checked = !state;
+                }
+            },
+            function(error) {
+                addLogMessage(`Error controlling lights: ${error.message}`, true);
+                // Revert switch if it failed
+                if (lightsSwitch) lightsSwitch.checked = !state;
+            }
+        );
+    }
+    
+    /**
+     * Update list of position presets
+     * @param {Array} presets - Array of preset position objects
+     */
+    function updatePresetsList(presets) {
+        if (!presetContainer) return;
+        
+        // Clear existing presets
+        presetContainer.innerHTML = '';
+        
+        if (!presets || presets.length === 0) {
+            presetContainer.innerHTML = '<div class="alert alert-info">No presets saved</div>';
+            return;
+        }
+        
+        presets.forEach(preset => {
+            const presetDiv = document.createElement('div');
+            presetDiv.className = 'card mb-2';
+            
+            presetDiv.innerHTML = `
+                <div class="card-body py-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="card-title mb-0">${preset.name}</h5>
+                            <p class="card-text text-muted small mb-0">Position: ${preset.position}</p>
+                        </div>
+                        <div>
+                            <button class="btn btn-sm btn-primary move-to-preset" data-position="${preset.position}">
+                                <i class="fas fa-arrow-right"></i> Move
+                            </button>
+                            <button class="btn btn-sm btn-danger delete-preset" data-id="${preset.id}">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            presetContainer.appendChild(presetDiv);
+        });
+        
+        // Set up delete buttons
+        const deleteButtons = presetContainer.querySelectorAll('.delete-preset');
+        deleteButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const presetId = this.dataset.id;
+                deletePreset(presetId);
+            });
+        });
+    }
+    
+    /**
+     * Delete a position preset
+     * @param {string} presetId - ID of the preset to delete
+     */
+    function deletePreset(presetId) {
+        if (!presetId) return;
+        
+        makeRequest(
+            `/delete_preset/${presetId}`,
+            'POST',
+            null,
+            function(data) {
+                if (data.status === 'success') {
+                    addLogMessage(`Preset deleted successfully.`, false, 'success');
+                    updatePresetsList(data.preset_positions);
+                } else {
+                    addLogMessage(`Error deleting preset: ${data.message}`, true);
+                }
+            },
+            function(error) {
+                addLogMessage(`Error deleting preset: ${error.message}`, true);
+            }
+        );
+    }
+    
+    /**
+     * Update fan status display from server
+     */
+    function updateFanStatus() {
+        makeRequest(
+            '/fan/status',
+            'GET',
+            null,
+            function(data) {
                 if (data.status === 'success') {
                     const fanState = data.fan_state;
                     const timeRemaining = data.time_remaining || 0;
@@ -657,22 +849,22 @@ document.addEventListener('DOMContentLoaded', function() {
                         fanTimerProgress.setAttribute('aria-valuenow', 0);
                     }
                 }
-            })
-            .catch(error => {
+            },
+            function(error) {
                 console.error('Error fetching fan status:', error);
-            });
+            }
+        );
     }
     
-    // Initialize lights status
+    /**
+     * Update lights status display from server
+     */
     function updateLightsStatus() {
-        fetch('/lights/status')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
+        makeRequest(
+            '/lights/status',
+            'GET',
+            null,
+            function(data) {
                 if (data.status === 'success') {
                     const lightsState = data.lights_state;
                     const timeRemaining = data.time_remaining || 0;
@@ -705,10 +897,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         lightsTimerProgress.setAttribute('aria-valuenow', 0);
                     }
                 }
-            })
-            .catch(error => {
+            },
+            function(error) {
                 console.error('Error fetching lights status:', error);
-            });
+            }
+        );
     }
     
     // Set up fan toggle switch
@@ -764,5 +957,32 @@ document.addEventListener('DOMContentLoaded', function() {
             updateFanStatus();
             updateLightsStatus();
         }, 3000);
+    }
+    
+    /**
+     * Initialize position presets
+     */
+    function initializePresets() {
+        // Load presets on startup
+        makeRequest(
+            '/get_presets',
+            'GET',
+            null,
+            function(data) {
+                if (data.status === 'success' && data.preset_positions) {
+                    updatePresetsList(data.preset_positions);
+                } else {
+                    console.error('Failed to load presets:', data.message || 'Unknown error');
+                }
+            },
+            function(error) {
+                console.error('Error loading presets:', error);
+            }
+        );
+    }
+    
+    // Initialize presets if container exists
+    if (presetContainer) {
+        initializePresets();
     }
 });

@@ -9,3 +9,4 @@ email-validator==2.1.0
 requests==2.31.0
 gpiod==1.5.3
 mfrc522==0.0.7
+apscheduler==3.10.1

@@ -4,7 +4,10 @@
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Check if we have access to the unified logging system
+    // Use the utility library for simulation mode
+    const ShopUtils = window.ShopUtils || {};
+
+    // Handle logging setup
     if (typeof window.addLogMessage !== 'function') {
         console.error('window.addLogMessage function not available - global logging will not work');
         
@@ -20,6 +23,61 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Add initialization log message
     window.addLogMessage('Operation controls initialized', false, 'info');
+
+    /**
+     * Makes a standardized AJAX request with consistent error handling
+     * @param {string} url - URL to make the request to
+     * @param {string} [method='GET'] - HTTP method to use
+     * @param {Object} [data=null] - Data to send with the request
+     * @param {Function} [successCallback=null] - Function to call on success
+     * @param {Function} [errorCallback=null] - Function to call on error
+     * @param {Function} [finallyCallback=null] - Function to call regardless of success/failure
+     */
+    const makeRequest = ShopUtils.makeRequest || function(url, method, data, successCallback, errorCallback, finallyCallback) {
+        const options = {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        };
+        
+        if (data && (method === 'POST' || method === 'PUT')) {
+            options.body = JSON.stringify(data);
+        }
+        
+        fetch(url, options)
+            .then(response => response.json())
+            .then(data => {
+                if (typeof successCallback === 'function') {
+                    successCallback(data);
+                }
+                return data;
+            })
+            .catch(error => {
+                window.addLogMessage(`Error: ${error.message}`, true);
+                if (typeof errorCallback === 'function') {
+                    errorCallback(error);
+                }
+            })
+            .finally(() => {
+                if (typeof finallyCallback === 'function') {
+                    finallyCallback();
+                }
+            });
+    };
+    
+    /**
+     * Set a button's disabled state with visual feedback
+     * @param {HTMLElement} button - The button to modify
+     * @param {boolean} disabled - Whether to disable the button
+     */
+    const setButtonState = ShopUtils.setButtonsState || function(enabled, ...buttons) {
+        buttons.forEach(button => {
+            if (button) {
+                button.disabled = !enabled;
+            }
+        });
+    };
     
     // Fire and Fiber buttons
     const fireButton = document.getElementById('fire-button');
@@ -46,6 +104,43 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Regular Fire Buttons (both toggle and momentary)
     const fireToggleButton = document.getElementById('fire-toggle-button');
+    // Add fiber toggle button reference
+    const fireFiberToggleButton = document.getElementById('fire-fiber-toggle-button');
+
+    /**
+     * Updates the firing status indicator in the UI
+     * @param {string} status - The status text to display
+     * @param {string} className - The CSS class to apply to the status indicator
+     */
+    function updateFiringStatus(status, className) {
+        if (firingStatus) {
+            firingStatus.textContent = status;
+            firingStatus.className = className;
+        }
+    }
+    
+    /**
+     * Disables all fire buttons and enables the stop button
+     */
+    function disableFireButtons() {
+        setButtonState(false, fireButton, fireToggleButton, fireFiberButton, fireFiberToggleButton);
+        setButtonState(true, stopFireButton);
+    }
+    
+    /**
+     * Enables all fire buttons and disables the stop button
+     */
+    function enableFireButtons() {
+        setButtonState(true, fireButton, fireToggleButton, fireFiberButton, fireFiberToggleButton);
+        setButtonState(false, stopFireButton);
+    }
+    
+    /**
+     * Sets firing status to inactive/not firing
+     */
+    function resetFiringStatus() {
+        updateFiringStatus('Not Firing', 'badge bg-secondary');
+    }
     
     // Momentary Fire button (original behavior)
     if (fireButton && stopFireButton) {
@@ -54,63 +149,28 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log("Fire button (momentary) clicked");
             window.addLogMessage('FIRING (momentary) - Moving servo to position B...', false, 'action');
             
-            // Disable all fire buttons and enable stop button
-            fireButton.disabled = true;
-            if (fireToggleButton) fireToggleButton.disabled = true;
-            if (fireFiberButton) fireFiberButton.disabled = true;
-            if (fireFiberToggleButton) fireFiberToggleButton.disabled = true;
-            stopFireButton.disabled = false;
+            disableFireButtons();
+            updateFiringStatus('Firing', 'badge bg-danger');
             
-            // Update status
-            if (firingStatus) {
-                firingStatus.textContent = 'Firing';
-                firingStatus.className = 'badge bg-danger';
-            }
-            
-            fetch('/fire', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    mode: 'momentary'
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    window.addLogMessage('Firing initiated', false, 'success');
-                } else {
-                    window.addLogMessage(`Error initiating firing: ${data.message}`, true);
-                    // Reset button states on error
-                    fireButton.disabled = false;
-                    if (fireToggleButton) fireToggleButton.disabled = false;
-                    if (fireFiberButton) fireFiberButton.disabled = false;
-                    if (fireFiberToggleButton) fireFiberToggleButton.disabled = false;
-                    stopFireButton.disabled = true;
-                    
-                    // Reset status
-                    if (firingStatus) {
-                        firingStatus.textContent = 'Not Firing';
-                        firingStatus.className = 'badge bg-secondary';
+            makeRequest(
+                '/fire',
+                'POST',
+                { mode: 'momentary' },
+                function(data) {
+                    if (data.status === 'success') {
+                        window.addLogMessage('Firing initiated', false, 'success');
+                    } else {
+                        window.addLogMessage(`Error initiating firing: ${data.message}`, true);
+                        enableFireButtons();
+                        resetFiringStatus();
                     }
+                },
+                function(error) {
+                    // Error handling is done in makeRequest
+                    enableFireButtons();
+                    resetFiringStatus();
                 }
-            })
-            .catch(error => {
-                window.addLogMessage(`Error: ${error.message}`, true);
-                // Reset button states on error
-                fireButton.disabled = false;
-                if (fireToggleButton) fireToggleButton.disabled = false;
-                if (fireFiberButton) fireFiberButton.disabled = false;
-                if (fireFiberToggleButton) fireFiberToggleButton.disabled = false;
-                stopFireButton.disabled = true;
-                
-                // Reset status
-                if (firingStatus) {
-                    firingStatus.textContent = 'Not Firing';
-                    firingStatus.className = 'badge bg-secondary';
-                }
-            });
+            );
         });
     }
     
@@ -121,63 +181,28 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log("Fire toggle button clicked");
             window.addLogMessage('FIRING (toggle) - Moving servo to position B...', false, 'action');
             
-            // Disable all fire buttons and enable stop button
-            fireButton.disabled = true;
-            fireToggleButton.disabled = true;
-            if (fireFiberButton) fireFiberButton.disabled = true;
-            if (fireFiberToggleButton) fireFiberToggleButton.disabled = true;
-            stopFireButton.disabled = false;
+            disableFireButtons();
+            updateFiringStatus('Firing (Toggle)', 'badge bg-danger');
             
-            // Update status
-            if (firingStatus) {
-                firingStatus.textContent = 'Firing (Toggle)';
-                firingStatus.className = 'badge bg-danger';
-            }
-            
-            fetch('/fire', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    mode: 'toggle'
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    window.addLogMessage('Firing (toggle mode) initiated', false, 'success');
-                } else {
-                    window.addLogMessage(`Error initiating toggle firing: ${data.message}`, true);
-                    // Reset button states on error
-                    fireButton.disabled = false;
-                    fireToggleButton.disabled = false;
-                    if (fireFiberButton) fireFiberButton.disabled = false;
-                    if (fireFiberToggleButton) fireFiberToggleButton.disabled = false;
-                    stopFireButton.disabled = true;
-                    
-                    // Reset status
-                    if (firingStatus) {
-                        firingStatus.textContent = 'Not Firing';
-                        firingStatus.className = 'badge bg-secondary';
+            makeRequest(
+                '/fire',
+                'POST',
+                { mode: 'toggle' },
+                function(data) {
+                    if (data.status === 'success') {
+                        window.addLogMessage('Firing (toggle mode) initiated', false, 'success');
+                    } else {
+                        window.addLogMessage(`Error initiating toggle firing: ${data.message}`, true);
+                        enableFireButtons();
+                        resetFiringStatus();
                     }
+                },
+                function(error) {
+                    // Error handling is done in makeRequest
+                    enableFireButtons();
+                    resetFiringStatus();
                 }
-            })
-            .catch(error => {
-                window.addLogMessage(`Error: ${error.message}`, true);
-                // Reset button states on error
-                fireButton.disabled = false;
-                fireToggleButton.disabled = false;
-                if (fireFiberButton) fireFiberButton.disabled = false;
-                if (fireFiberToggleButton) fireFiberToggleButton.disabled = false;
-                stopFireButton.disabled = true;
-                
-                // Reset status
-                if (firingStatus) {
-                    firingStatus.textContent = 'Not Firing';
-                    firingStatus.className = 'badge bg-secondary';
-                }
-            });
+            );
         });
         
         console.log("Stop fire button listener attached");
@@ -186,48 +211,30 @@ document.addEventListener('DOMContentLoaded', function() {
             window.addLogMessage('STOPPING FIRE - Moving servo to position A...', false, 'action');
             
             // Disable stop button
-            stopFireButton.disabled = true;
+            setButtonState(false, stopFireButton);
             
-            fetch('/stop_fire', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    window.addLogMessage('Firing stopped', false, 'success');
-                    
-                    // Reset status
-                    if (firingStatus) {
-                        firingStatus.textContent = 'Not Firing';
-                        firingStatus.className = 'badge bg-secondary';
+            makeRequest(
+                '/stop_fire',
+                'POST',
+                null,
+                function(data) {
+                    if (data.status === 'success') {
+                        window.addLogMessage('Firing stopped', false, 'success');
+                        resetFiringStatus();
+                    } else {
+                        window.addLogMessage(`Error stopping firing: ${data.message}`, true);
                     }
-                } else {
-                    window.addLogMessage(`Error stopping firing: ${data.message}`, true);
+                    // Always re-enable all fire buttons after stop operation
+                    enableFireButtons();
+                },
+                function(error) {
+                    // Error handling is done in makeRequest
+                    // Always re-enable all fire buttons after stop operation
+                    enableFireButtons();
                 }
-                
-                // Always re-enable all fire buttons after stop operation
-                if (fireButton) fireButton.disabled = false;
-                if (fireToggleButton) fireToggleButton.disabled = false;
-                if (fireFiberButton) fireFiberButton.disabled = false;
-                if (fireFiberToggleButton) fireFiberToggleButton.disabled = false;
-            })
-            .catch(error => {
-                window.addLogMessage(`Error: ${error.message}`, true);
-                
-                // Always re-enable all fire buttons after stop operation
-                if (fireButton) fireButton.disabled = false;
-                if (fireToggleButton) fireToggleButton.disabled = false;
-                if (fireFiberButton) fireFiberButton.disabled = false;
-                if (fireFiberToggleButton) fireFiberToggleButton.disabled = false;
-            });
+            );
         });
     }
-    
-    // Add fiber toggle button reference
-    const fireFiberToggleButton = document.getElementById('fire-fiber-toggle-button');
     
     // Fire Fiber button (momentary) event 
     if (fireFiberButton) {
@@ -235,65 +242,28 @@ document.addEventListener('DOMContentLoaded', function() {
         fireFiberButton.addEventListener('click', function() {
             window.addLogMessage('Starting FIBER sequence (momentary)...', false, 'action');
             
-            // Disable all fire buttons but ENABLE stop button
-            if (fireButton) fireButton.disabled = true;
-            if (fireToggleButton) fireToggleButton.disabled = true;
-            fireFiberButton.disabled = true;
-            if (fireFiberToggleButton) fireFiberToggleButton.disabled = true;
-            stopFireButton.disabled = false;  // Enable stop button
+            disableFireButtons();
+            updateFiringStatus('Fiber Sequence', 'badge bg-warning text-dark');
             
-            // Update status
-            if (firingStatus) {
-                firingStatus.textContent = 'Fiber Sequence';
-                firingStatus.className = 'badge bg-warning text-dark';
-            }
-            
-            fetch('/fire_fiber', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    mode: 'momentary'
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    window.addLogMessage('Fiber sequence started', false, 'success');
-                } else {
-                    window.addLogMessage(`Error starting fiber sequence: ${data.message}`, true);
-                    
-                    // Reset status and buttons
-                    if (firingStatus) {
-                        firingStatus.textContent = 'Not Firing';
-                        firingStatus.className = 'badge bg-secondary';
+            makeRequest(
+                '/fire_fiber',
+                'POST',
+                { mode: 'momentary' },
+                function(data) {
+                    if (data.status === 'success') {
+                        window.addLogMessage('Fiber sequence started', false, 'success');
+                    } else {
+                        window.addLogMessage(`Error starting fiber sequence: ${data.message}`, true);
+                        resetFiringStatus();
+                        enableFireButtons();
                     }
-                    
-                    // Reset all buttons on error
-                    if (fireButton) fireButton.disabled = false;
-                    if (fireToggleButton) fireToggleButton.disabled = false;
-                    fireFiberButton.disabled = false;
-                    if (fireFiberToggleButton) fireFiberToggleButton.disabled = false;
-                    stopFireButton.disabled = true;
+                },
+                function(error) {
+                    // Error handling is done in makeRequest
+                    resetFiringStatus();
+                    enableFireButtons();
                 }
-            })
-            .catch(error => {
-                window.addLogMessage(`Error in fiber sequence: ${error.message}`, true);
-                
-                // Reset all buttons on error
-                if (fireButton) fireButton.disabled = false;
-                if (fireToggleButton) fireToggleButton.disabled = false;
-                fireFiberButton.disabled = false;
-                if (fireFiberToggleButton) fireFiberToggleButton.disabled = false;
-                stopFireButton.disabled = true;
-                
-                // Reset status
-                if (firingStatus) {
-                    firingStatus.textContent = 'Not Firing';
-                    firingStatus.className = 'badge bg-secondary';
-                }
-            });
+            );
         });
     }
     
@@ -303,86 +273,58 @@ document.addEventListener('DOMContentLoaded', function() {
         fireFiberToggleButton.addEventListener('click', function() {
             window.addLogMessage('Starting FIBER sequence (toggle mode)...', false, 'action');
             
-            // Disable all fire buttons but ENABLE stop button
-            if (fireButton) fireButton.disabled = true;
-            if (fireToggleButton) fireToggleButton.disabled = true;
-            if (fireFiberButton) fireFiberButton.disabled = true;
-            fireFiberToggleButton.disabled = true;
-            stopFireButton.disabled = false;  // Enable stop button
+            disableFireButtons();
+            updateFiringStatus('Fiber Sequence (Toggle)', 'badge bg-warning text-dark');
             
-            // Update status
-            if (firingStatus) {
-                firingStatus.textContent = 'Fiber Sequence (Toggle)';
-                firingStatus.className = 'badge bg-warning text-dark';
-            }
-            
-            fetch('/fire_fiber', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    mode: 'toggle'
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    window.addLogMessage('Fiber sequence started (toggle mode)', false, 'success');
-                } else {
-                    window.addLogMessage(`Error starting fiber sequence: ${data.message}`, true);
-                    
-                    // Reset status and buttons
-                    if (firingStatus) {
-                        firingStatus.textContent = 'Not Firing';
-                        firingStatus.className = 'badge bg-secondary';
+            makeRequest(
+                '/fire_fiber',
+                'POST',
+                { mode: 'toggle' },
+                function(data) {
+                    if (data.status === 'success') {
+                        window.addLogMessage('Fiber sequence started (toggle mode)', false, 'success');
+                    } else {
+                        window.addLogMessage(`Error starting fiber sequence: ${data.message}`, true);
+                        resetFiringStatus();
+                        enableFireButtons();
                     }
-                    
-                    // Reset all buttons on error
-                    if (fireButton) fireButton.disabled = false;
-                    if (fireToggleButton) fireToggleButton.disabled = false;
-                    if (fireFiberButton) fireFiberButton.disabled = false;
-                    fireFiberToggleButton.disabled = false;
-                    stopFireButton.disabled = true;
+                },
+                function(error) {
+                    // Error handling is done in makeRequest
+                    resetFiringStatus();
+                    enableFireButtons();
                 }
-            })
-            .catch(error => {
-                window.addLogMessage(`Error in fiber toggle sequence: ${error.message}`, true);
-                
-                // Reset all buttons on error
-                if (fireButton) fireButton.disabled = false;
-                if (fireToggleButton) fireToggleButton.disabled = false;
-                if (fireFiberButton) fireFiberButton.disabled = false;
-                fireFiberToggleButton.disabled = false;
-                stopFireButton.disabled = true;
-                
-                // Reset status
-                if (firingStatus) {
-                    firingStatus.textContent = 'Not Firing';
-                    firingStatus.className = 'badge bg-secondary';
-                }
-            });
+            );
         });
     }
     
     // Track cleaning head movement state
     let cleaningHeadBusy = false;
     
-    // Function to disable all cleaning head buttons
+    /**
+     * Disables all cleaning head control buttons except the stop button
+     */
     function disableCleaningHeadButtons() {
-        if (indexButton) indexButton.disabled = true;
-        if (indexBackButton) indexBackButton.disabled = true;
-        if (homeCleaningHeadButton) homeCleaningHeadButton.disabled = true;
-        // Keep stop button enabled
+        setButtonState(false, indexButton, indexBackButton, homeCleaningHeadButton);
         cleaningHeadBusy = true;
     }
     
-    // Function to enable all cleaning head buttons
+    /**
+     * Enables all cleaning head control buttons
+     */
     function enableCleaningHeadButtons() {
-        if (indexButton) indexButton.disabled = false;
-        if (indexBackButton) indexBackButton.disabled = false;
-        if (homeCleaningHeadButton) homeCleaningHeadButton.disabled = false;
+        setButtonState(true, indexButton, indexBackButton, homeCleaningHeadButton);
         cleaningHeadBusy = false;
+    }
+    
+    /**
+     * Updates the cleaning head position display
+     * @param {number|string} position - The position to display
+     */
+    function updateCleaningHeadPosition(position) {
+        if (cleaningHeadStatus) {
+            cleaningHeadStatus.textContent = `Position: ${position}`;
+        }
     }
     
     // Index Forward button
@@ -401,37 +343,25 @@ document.addEventListener('DOMContentLoaded', function() {
             // Disable all cleaning head buttons
             disableCleaningHeadButtons();
             
-            fetch('/index_move', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    direction: 'forward'
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    const currentPosition = data.position;
-                    
-                    // Update position display
-                    if (cleaningHeadStatus) {
-                        cleaningHeadStatus.textContent = `Position: ${currentPosition}`;
+            makeRequest(
+                '/index_move',
+                'POST',
+                { direction: 'forward' },
+                function(data) {
+                    if (data.status === 'success') {
+                        const currentPosition = data.position;
+                        updateCleaningHeadPosition(currentPosition);
+                        window.addLogMessage(`Index forward complete! Position: ${currentPosition}`, false, 'success');
+                    } else {
+                        window.addLogMessage(`Error: ${data.message}`, true);
                     }
-                    
-                    window.addLogMessage(`Index forward complete! Position: ${currentPosition}`, false, 'success');
-                } else {
-                    window.addLogMessage(`Error: ${data.message}`, true);
+                },
+                null,
+                function() {
+                    // Re-enable all buttons in finally
+                    enableCleaningHeadButtons();
                 }
-            })
-            .catch(error => {
-                window.addLogMessage(`Error: ${error.message}`, true);
-            })
-            .finally(() => {
-                // Re-enable all buttons
-                enableCleaningHeadButtons();
-            });
+            );
         });
     }
     
@@ -449,37 +379,25 @@ document.addEventListener('DOMContentLoaded', function() {
             // Disable all cleaning head buttons
             disableCleaningHeadButtons();
             
-            fetch('/index_move', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    direction: 'backward'
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    const currentPosition = data.position;
-                    
-                    // Update position display
-                    if (cleaningHeadStatus) {
-                        cleaningHeadStatus.textContent = `Position: ${currentPosition}`;
+            makeRequest(
+                '/index_move',
+                'POST',
+                { direction: 'backward' },
+                function(data) {
+                    if (data.status === 'success') {
+                        const currentPosition = data.position;
+                        updateCleaningHeadPosition(currentPosition);
+                        window.addLogMessage(`Index backward complete! Position: ${currentPosition}`, false, 'success');
+                    } else {
+                        window.addLogMessage(`Error: ${data.message}`, true);
                     }
-                    
-                    window.addLogMessage(`Index backward complete! Position: ${currentPosition}`, false, 'success');
-                } else {
-                    window.addLogMessage(`Error: ${data.message}`, true);
+                },
+                null,
+                function() {
+                    // Re-enable all buttons in finally
+                    enableCleaningHeadButtons();
                 }
-            })
-            .catch(error => {
-                window.addLogMessage(`Error: ${error.message}`, true);
-            })
-            .finally(() => {
-                // Re-enable all buttons
-                enableCleaningHeadButtons();
-            });
+            );
         });
     }
     
@@ -497,32 +415,24 @@ document.addEventListener('DOMContentLoaded', function() {
             // Disable all cleaning head buttons
             disableCleaningHeadButtons();
             
-            fetch('/home', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    // Update position display
-                    if (cleaningHeadStatus) {
-                        cleaningHeadStatus.textContent = 'Position: 0';
+            makeRequest(
+                '/home',
+                'POST',
+                null,
+                function(data) {
+                    if (data.status === 'success') {
+                        updateCleaningHeadPosition(0);
+                        window.addLogMessage('Cleaning head homed successfully', false, 'success');
+                    } else {
+                        window.addLogMessage(`Error homing cleaning head: ${data.message}`, true);
                     }
-                    
-                    window.addLogMessage('Cleaning head homed successfully', false, 'success');
-                } else {
-                    window.addLogMessage(`Error homing cleaning head: ${data.message}`, true);
+                },
+                null,
+                function() {
+                    // Re-enable all buttons in finally
+                    enableCleaningHeadButtons();
                 }
-            })
-            .catch(error => {
-                window.addLogMessage(`Error: ${error.message}`, true);
-            })
-            .finally(() => {
-                // Re-enable all buttons
-                enableCleaningHeadButtons();
-            });
+            );
         });
     }
     
@@ -533,37 +443,47 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log("Stop cleaning head button clicked");
             window.addLogMessage('STOPPING CLEANING HEAD...', false, 'action');
             
-            fetch('/stop_motor', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    const currentPosition = data.position || 'unknown';
-                    window.addLogMessage(`Cleaning head stopped at position: ${currentPosition}`, false, 'success');
-                    
-                    // Update position display if available
-                    if (cleaningHeadStatus && data.position) {
-                        cleaningHeadStatus.textContent = `Position: ${currentPosition}`;
+            makeRequest(
+                '/stop_motor',
+                'POST',
+                null,
+                function(data) {
+                    if (data.status === 'success') {
+                        const currentPosition = data.position || 'unknown';
+                        window.addLogMessage(`Cleaning head stopped at position: ${currentPosition}`, false, 'success');
+                        
+                        if (data.position) {
+                            updateCleaningHeadPosition(currentPosition);
+                        }
+                    } else {
+                        window.addLogMessage(`Error stopping cleaning head: ${data.message}`, true);
                     }
-                    
-                    // Re-enable all buttons after stopping
+                    // Always re-enable buttons after stopping
                     enableCleaningHeadButtons();
-                } else {
-                    window.addLogMessage(`Error stopping cleaning head: ${data.message}`, true);
-                    // Still try to re-enable buttons
+                },
+                function(error) {
+                    // Error handling is done in makeRequest
+                    // Make sure to re-enable buttons even on error
                     enableCleaningHeadButtons();
                 }
-            })
-            .catch(error => {
-                window.addLogMessage(`Error: ${error.message}`, true);
-                // Make sure to re-enable buttons even on error
-                enableCleaningHeadButtons();
-            });
+            );
         });
+    }
+    
+    /**
+     * Disables the run table button and enables the stop table button
+     */
+    function disableRunTableButton() {
+        setButtonState(false, runTableButton);
+        setButtonState(true, stopTableButton);
+    }
+    
+    /**
+     * Enables the run table button and disables the stop table button
+     */
+    function enableRunTableButton() {
+        setButtonState(true, runTableButton);
+        setButtonState(false, stopTableButton);
     }
     
     // Run Table button
@@ -571,35 +491,25 @@ document.addEventListener('DOMContentLoaded', function() {
         runTableButton.addEventListener('click', function() {
             window.addLogMessage('Running table sequence...', false, 'action');
             
-            // Disable run button and enable stop button
-            runTableButton.disabled = true;
-            stopTableButton.disabled = false;
+            disableRunTableButton();
             
-            // Start table forward movement
-            fetch('/table/forward', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
+            makeRequest(
+                '/table/forward',
+                'POST',
+                { state: true },
+                function(data) {
+                    if (data.status !== 'success') {
+                        window.addLogMessage(`Error starting table: ${data.message || 'Unknown error'}`, true);
+                        // Reset buttons on error
+                        enableRunTableButton();
+                    }
                 },
-                body: JSON.stringify({
-                    state: true
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status !== 'success') {
-                    window.addLogMessage(`Error starting table: ${data.message || 'Unknown error'}`, true);
+                function(error) {
+                    // Error handling is done in makeRequest
                     // Reset buttons on error
-                    runTableButton.disabled = false;
-                    stopTableButton.disabled = true;
+                    enableRunTableButton();
                 }
-            })
-            .catch(error => {
-                window.addLogMessage(`Error: ${error.message}`, true);
-                // Reset buttons on error
-                runTableButton.disabled = false;
-                stopTableButton.disabled = true;
-            });
+            );
         });
     }
     
@@ -608,41 +518,44 @@ document.addEventListener('DOMContentLoaded', function() {
         stopTableButton.addEventListener('click', function() {
             window.addLogMessage('Stopping table...', false, 'action');
             
-            // Stop both directions
-            Promise.all([
-                fetch('/table/forward', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        state: false
-                    })
-                }),
-                fetch('/table/backward', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        state: false
-                    })
-                })
-            ])
-            .then(() => {
-                window.addLogMessage('Table stopped', false, 'success');
-                
-                // Reset buttons
-                runTableButton.disabled = false;
-                stopTableButton.disabled = true;
-            })
-            .catch(error => {
-                window.addLogMessage(`Error stopping table: ${error.message}`, true);
-                
-                // Still reset buttons even on error
-                runTableButton.disabled = false;
-                stopTableButton.disabled = true;
-            });
+            // First, stop forward movement
+            makeRequest(
+                '/table/forward',
+                'POST',
+                { state: false },
+                function(data) {
+                    // Then stop backward movement
+                    makeRequest(
+                        '/table/backward',
+                        'POST',
+                        { state: false },
+                        function(data) {
+                            window.addLogMessage('Table stopped', false, 'success');
+                            enableRunTableButton();
+                        },
+                        function(error) {
+                            // Still try to reset buttons even on error
+                            enableRunTableButton();
+                        }
+                    );
+                },
+                function(error) {
+                    // Still try to stop backward movement even if forward fails
+                    makeRequest(
+                        '/table/backward',
+                        'POST',
+                        { state: false },
+                        function(data) {
+                            window.addLogMessage('Table stopped', false, 'success');
+                            enableRunTableButton();
+                        },
+                        function(error) {
+                            window.addLogMessage('Error stopping table in both directions', true);
+                            enableRunTableButton();
+                        }
+                    );
+                }
+            );
         });
     }
 });

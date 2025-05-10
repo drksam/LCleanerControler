@@ -3,6 +3,9 @@
 {% block title %}Raspberry Pi GPIO Pinout Guide{% endblock %}
 
 {% block content %}
+<!-- Hidden field to store the operation mode for JavaScript -->
+<input type="hidden" id="operation-mode-value" value="{{ system_config.operation_mode|default('unknown') }}">
+
 <div class="container-fluid mt-4">
     <div class="row">
         <div class="col-md-12">
@@ -365,7 +368,7 @@
                     <h4 class="mt-4 mb-3">RFID Reader for Machine Access Control</h4>
                     <div class="alert alert-info">
                         <h5>RFID Reader Integration</h5>
-                        <p>The system supports RFID reader integration via SPI for machine access control. This feature allows authentication with the NooyenMachineMonitor server (part of the NooyenUSATracker ecosystem) for secure machine operation.</p>
+                        <p>The system supports RFID reader integration via SPI for machine access control. This feature allows authentication with the ShopMachineMonitor server (part of the ShopTracker ecosystem) for secure machine operation.</p>
                         
                         <h5>Hardware Connection</h5>
                         <ul>
@@ -395,8 +398,8 @@
                             </li>
                             <li>Configure the server connection in settings:
                                 <ul>
-                                    <li>Server URL: https://nooyenmachinemonitor.replit.app/api/auth</li>
-                                    <li>API Key: Obtain from NooyenMachineMonitor administrator</li>
+                                    <li>Server URL: https://Shopmachinemonitor.replit.app/api/auth</li>
+                                    <li>API Key: Obtain from ShopMachineMonitor administrator</li>
                                     <li>Machine ID: Unique identifier for this machine</li>
                                 </ul>
                             </li>
@@ -404,11 +407,11 @@
                         
                         <h5>Access Control Features</h5>
                         <ul>
-                            <li>Integration with NooyenMachineMonitor for user authentication</li>
+                            <li>Integration with ShopMachineMonitor for user authentication</li>
                             <li>User access level management (operator, admin, maintenance)</li>
                             <li>Machine operation logging with user identification</li>
                             <li>Automatic watchdog for secure operation shutdown if connection lost</li>
-                            <li>Remote monitoring and control through the NooyenUSATracker ecosystem</li>
+                            <li>Remote monitoring and control through the ShopTracker ecosystem</li>
                         </ul>
                     </div>
                     
@@ -917,127 +920,7 @@ sudo modprobe w1-therm</pre>
 {% endblock %}
 
 {% block head %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Store GPIO pin mapping for dynamic access
-    const gpioPins = {
-        inButton: {{ gpio_config.in_button_pin }},
-        outButton: {{ gpio_config.out_button_pin }},
-        fireButton: {{ gpio_config.fire_button_pin }},
-        servoInvert: {{ gpio_config.servo_invert_pin }},
-        homeSwitch: {{ gpio_config.home_switch_pin }},
-        tableBackLimit: {{ gpio_config.table_back_limit_pin }},
-        tableFrontLimit: {{ gpio_config.table_front_limit_pin }},
-        fan: {{ gpio_config.fan_pin }},
-        redLights: {{ gpio_config.red_lights_pin }},
-        tableForward: {{ gpio_config.table_forward_pin }},
-        tableBackward: {{ gpio_config.table_backward_pin }}
-    };
-
-    // Input refresh functionality
-    document.getElementById('refresh-inputs').addEventListener('click', function() {
-        refreshInputStates();
-    });
-
-    // Fan control
-    document.getElementById('fan-on').addEventListener('click', function() {
-        setOutput('fan', true);
-    });
-    document.getElementById('fan-off').addEventListener('click', function() {
-        setOutput('fan', false);
-    });
-
-    // Lights control
-    document.getElementById('lights-on').addEventListener('click', function() {
-        setOutput('red_lights', true);
-    });
-    document.getElementById('lights-off').addEventListener('click', function() {
-        setOutput('red_lights', false);
-    });
-
-    // Table forward control
-    document.getElementById('table-forward-on').addEventListener('click', function() {
-        setOutput('table_forward', true);
-    });
-    document.getElementById('table-forward-off').addEventListener('click', function() {
-        setOutput('table_forward', false);
-    });
-
-    // Table backward control
-    document.getElementById('table-backward-on').addEventListener('click', function() {
-        setOutput('table_backward', true);
-    });
-    document.getElementById('table-backward-off').addEventListener('click', function() {
-        setOutput('table_backward', false);
-    });
-
-    // Initial refresh
-    refreshInputStates();
-
-    // Refresh inputs every 5 seconds
-    setInterval(refreshInputStates, 5000);
-
-    function refreshInputStates() {
-        fetch('/api/gpio/inputs')
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    // Map pin numbers to their element IDs and update states
-                    updateInputState('gpio' + gpioPins.inButton + '-state', data['gpio' + gpioPins.inButton]);
-                    updateInputState('gpio' + gpioPins.outButton + '-state', data['gpio' + gpioPins.outButton]);
-                    updateInputState('gpio' + gpioPins.fireButton + '-state', data['gpio' + gpioPins.fireButton]);
-                    updateInputState('gpio' + gpioPins.servoInvert + '-state', data['gpio' + gpioPins.servoInvert]);
-                    updateInputState('gpio' + gpioPins.homeSwitch + '-state', data['gpio' + gpioPins.homeSwitch]);
-                    updateInputState('gpio' + gpioPins.tableBackLimit + '-state', data['gpio' + gpioPins.tableBackLimit]);
-                    updateInputState('gpio' + gpioPins.tableFrontLimit + '-state', data['gpio' + gpioPins.tableFrontLimit]);
-                } else {
-                    console.error('Error refreshing input states:', data.message);
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching input states:', error);
-            });
-    }
-
-    function updateInputState(elementId, state) {
-        const element = document.getElementById(elementId);
-        if (element) {
-            if (state === null) {
-                element.className = 'badge bg-dark';
-                element.textContent = 'Unknown';
-            } else if (state) {
-                element.className = 'badge bg-success';
-                element.textContent = 'HIGH';
-            } else {
-                element.className = 'badge bg-danger';
-                element.textContent = 'LOW';
-            }
-        }
-    }
-
-    function setOutput(device, state) {
-        fetch('/api/gpio/outputs', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                device: device,
-                state: state
-            }),
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status !== 'success') {
-                console.error('Error setting output:', data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error setting output:', error);
-        });
-    }
-});
-</script>
+<!-- No inline JavaScript here - using the gpio_test.js file instead -->
 {% endblock %}
 
 {% block scripts %}

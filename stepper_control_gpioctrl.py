@@ -1,5 +1,5 @@
 """
-Stepper motor control module using GPIOController for NooyenLaserRoom.
+Stepper motor control module using GPIOController for ShopLaserRoom.
 This replaces the gpiozero-based implementation with our ESP32-based GPIOController.
 """
 import os
@@ -12,7 +12,7 @@ from gpio_controller_wrapper import StepperWrapper
 
 class StepperMotor:
     """
-    Stepper motor controller using GPIOController for NooyenLaserRoom.
+    Stepper motor controller using GPIOController for ShopLaserRoom.
     Provides high-level control for the stepper motor with position tracking.
     """
     

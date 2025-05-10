@@ -7,6 +7,7 @@ import uuid
 import json
 import secrets
 from datetime import datetime, timedelta
+from functools import wraps
 
 # Import the configuration module
 import config
@@ -341,14 +342,45 @@ except Exception as e:
 # Access control callback when user is authenticated/deauthenticated
 def access_control_callback(granted, user_data):
     """Callback when a user is authenticated or deauthenticated"""
-    if granted:
-        username = user_data.get('username', 'Unknown')
-        access_level = user_data.get('access_level', 'operator')
-        logger.info(f"User {username} authenticated with access level {access_level}")
-        # Access control could be implemented here
-    else:
-        reason = user_data.get('reason', 'Unknown reason')
-        logger.info(f"Authentication removed: {reason}")
+    try:
+        # Import webhook integration module to avoid circular imports
+        from webhook_integration import handle_login_event, handle_logout_event, handle_status_change_event
+        
+        if granted:
+            username = user_data.get('username', 'Unknown')
+            access_level = user_data.get('access_level', 'operator')
+            user_id = user_data.get('user_id', 0)
+            card_id = user_data.get('card_id')
+            logger.info(f"User {username} authenticated with access level {access_level}")
+            
+            # Send webhook event for user login and machine status change
+            if user_id:
+                try:
+                    user = User.query.get(user_id)
+                    if user:
+                        handle_login_event(user_id, card_id)
+                        handle_status_change_event("active", {"user": username})
+                        logger.info(f"Login and status change webhook events sent for user {username}")
+                except Exception as e:
+                    logger.error(f"Error sending login webhooks: {e}")
+        else:
+            reason = user_data.get('reason', 'Unknown reason')
+            logger.info(f"Authentication removed: {reason}")
+            
+            # Send webhook event for user logout and machine status change
+            user_id = user_data.get('user_id', 0)
+            card_id = user_data.get('card_id')
+            if user_id:
+                try:
+                    user = User.query.get(user_id)
+                    if user:
+                        handle_logout_event(user_id, reason, card_id)
+                        handle_status_change_event("idle", {"reason": reason})
+                        logger.info(f"Logout and status change webhook events sent for user {user.username}")
+                except Exception as e:
+                    logger.error(f"Error sending logout webhooks: {e}")
+    except Exception as e:
+        logger.error(f"Error in access control callback: {e}")
 
 # Initialize RFID controller
 try:
@@ -525,7 +557,24 @@ def table():
     return render_template('table.html', 
                            page="table")
 
+def require_admin_in_normal_mode(view_function):
+    """Decorator to restrict admin pages in normal mode but allow access in simulation/prototype mode"""
+    @wraps(view_function)
+    def decorated_function(*args, **kwargs):
+        # Always allow in simulation or prototype mode
+        if operation_mode in ['simulation', 'prototype']:
+            return view_function(*args, **kwargs)
+            
+        # In normal mode, require admin rights
+        if current_user.is_authenticated and current_user.access_level == 'admin':
+            return view_function(*args, **kwargs)
+        else:
+            flash('This page requires admin access in normal mode.', 'danger')
+            return redirect(url_for('index'))
+    return decorated_function
+
 @app.route('/settings')
+@require_admin_in_normal_mode
 def settings():
     """Render the settings/configuration interface"""
     # Get current configuration
@@ -544,6 +593,37 @@ def settings():
                            gpio_config=gpio_config,
                            temp_config=temp_config,
                            page="settings")
+
+@app.route('/pinout')
+@require_admin_in_normal_mode
+def pinout():
+    """Render the GPIO pinout guide page"""
+    gpio_config = config.get_gpio_config()
+    system_config = config.get_system_config()  # Get system config for operation mode
+    return render_template('pinout.html', page="pinout", gpio_config=gpio_config, system_config=system_config)
+
+@app.route('/rfid')
+@require_admin_in_normal_mode
+def rfid():
+    """Render the RFID access control page for ShopMachineMonitor integration"""
+    rfid_config = config.get_rfid_config()
+    
+    # Get all RFID cards from database
+    rfid_cards = RFIDCard.query.all()
+    
+    # Get all users for assignment
+    users = User.query.all()
+    
+    # Get recent access logs
+    access_logs = AccessLog.query.order_by(AccessLog.timestamp.desc()).limit(20).all()
+    
+    return render_template('rfid.html', 
+                          page="rfid", 
+                          rfid_config=rfid_config,
+                          rfid_cards=rfid_cards,
+                          users=users,
+                          access_logs=access_logs,
+                          rfid_initialized=rfid_initialized)
 
 @app.route('/jog', methods=['POST'])
 def jog():
@@ -2175,12 +2255,6 @@ def inject_globals():
 def page_not_found(e):
     return render_template('index.html', error="Page not found", page="operation"), 404
 
-@app.route('/pinout')
-def pinout():
-    """Render the GPIO pinout guide page"""
-    gpio_config = config.get_gpio_config()
-    return render_template('pinout.html', page="pinout", gpio_config=gpio_config)
-
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     """User login page"""
@@ -2229,29 +2303,6 @@ def logout():
     flash('You have been logged out.', 'info')
     return redirect(url_for('login'))
     
-@app.route('/rfid')
-@login_required
-def rfid():
-    """Render the RFID access control page for NooyenMachineMonitor integration"""
-    rfid_config = config.get_rfid_config()
-    
-    # Get all RFID cards from database
-    rfid_cards = RFIDCard.query.all()
-    
-    # Get all users for assignment
-    users = User.query.all()
-    
-    # Get recent access logs
-    access_logs = AccessLog.query.order_by(AccessLog.timestamp.desc()).limit(20).all()
-    
-    return render_template('rfid.html', 
-                          page="rfid", 
-                          rfid_config=rfid_config,
-                          rfid_cards=rfid_cards,
-                          users=users,
-                          access_logs=access_logs,
-                          rfid_initialized=rfid_initialized)
-
 @app.route('/api/rfid/status')
 def rfid_status():
     """Get the current RFID authentication status"""
@@ -2353,31 +2404,100 @@ def update_rfid_config():
 @app.route('/api/gpio/inputs')
 def get_gpio_inputs():
     """Get the current state of GPIO inputs for testing"""
-    # Always provide simulated values in the Replit environment
-    # Randomize some states to simulate real inputs without requiring hardware
+    # Check if we're in prototype mode with hardware forced
+    force_hardware = os.environ.get('FORCE_HARDWARE', 'False').lower() == 'true'
+    
+    # In prototype mode, we should use real hardware values from input_controller
+    if force_hardware and inputs_initialized and input_controller:
+        try:
+            # Get actual hardware input values from input controller
+            input_states = input_controller.get_input_states()
+            
+            # Map the button states to GPIO pins according to config
+            gpio_config = config.get_gpio_config()
+            input_data = {
+                f"gpio{gpio_config['in_button_pin']}": input_states.get('in_button', False),
+                f"gpio{gpio_config['out_button_pin']}": input_states.get('out_button', False),
+                f"gpio{gpio_config['fire_button_pin']}": input_states.get('fire_button', False),
+                f"gpio{gpio_config['servo_invert_pin']}": input_states.get('servo_invert', False),
+                f"gpio{gpio_config['home_switch_pin']}": input_states.get('home_switch', False),
+                f"gpio{gpio_config['table_back_limit_pin']}": input_states.get('table_back_limit', False),
+                f"gpio{gpio_config['table_front_limit_pin']}": input_states.get('table_front_limit', False),
+                "status": "success",
+                "simulated": False
+            }
+            return jsonify(input_data)
+        except Exception as e:
+            logger.error(f"Error getting hardware GPIO input states: {e}")
+            # Fall through to simulation if error occurs
+    
+    # Use simulation for all other modes or if input_controller is not available
     import random
+    
+    # Load GPIO configuration to map correct pin numbers
+    gpio_config = config.get_gpio_config()
+    
     return jsonify({
         "status": "success",
-        "gpio23": random.choice([True, False]),  # IN Button
-        "gpio24": random.choice([True, False]),  # OUT Button
-        "gpio25": random.choice([True, False]),  # FIRE Button
-        "gpio5": random.choice([True, False]),   # Servo Invert
-        "gpio27": random.choice([True, False]),  # Home Switch
-        "gpio20": random.choice([True, False]),  # Table Back Limit
-        "gpio21": random.choice([True, False]),  # Table Front Limit
+        f"gpio{gpio_config['in_button_pin']}": random.choice([True, False]),  # IN Button
+        f"gpio{gpio_config['out_button_pin']}": random.choice([True, False]),  # OUT Button
+        f"gpio{gpio_config['fire_button_pin']}": random.choice([True, False]),  # FIRE Button
+        f"gpio{gpio_config['servo_invert_pin']}": random.choice([True, False]),   # Servo Invert
+        f"gpio{gpio_config['home_switch_pin']}": random.choice([True, False]),  # Home Switch
+        f"gpio{gpio_config['table_back_limit_pin']}": random.choice([True, False]),  # Table Back Limit
+        f"gpio{gpio_config['table_front_limit_pin']}": random.choice([True, False]),  # Table Front Limit
         "simulated": True
     })
 
 @app.route('/api/gpio/outputs', methods=['POST'])
 def set_gpio_outputs():
     """Set GPIO outputs for testing"""
-    # Always use simulation mode in the Replit environment for testing
+    # Check if we're in prototype mode with hardware forced
+    force_hardware = os.environ.get('FORCE_HARDWARE', 'False').lower() == 'true'
+    
+    # In prototype mode with hardware forced, use actual hardware outputs
+    if force_hardware and outputs_initialized and output_controller:
+        try:
+            device = request.json.get('device')
+            state = request.json.get('state', False)
+            
+            # Log the state change request
+            logger.info(f"Hardware output state change: {device} -> {state}")
+            
+            # Set the actual hardware state based on device type
+            result = False
+            if device == 'fan':
+                result = output_controller.set_fan(state)
+            elif device == 'red_lights':
+                result = output_controller.set_red_lights(state)
+            elif device == 'table_forward':
+                result = output_controller.set_table_forward(state)
+            elif device == 'table_backward':
+                result = output_controller.set_table_backward(state)
+            else:
+                return jsonify({
+                    "status": "error", 
+                    "message": f"Unknown device: {device}"
+                }), 400
+            
+            return jsonify({
+                "status": "success" if result else "warning",
+                "message": f"{device} set to {state}",
+                "device": device,
+                "state": state,
+                "simulated": False
+            })
+        except Exception as e:
+            logger.error(f"Error setting hardware GPIO output: {e}")
+            return jsonify({"status": "error", "message": str(e)}), 500
+    
+    # For non-prototype mode or if hardware initialization failed, use simulation
     try:
         device = request.json.get('device')
         state = request.json.get('state', False)
         
         # Log the state change request
-        logger.debug(f"Output state change requested: {device} -> {state}")
+        logger.debug(f"Simulated output state change: {device} -> {state}")
         
         # Always acknowledge the request in simulation mode
         return jsonify({
@@ -2390,6 +2510,29 @@ def set_gpio_outputs():
     except Exception as e:
         logger.error(f"Error setting simulated GPIO output: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/api/system/mode')
+def get_system_mode():
+    """Get the current system operation mode for client-side use"""
+    try:
+        # Get current mode from system config
+        operation_mode = system_config.get('operation_mode', 'unknown')
+        
+        # Check if we're forcing hardware
+        force_hardware = os.environ.get('FORCE_HARDWARE', 'False').lower() == 'true'
+        
+        return jsonify({
+            "status": "success",
+            "mode": operation_mode,
+            "force_hardware": force_hardware
+        })
+    except Exception as e:
+        logger.error(f"Error getting system mode: {e}")
+        return jsonify({
+            "status": "error",
+            "message": str(e),
+            "mode": "unknown"
+        }), 500
 
 @app.errorhandler(500)
 def server_error(e):

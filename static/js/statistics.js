@@ -1,6 +1,9 @@
 /**
  * Statistics JavaScript
- * Manages the display and control of laser usage statistics
+ * 
+ * Manages the display and control of laser usage statistics.
+ * Tracks firing counts, timing, and provides reset functionality.
+ * @module statistics
  */
 document.addEventListener('DOMContentLoaded', function() {
     // Elements
@@ -26,7 +29,9 @@ document.addEventListener('DOMContentLoaded', function() {
     let firingTimerInterval = null;
     
     // Initialize
-    updateStatistics();
+    initializeUtilities().then(() => {
+        updateStatistics();
+    });
     
     // Add event listeners for reset buttons
     if (resetCounterBtn) {
@@ -59,7 +64,12 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Helper function to format time as HH:MM:SS
+    /**
+     * Helper function to format time as HH:MM:SS
+     * 
+     * @param {number} timeMs - Time in milliseconds
+     * @returns {string} Formatted time string (HH:MM:SS)
+     */
     function formatTime(timeMs) {
         const totalSeconds = Math.floor(timeMs / 1000);
         const hours = Math.floor(totalSeconds / 3600);
@@ -69,7 +79,12 @@ document.addEventListener('DOMContentLoaded', function() {
         return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     }
     
-    // Function to update firing timer display while actively firing
+    /**
+     * Update firing timer display while actively firing
+     * Updates the timer display and progress bar if they exist
+     * 
+     * @returns {void}
+     */
     function updateFiringTimer() {
         if (firingTimerActive) {
             const currentTime = Date.now();
@@ -89,7 +104,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Function to start firing timer
+    /**
+     * Start the firing timer and update UI elements
+     * 
+     * @returns {void}
+     */
     function startFiringTimer() {
         firingTimerActive = true;
         firingStartTime = Date.now();
@@ -110,7 +129,11 @@ document.addEventListener('DOMContentLoaded', function() {
         firingTimerInterval = setInterval(updateFiringTimer, 100);
     }
     
-    // Function to stop firing timer
+    /**
+     * Stop the firing timer and update statistics
+     * 
+     * @returns {void}
+     */
     function stopFiringTimer() {
         if (firingTimerActive) {
             firingTimerActive = false;
@@ -157,7 +180,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Function to check servo status
+    /**
+     * Check servo status and update firing timer accordingly
+     * 
+     * @returns {void}
+     */
     function updateServoStatus() {
         fetch('/servo/status')
             .then(response => response.json())
@@ -174,16 +201,30 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
             })
-            .catch(error => {
-                console.error('Error checking servo status:', error);
-            });
+            .catch(error => handleError(error, addLogMessage));
     }
     
-    // Function to update statistics from server
+    /**
+     * Update statistics from server
+     * 
+     * @returns {void}
+     */
     function updateStatistics() {
         fetch('/statistics/data')
             .then(response => response.json())
             .then(data => {
+                // Handle simulated response
+                if (data.simulated) {
+                    handleSimulationResponse(
+                        data, 
+                        'Statistics update', 
+                        addLogMessage,
+                        addSimulationWarning,
+                        addSimulationError,
+                        clearSimulationWarnings
+                    );
+                }
+                
                 if (data.status === 'success') {
                     // Update the statistics displays
                     laserFireCount.textContent = data.laser_fire_count;
@@ -191,51 +232,70 @@ document.addEventListener('DOMContentLoaded', function() {
                     totalFireTimeMs.textContent = `${data.total_laser_fire_time} ms`;
                 }
             })
-            .catch(error => {
-                console.error('Error updating statistics:', error);
-                addLogMessage(`Error updating statistics: ${error.message}`, true);
-            });
+            .catch(error => handleError(error, addLogMessage));
     }
     
-    // Function to reset counter
+    /**
+     * Reset the laser fire counter
+     * 
+     * @returns {void}
+     */
     function resetCounter() {
+        setButtonsState(false, resetCounterBtn, resetCounterBtnLarge, resetAllBtn);
+        
         fetch('/statistics/reset_counter', { method: 'POST' })
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
                     laserFireCount.textContent = '0';
-                    addLogMessage('Laser fire counter reset to zero');
+                    addLogMessage('Laser fire counter reset to zero', false, 'success');
                 } else {
                     addLogMessage(`Error: ${data.message}`, true);
                 }
+                setButtonsState(true, resetCounterBtn, resetCounterBtnLarge, resetAllBtn);
             })
             .catch(error => {
-                console.error('Error resetting counter:', error);
-                addLogMessage(`Error resetting counter: ${error.message}`, true);
+                handleError(error, addLogMessage, () => {
+                    setButtonsState(true, resetCounterBtn, resetCounterBtnLarge, resetAllBtn);
+                });
             });
     }
     
-    // Function to reset timer
+    /**
+     * Reset the laser fire timer
+     * 
+     * @returns {void}
+     */
     function resetTimer() {
+        setButtonsState(false, resetTimerBtn, resetTimerBtnLarge, resetAllBtn);
+        
         fetch('/statistics/reset_timer', { method: 'POST' })
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
                     totalFireTime.textContent = '00:00:00';
                     totalFireTimeMs.textContent = '0 ms';
-                    addLogMessage('Laser fire timer reset to zero');
+                    addLogMessage('Laser fire timer reset to zero', false, 'success');
                 } else {
                     addLogMessage(`Error: ${data.message}`, true);
                 }
+                setButtonsState(true, resetTimerBtn, resetTimerBtnLarge, resetAllBtn);
             })
             .catch(error => {
-                console.error('Error resetting timer:', error);
-                addLogMessage(`Error resetting timer: ${error.message}`, true);
+                handleError(error, addLogMessage, () => {
+                    setButtonsState(true, resetTimerBtn, resetTimerBtnLarge, resetAllBtn);
+                });
             });
     }
     
-    // Function to reset all statistics
+    /**
+     * Reset all statistics (counter, timer, and session data)
+     * 
+     * @returns {void}
+     */
     function resetAllStats() {
+        setButtonsState(false, resetCounterBtn, resetTimerBtn, resetCounterBtnLarge, resetTimerBtnLarge, resetAllBtn);
+        
         fetch('/statistics/reset_all', { method: 'POST' })
             .then(response => response.json())
             .then(data => {
@@ -247,23 +307,100 @@ document.addEventListener('DOMContentLoaded', function() {
                     sessionFiringTimeMs = 0;
                     sessionFireCount.textContent = '0';
                     sessionFireTime.textContent = '00:00:00';
-                    addLogMessage('All laser statistics reset to zero');
+                    addLogMessage('All laser statistics reset to zero', false, 'success');
                 } else {
                     addLogMessage(`Error: ${data.message}`, true);
                 }
+                setButtonsState(true, resetCounterBtn, resetTimerBtn, resetCounterBtnLarge, resetTimerBtnLarge, resetAllBtn);
             })
             .catch(error => {
-                console.error('Error resetting all statistics:', error);
-                addLogMessage(`Error resetting all statistics: ${error.message}`, true);
+                handleError(error, addLogMessage, () => {
+                    setButtonsState(true, resetCounterBtn, resetTimerBtn, resetCounterBtnLarge, resetTimerBtnLarge, resetAllBtn);
+                });
             });
     }
     
-    // Add a message to the log
-    function addLogMessage(message, isError = false) {
+    /**
+     * Add simulation warning to the UI
+     * 
+     * @param {string} message - The warning message 
+     * @returns {void}
+     */
+    function addSimulationWarning(message) {
+        const warningContainer = document.getElementById('simulation-warnings');
+        if (warningContainer) {
+            if (warningContainer.querySelector('.sim-warning[data-message="' + message + '"]')) {
+                return; // Warning already exists
+            }
+            
+            const warningElement = document.createElement('div');
+            warningElement.className = 'alert alert-warning sim-warning';
+            warningElement.dataset.message = message;
+            warningElement.textContent = message;
+            warningContainer.appendChild(warningElement);
+            warningContainer.style.display = 'block';
+        }
+    }
+    
+    /**
+     * Add simulation error to the UI
+     * 
+     * @param {string} message - The error message
+     * @returns {void}
+     */
+    function addSimulationError(message) {
+        const warningContainer = document.getElementById('simulation-warnings');
+        if (warningContainer) {
+            if (warningContainer.querySelector('.sim-error[data-message="' + message + '"]')) {
+                return; // Error already exists
+            }
+            
+            const errorElement = document.createElement('div');
+            errorElement.className = 'alert alert-danger sim-error';
+            errorElement.dataset.message = message;
+            errorElement.textContent = message;
+            warningContainer.appendChild(errorElement);
+            warningContainer.style.display = 'block';
+        }
+    }
+    
+    /**
+     * Clear all simulation warnings in the UI
+     * 
+     * @returns {void}
+     */
+    function clearSimulationWarnings() {
+        const warningContainer = document.getElementById('simulation-warnings');
+        if (warningContainer) {
+            warningContainer.innerHTML = '';
+            warningContainer.style.display = 'none';
+        }
+    }
+    
+    /**
+     * Add a message to the log
+     * 
+     * @param {string} message - The message to log
+     * @param {boolean} isError - Whether this is an error message
+     * @param {string} [type='info'] - Type of message (info, success, warning, danger)
+     * @returns {void}
+     */
+    function addLogMessage(message, isError = false, type = 'info') {
         const logContainer = document.getElementById('log-container');
         if (logContainer) {
             const logEntry = document.createElement('div');
-            logEntry.className = isError ? 'log-entry text-danger' : 'log-entry';
+            
+            // Set classes based on message type
+            let className = 'log-entry';
+            if (isError || type === 'danger') {
+                className += ' text-danger';
+            } else if (type === 'warning') {
+                className += ' text-warning';
+            } else if (type === 'success') {
+                className += ' text-success';
+            }
+            
+            logEntry.className = className;
             
             const timestamp = new Date().toLocaleTimeString();
             logEntry.innerHTML = `<small>${timestamp}</small> ${message}`;

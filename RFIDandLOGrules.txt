@@ -1,0 +1,17 @@
+RFID rules
+1 in prototype mode the rfid authentication system should not lock the system even if it is not present or has no authentication, it should display data in locations that use it but not keep the system from running.
+2 in simulation mode always use true for RFID authentication.
+3 in normal mode require RFID authentication before allowing operation.
+
+Security notes
+1 the settings, pinout and rfid pages should only be available to admin level users.
+2 the system should ONLY use any authentication or security when the system is in normal mode.
+3 when in prototype or simulation mode there should be no login or rfid authentication
+4 when in normal mode there should be a login page before allowing users to access the ui.
+5 the login page should allow users to login with a user name and password or an rfid card. either way the login must be authenticated with the a server via api.
+ --SEE MM_API_DOCUMENTATION.md
+
+LOG rules
+1 there should be a system wide log that is displayed on every page at the bottom.
+2 the log should be detailed
+3 this log should be retentive, and there should be a clear button on the settings page to reset it.

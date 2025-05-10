@@ -1,5 +1,5 @@
 """
-GPIO Controller Wrapper for NooyenLaserRoom application.
+GPIO Controller Wrapper for ShopLaserRoom application.
 This module provides wrapper classes for GPIOController library to replace gpiozero.
 """
 import os
@@ -7,6 +7,7 @@ import time
 import logging
 import threading
 import platform
+import importlib.util
 from typing import Optional, Callable, Dict, Any
 
 # Determine default serial port based on platform
@@ -17,6 +18,11 @@ else:
 
 # Check if FORCE_HARDWARE flag is set
 FORCE_HARDWARE = os.environ.get('FORCE_HARDWARE', 'False').lower() == 'true'
+
+# Determine if we're in simulation mode based on the existence of sim.txt and system platform
+IS_WINDOWS = platform.system() == 'Windows'
+SIM_FILE_EXISTS = os.path.exists(os.path.join(os.path.dirname(__file__), 'sim.txt'))
+DEFAULT_SIMULATION_MODE = IS_WINDOWS or SIM_FILE_EXISTS
 
 # Conditional import for GPIOController
 try:
@@ -29,16 +35,71 @@ except ImportError:
         logging.error("FORCE_HARDWARE is set but GPIOController library is not available!")
         raise ImportError("GPIOController library is required when FORCE_HARDWARE is enabled")
 
-# Conditional import for local GPIO control via gpiod
-try:
-    import gpiod
-    GPIOD_AVAILABLE = True
-except ImportError:
-    GPIOD_AVAILABLE = False
-    logging.warning("gpiod library not available. Local GPIO will use simulation mode.")
-    if FORCE_HARDWARE:
-        logging.error("FORCE_HARDWARE is set but gpiod library is not available!")
-        raise ImportError("gpiod library is required when FORCE_HARDWARE is enabled")
+# Conditional import for local GPIO control via gpiod - using dynamic import to avoid editor warnings
+GPIOD_AVAILABLE = False
+gpiod = None
+
+if not IS_WINDOWS:  # Only try to import gpiod on non-Windows platforms
+    # Use dynamic import to avoid editor warnings
+    gpiod_spec = importlib.util.find_spec('gpiod')
+    if gpiod_spec:
+        try:
+            gpiod = importlib.util.module_from_spec(gpiod_spec)
+            gpiod_spec.loader.exec_module(gpiod)
+            GPIOD_AVAILABLE = True
+        except ImportError:
+            GPIOD_AVAILABLE = False
+            logging.warning("gpiod library not available. Local GPIO will use simulation mode.")
+            if FORCE_HARDWARE:
+                logging.error("FORCE_HARDWARE is set but gpiod library is not available!")
+                raise ImportError("gpiod library is required when FORCE_HARDWARE is enabled")
+else:
+    # On Windows, create a mock gpiod module for development purposes
+    class MockGpiod:
+        """Mock implementation for gpiod on Windows"""
+        class chip:
+            def __init__(self, chip_name):
+                self.name = chip_name
+                logging.debug(f"MockGpiod: Created chip {chip_name}")
+                
+            def get_line(self, pin_offset):
+                return MockGpiod.line(pin_offset)
+                
+            def close(self):
+                logging.debug(f"MockGpiod: Closed chip {self.name}")
+        
+        class line:
+            def __init__(self, pin_offset):
+                self.pin = pin_offset
+                self.value = 0
+                
+            def request(self, config):
+                logging.debug(f"MockGpiod: Requested line {self.pin}")
+                
+            def set_value(self, value):
+                self.value = value
+                logging.debug(f"MockGpiod: Set line {self.pin} to {value}")
+                
+            def get_value(self):
+                # Return random value to simulate actual hardware
+                import random
+                return random.choice([0, 1])
+                
+            def release(self):
+                logging.debug(f"MockGpiod: Released line {self.pin}")
+        
+        class line_request:
+            DIRECTION_OUTPUT = 1
+            DIRECTION_INPUT = 2
+            FLAG_BIAS_PULL_UP = 4
+            
+            def __init__(self):
+                self.consumer = ""
+                self.request_type = 0
+                self.flags = 0
+    
+    gpiod = MockGpiod()
+    logging.info("Using mock gpiod implementation on Windows")
 
 class ServoWrapper:
     """
@@ -422,60 +483,6 @@ class StepperWrapper:
         """
         with self.lock:
             if not self._enabled:
-                logging.warning("Cannot home: Stepper motor is disabled")
-                return False
-            
-            if self.simulation_mode:
-                # Simulate homing in simulation mode
-                self._moving = True
-                
-                def simulate_home():
-                    # Simulate movement time for homing
-                    home_time = abs(self._position) / (speed or self._speed)
-                    time.sleep(home_time)
-                    with self.lock:
-                        self._position = 0
-                        self._moving = False
-                    logging.debug("Simulation: Stepper homed to position 0")
-                
-                if wait:
-                    simulate_home()
-                else:
-                    threading.Thread(target=simulate_home, daemon=True).start()
-                
-                return True
-            
-            if self._controller:
-                try:
-                    self._moving = True
-                    
-                    def home_and_update():
-                        try:
-                            self._controller.home_stepper(
-                                id=self._stepper_id,
-                                wait=True
-                            )
-                            
-                            # Update position after homing is complete
-                            with self.lock:
-                                self._position = 0
-                                self._moving = False
-                                
-                            logging.debug("Stepper homed to position 0")
-                        except Exception as e:
-                            logging.error(f"Error during stepper homing: {e}")
-                            with self.lock:
-                                self._moving = False
-                    
-                    if wait:
-                        home_and_update()
-                    else:
-                        threading.Thread(target=home_and_update, daemon=True).start()
-                    
-                    return True
-                except Exception as e:
-                    logging.error(f"Failed to home stepper: {e}")
-                    self._moving = False
                     return False
             
             return False
@@ -653,7 +660,7 @@ class LocalGPIOWrapper:
             
             # Create output configuration
             config = gpiod.line_request()
-            config.consumer = "NooyenLaserRoom"
+            config.consumer = "ShopLaserRoom"
             config.request_type = gpiod.line_request.DIRECTION_OUTPUT
             
             # Get the line
@@ -702,7 +709,7 @@ class LocalGPIOWrapper:
             
             # Create input configuration
             config = gpiod.line_request()
-            config.consumer = "NooyenLaserRoom"
+            config.consumer = "ShopLaserRoom"
             config.request_type = gpiod.line_request.DIRECTION_INPUT
             
             # Set pull-up if needed

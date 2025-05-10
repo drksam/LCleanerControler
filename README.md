@@ -1,7 +1,7 @@
-# NooyenLaserRoom Control System v2.0.1
+# ShopLaserRoom Control System v2.0.2
 
 ## Overview
-This is a sophisticated Raspberry Pi 5 control system for the NooyenLaserRoom laser cleaning machine. 
+This is a sophisticated Raspberry Pi 5 control system for the ShopLaserRoom laser cleaning machine. 
 It provides a touchscreen web-based GUI for controlling the cleaning head movement, trigger servo for firing the laser, 
 and various auxiliary functions such as fan control, red lights, and table movement.
 
@@ -14,6 +14,14 @@ and various auxiliary functions such as fan control, red lights, and table movem
 - Comprehensive statistics tracking
 - Sequence programming for automated operations
 - Detailed GPIO pinout reference
+
+## New in Version 2.0.2
+- Completely removed gpiozero dependency, replaced with gpiod and custom GPIO wrapper
+- Enhanced compatibility with Raspberry Pi 5 GPIO architecture
+- Fixed JavaScript syntax errors in the web interface
+- Improved error handling and robustness in GPIO access
+- Consolidated GPIO control methods for better maintainability
+- Added support for running in testing/development environments
 
 ## New in Version 2.0.0
 - Added support for GPIOController-based implementations, resolving Raspberry Pi 5 GPIO issues
@@ -50,7 +58,7 @@ Install the required Python packages:
 ```
 sudo pip3 install flask==2.3.3 flask-login==0.6.2 flask-sqlalchemy==3.1.1 flask-wtf==1.2.1 
 sudo pip3 install gunicorn==21.2.0 psycopg2-binary==2.9.9 werkzeug==2.3.7 email-validator==2.1.0
-sudo pip3 install requests==2.31.0 gpiozero==2.0 gpiod==1.5.3 mfrc522==0.0.7
+sudo pip3 install requests==2.31.0 gpiod==1.5.3 mfrc522==0.0.7
 ```
 
 ### 3. Prepare PostgreSQL Database
@@ -62,43 +70,43 @@ sudo pip3 install requests==2.31.0 gpiozero==2.0 gpiod==1.5.3 mfrc522==0.0.7
    ```
 2. Create a database and user:
    ```
-   sudo -u postgres psql -c "CREATE USER nooyen WITH PASSWORD 'your_secure_password';"
-   sudo -u postgres psql -c "CREATE DATABASE nooyenlaser OWNER nooyen;"
-   sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE nooyenlaser TO nooyen;"
+   sudo -u postgres psql -c "CREATE USER Shop WITH PASSWORD 'your_secure_password';"
+   sudo -u postgres psql -c "CREATE DATABASE Shoplaser OWNER Shop;"
+   sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE Shoplaser TO Shop;"
    ```
 
 ### 4. Application Installation
-1. Unzip the NooyenLaserRoom package to /opt:
+1. Unzip the ShopLaserRoom package to /opt:
    ```
-   sudo mkdir -p /opt/nooyenlaser
-   sudo unzip nooyenlaser_v2.0.0.zip -d /opt/nooyenlaser
-   cd /opt/nooyenlaser
+   sudo mkdir -p /opt/Shoplaser
+   sudo unzip Shoplaser_v2.0.0.zip -d /opt/Shoplaser
+   cd /opt/Shoplaser
    ```
 2. Set proper permissions:
    ```
-   sudo chown -R pi:pi /opt/nooyenlaser  # Use appropriate username instead of 'pi'
+   sudo chown -R pi:pi /opt/Shoplaser  # Use appropriate username instead of 'pi'
    ```
 3. Configure the database connection in machine_config.json:
    ```json
    "database": {
-     "url": "postgresql://nooyen:your_secure_password@localhost/nooyenlaser"
+     "url": "postgresql://Shop:your_secure_password@localhost/Shoplaser"
    }
    ```
 
 ### 5. Setup SystemD Service
 1. Install the service file:
    ```
-   sudo cp nooyen-laser.service /etc/systemd/system/
+   sudo cp Shop-laser.service /etc/systemd/system/
    sudo systemctl daemon-reload
    ```
 2. Enable and start the service:
    ```
-   sudo systemctl enable nooyen-laser.service
-   sudo systemctl start nooyen-laser.service
+   sudo systemctl enable Shop-laser.service
+   sudo systemctl start Shop-laser.service
    ```
 3. Check service status:
    ```
-   sudo systemctl status nooyen-laser.service
+   sudo systemctl status Shop-laser.service
    ```
 
 ### 6. Configure Nginx as Reverse Proxy (Optional, recommended for production)
@@ -108,7 +116,7 @@ sudo pip3 install requests==2.31.0 gpiozero==2.0 gpiod==1.5.3 mfrc522==0.0.7
    ```
 2. Create a configuration file:
    ```
-   sudo nano /etc/nginx/sites-available/nooyenlaser
+   sudo nano /etc/nginx/sites-available/Shoplaser
    ```
 3. Add the following configuration:
    ```
@@ -125,7 +133,7 @@ sudo pip3 install requests==2.31.0 gpiozero==2.0 gpiod==1.5.3 mfrc522==0.0.7
    ```
 4. Enable the site and restart Nginx:
    ```
-   sudo ln -s /etc/nginx/sites-available/nooyenlaser /etc/nginx/sites-enabled
+   sudo ln -s /etc/nginx/sites-available/Shoplaser /etc/nginx/sites-enabled
    sudo nginx -t
    sudo systemctl restart nginx
    ```
@@ -173,8 +181,8 @@ The system can operate in three modes, selectable in the Settings page:
 - Enable by setting "operation_mode": "normal" in machine_config.json
 - Set "debug_level": "info" for standard operational logging
 
-## Integration with NooyenMachineMonitor
-This system is designed to integrate with the NooyenMachineMonitor central monitoring server for:
+## Integration with ShopMachineMonitor
+This system is designed to integrate with the ShopMachineMonitor central monitoring server for:
 - User authentication
 - Machine access control
 - Operation logging
@@ -182,20 +190,82 @@ This system is designed to integrate with the NooyenMachineMonitor central monit
 
 To configure integration, update the RFID section in machine_config.json with the appropriate authentication server URL.
 
+## Testing and Development
+
+### Setting Up a Virtual Environment for Testing
+To test the system without affecting your system-wide Python environment:
+
+1. Create a virtual environment:
+   ```
+   python -m venv venv
+   ```
+
+2. Activate the virtual environment:
+   - On Windows:
+     ```
+     venv\Scripts\activate
+     ```
+   - On Linux/macOS:
+     ```
+     source venv/bin/activate
+     ```
+
+3. Install the required dependencies:
+   ```
+   pip install -r requirements.txt
+   ```
+
+### Running test_run.py
+The `test_run.py` script allows you to test various components of the system in isolation:
+
+1. Activate your virtual environment (if not already activated).
+
+2. Run the test script:
+   ```
+   python test_run.py
+   ```
+
+3. Follow the on-screen menu to select which component to test:
+   - Stepper motor
+   - Servo control
+   - GPIO outputs (fan, lights, table control)
+   - Temperature sensors
+   - RFID reader
+
+4. The test script will run in simulation mode by default if no hardware is detected.
+
+5. To force hardware mode (when hardware is present):
+   ```
+   FORCE_HARDWARE=true python test_run.py
+   ```
+
+### Development in Windows Environment
+For development on Windows where Raspberry Pi hardware is not available:
+
+1. Set up the virtual environment as described above.
+
+2. Run in simulation mode:
+   ```
+   SIMULATION_MODE=true python app.py
+   ```
+
+3. Access the web interface at http://localhost:5000
+
 ## Troubleshooting
 ### GPIO Access Issues
 If you encounter GPIO access issues:
 1. Ensure your user is in the gpio group: `sudo usermod -a -G gpio,spi,i2c your_username`
-2. For Raspberry Pi 5 specifically, use the provided GPIOController approach in Settings
+2. For Raspberry Pi 5 specifically, the system now uses gpiod library instead of gpiozero
 3. Check connections and pin numbers in machine_config.json
 4. For persistent issues, set "simulation_mode": true in the respective component sections for testing
+5. If you need to test on Windows or non-Pi Linux systems, use the simulation mode
 
 ### Database Connection Issues
 If database connection fails:
 1. Verify PostgreSQL is running: `sudo systemctl status postgresql`
 2. Check connection details in machine_config.json
-3. Test connection manually: `psql -U nooyen -W nooyenlaser`
-4. Check logs for specific errors: `journalctl -u nooyen-laser.service`
+3. Test connection manually: `psql -U Shop -W Shoplaser`
+4. Check logs for specific errors: `journalctl -u Shop-laser.service`
 
 ## Support
-For support or more information, contact the project team through the NooyenUSATracker portal.
+For support or more information, contact the project team through the ShopTracker portal or submit an issue on GitHub.

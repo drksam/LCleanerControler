@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NooyenLaserRoom - {% block title %}Control System{% endblock %}</title>
+    <title>ShopLaserRoom - {% block title %}Control System{% endblock %}</title>
     
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
@@ -100,17 +100,59 @@
             background-color: var(--bs-danger);
             color: white;
         }
+
+        /* Log system styling */
+        .log-pagination {
+            display: flex;
+            justify-content: center;
+            margin-top: 10px;
+        }
         
-        /* Custom additional styling */
-        {% block additional_styles %}{% endblock %}
+        .log-pagination button {
+            margin: 0 5px;
+        }
+        
+        .log-pagination .active {
+            background-color: var(--bs-primary);
+            border-color: var(--bs-primary);
+        }
+        
+        .log-filters {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        
+        .log-search {
+            position: relative;
+            flex-grow: 1;
+            max-width: 300px;
+        }
+        
+        .log-search input {
+            padding-right: 30px;
+            background-color: var(--bs-gray-800);
+            border-color: var(--bs-gray-700);
+            color: var(--bs-light);
+        }
+        
+        .log-search i {
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            color: var(--bs-gray-400);
+        }
     </style>
+    
+    <!-- Custom additional styling -->
+    {% block additional_styles %}{% endblock %}
 </head>
 <body>
     <!-- Navigation Bar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
         <div class="container-fluid">
             <a class="navbar-brand" href="{{ url_for('index') }}">
-                <i class="fas fa-laser-pointer me-2"></i>NooyenLaserRoom
+                <i class="fas fa-laser-pointer me-2"></i>ShopLaserRoom
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
@@ -220,13 +262,45 @@
         <div class="card mt-4">
             <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
                 <h5 class="card-title mb-0">System Status Log</h5>
-                {% if current_user.is_authenticated and current_user.access_level == 'admin' %}
-                <button class="btn btn-sm btn-outline-light" id="clear-status-log">Clear</button>
-                {% endif %}
+                <div>
+                    <button class="btn btn-sm btn-outline-info me-2" id="log-settings-btn" title="Log Settings">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                    {% if current_user.is_authenticated and current_user.access_level == 'admin' %}
+                    <button class="btn btn-sm btn-outline-light" id="clear-status-log">Clear</button>
+                    {% endif %}
+                </div>
             </div>
-            <div class="card-body p-2" style="background-color: #212529; max-height: 200px; overflow-y: auto;">
-                <div id="status-log">
-                    <!-- Log entries will be loaded from localStorage -->
+            <div class="card-body p-2" style="background-color: #212529;">
+                <div class="log-filters collapse" id="log-filters">
+                    <div class="d-flex mb-2">
+                        <div class="me-2">
+                            <select class="form-select form-select-sm" id="log-type-filter">
+                                <option value="all">All Log Types</option>
+                                <option value="info">Info</option>
+                                <option value="error">Error</option>
+                                <option value="success">Success</option>
+                                <option value="action">Action</option>
+                                <option value="config">Config</option>
+                            </select>
+                        </div>
+                        <div class="log-search">
+                            <input type="text" class="form-control form-control-sm" id="log-search" placeholder="Search logs...">
+                            <i class="fas fa-search"></i>
+                        </div>
+                    </div>
+                </div>
+                <div style="max-height: 200px; overflow-y: auto;">
+                    <div id="status-log">
+                        <!-- Log entries will be loaded from IndexedDB -->
+                        <div class="text-center p-3 text-muted small">
+                            <i class="fas fa-sync fa-spin me-1"></i> Loading logs...
+                        </div>
+                    </div>
+                </div>
+                <!-- Log pagination controls -->
+                <div class="log-pagination mt-2" id="log-pagination">
+                    <!-- Pagination buttons will be added dynamically -->
                 </div>
             </div>
         </div>
@@ -236,49 +310,302 @@
     <footer class="bg-dark text-light py-3 text-center">
         <div class="container">
             <small>
-                NooyenLaserRoom Control System &copy; 2025 - Part of the Nooyen Machine Suite
+                ShopLaserRoom Control System &copy; 2025 - Part of the Shop Machine Suite
             </small>
         </div>
     </footer>
 
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
     <!-- Bootstrap JS Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
+    <!-- Utility scripts for shared functionality -->
+    <script src="{{ url_for('static', filename='js/utility.js') }}"></script>
+    
     <!-- Common scripts -->
     <script>
-        // Persistent log storage using localStorage
-        const LOG_STORAGE_KEY = 'nooyenLaserRoom_log';
-        const MAX_LOG_ITEMS = 50;
+        // Optimized log storage using IndexedDB
+        const DB_NAME = 'ShopLaserRoomDB';
+        const DB_VERSION = 1;
+        const LOG_STORE = 'systemLogs';
+        const LOGS_PER_PAGE = 10;
+        const MAX_LOG_ITEMS = 1000; // Much higher limit with IndexedDB
         
-        // Load logs from localStorage
-        function loadLogsFromStorage() {
-            try {
-                const storedLogs = localStorage.getItem(LOG_STORAGE_KEY);
-                return storedLogs ? JSON.parse(storedLogs) : [];
-            } catch (error) {
-                console.error('Error loading logs from storage:', error);
-                return [];
-            }
+        let db;
+        let currentLogPage = 1;
+        let totalLogPages = 1;
+        let currentLogFilter = 'all';
+        let currentLogSearch = '';
+        
+        // Initialize IndexedDB
+        function initIndexedDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                
+                request.onupgradeneeded = function(event) {
+                    const db = event.target.result;
+                    
+                    // Create logs object store if it doesn't exist
+                    if (!db.objectStoreNames.contains(LOG_STORE)) {
+                        const store = db.createObjectStore(LOG_STORE, { keyPath: 'id', autoIncrement: true });
+                        store.createIndex('timestamp', 'timestamp', { unique: false });
+                        store.createIndex('logType', 'logType', { unique: false });
+                    }
+                };
+                
+                request.onsuccess = function(event) {
+                    db = event.target.result;
+                    resolve(db);
+                };
+                
+                request.onerror = function(event) {
+                    console.error('IndexedDB initialization error:', event.target.error);
+                    
+                    // Fall back to localStorage if IndexedDB fails
+                    window.addLogMessage('Error initializing log database. Using fallback method.', true);
+                    reject(event.target.error);
+                };
+            });
         }
         
-        // Save logs to localStorage
-        function saveLogsToStorage(logs) {
-            try {
-                // Ensure we don't exceed max items
-                const trimmedLogs = logs.slice(0, MAX_LOG_ITEMS);
-                localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(trimmedLogs));
-            } catch (error) {
-                console.error('Error saving logs to storage:', error);
-            }
+        // Add log to IndexedDB
+        function addLogToDatabase(logItem) {
+            return new Promise((resolve, reject) => {
+                if (!db) {
+                    // Fall back to temporary in-memory storage if DB not initialized
+                    if (!window.tempLogs) window.tempLogs = [];
+                    window.tempLogs.unshift(logItem);
+                    if (window.tempLogs.length > MAX_LOG_ITEMS) window.tempLogs.length = MAX_LOG_ITEMS;
+                    resolve();
+                    return;
+                }
+                
+                try {
+                    const transaction = db.transaction([LOG_STORE], 'readwrite');
+                    const store = transaction.objectStore(LOG_STORE);
+                    
+                    // Add the new log
+                    store.add(logItem);
+                    
+                    transaction.oncomplete = function() {
+                        // Prune old logs if we exceed the maximum
+                        pruneOldLogs().then(resolve).catch(reject);
+                    };
+                    
+                    transaction.onerror = function(event) {
+                        console.error('Error adding log to IndexedDB:', event.target.error);
+                        reject(event.target.error);
+                    };
+                } catch (error) {
+                    console.error('Transaction error:', error);
+                    reject(error);
+                }
+            });
         }
         
-        // Clear logs from localStorage
-        function clearLogsFromStorage() {
-            try {
-                localStorage.removeItem(LOG_STORAGE_KEY);
-            } catch (error) {
-                console.error('Error clearing logs from storage:', error);
-            }
+        // Prune old logs to stay under MAX_LOG_ITEMS
+        function pruneOldLogs() {
+            return new Promise((resolve, reject) => {
+                try {
+                    const transaction = db.transaction([LOG_STORE], 'readwrite');
+                    const store = transaction.objectStore(LOG_STORE);
+                    const countRequest = store.count();
+                    
+                    countRequest.onsuccess = function() {
+                        const total = countRequest.result;
+                        
+                        if (total > MAX_LOG_ITEMS) {
+                            const excess = total - MAX_LOG_ITEMS;
+                            
+                            // Get oldest logs to delete
+                            const index = store.index('timestamp');
+                            const cursorRequest = index.openCursor();
+                            let deleteCount = 0;
+                            
+                            cursorRequest.onsuccess = function(event) {
+                                const cursor = event.target.result;
+                                
+                                if (cursor && deleteCount < excess) {
+                                    store.delete(cursor.primaryKey);
+                                    deleteCount++;
+                                    cursor.continue();
+                                }
+                            };
+                        }
+                    };
+                    
+                    transaction.oncomplete = resolve;
+                    transaction.onerror = function(event) {
+                        console.error('Error pruning logs:', event.target.error);
+                        reject(event.target.error);
+                    };
+                } catch (error) {
+                    console.error('Pruning transaction error:', error);
+                    reject(error);
+                }
+            });
+        }
+        
+        // Clear all logs from database
+        function clearLogsFromDatabase() {
+            return new Promise((resolve, reject) => {
+                if (!db) {
+                    window.tempLogs = [];
+                    resolve();
+                    return;
+                }
+                
+                try {
+                    const transaction = db.transaction([LOG_STORE], 'readwrite');
+                    const store = transaction.objectStore(LOG_STORE);
+                    
+                    const request = store.clear();
+                    
+                    request.onsuccess = function() {
+                        resolve();
+                    };
+                    
+                    request.onerror = function(event) {
+                        console.error('Error clearing logs:', event.target.error);
+                        reject(event.target.error);
+                    };
+                } catch (error) {
+                    console.error('Clear logs transaction error:', error);
+                    reject(error);
+                }
+            });
+        }
+        
+        // Get logs with pagination and filtering
+        function getLogsFromDatabase(page = 1, filter = 'all', searchTerm = '') {
+            return new Promise((resolve, reject) => {
+                // Handle case where IndexedDB isn't available
+                if (!db) {
+                    if (!window.tempLogs) window.tempLogs = [];
+                    const logs = [...window.tempLogs];
+                    
+                    // Apply filtering
+                    const filteredLogs = filter === 'all' 
+                        ? logs 
+                        : logs.filter(log => log.logType === filter);
+                    
+                    // Apply search term if provided
+                    const searchedLogs = searchTerm === ''
+                        ? filteredLogs
+                        : filteredLogs.filter(log => log.message.toLowerCase().includes(searchTerm.toLowerCase()));
+                    
+                    // Calculate pagination
+                    const total = searchedLogs.length;
+                    const totalPages = Math.ceil(total / LOGS_PER_PAGE);
+                    const start = (page - 1) * LOGS_PER_PAGE;
+                    const end = start + LOGS_PER_PAGE;
+                    const pagedLogs = searchedLogs.slice(start, end);
+                    
+                    resolve({
+                        logs: pagedLogs,
+                        total,
+                        totalPages,
+                        page
+                    });
+                    
+                    return;
+                }
+                
+                try {
+                    // First get the total count for pagination
+                    const transaction = db.transaction([LOG_STORE], 'readonly');
+                    const store = transaction.objectStore(LOG_STORE);
+                    let countRequest;
+                    
+                    // Different approach based on filter
+                    if (filter === 'all') {
+                        countRequest = store.count();
+                    } else {
+                        const index = store.index('logType');
+                        const range = IDBKeyRange.only(filter);
+                        countRequest = index.count(range);
+                    }
+                    
+                    countRequest.onsuccess = function() {
+                        const totalRecords = countRequest.result;
+                        const totalPages = Math.max(1, Math.ceil(totalRecords / LOGS_PER_PAGE));
+                        
+                        // Ensure page is valid
+                        page = Math.min(Math.max(1, page), totalPages);
+                        
+                        // Get logs for the current page
+                        const index = store.index('timestamp');
+                        const logs = [];
+                        
+                        // Open a cursor to fetch logs
+                        let cursorRequest = index.openCursor(null, 'prev'); // Newest first
+                        let skipped = 0;
+                        let fetched = 0;
+                        const skip = (page - 1) * LOGS_PER_PAGE;
+                        
+                        cursorRequest.onsuccess = function(event) {
+                            const cursor = event.target.result;
+                            
+                            if (!cursor) {
+                                // Done - return the results
+                                resolve({
+                                    logs,
+                                    total: totalRecords,
+                                    totalPages,
+                                    page
+                                });
+                                return;
+                            }
+                            
+                            const log = cursor.value;
+                            
+                            // Apply filter
+                            const passesFilter = filter === 'all' || log.logType === filter;
+                            
+                            // Apply search term
+                            const passesSearch = searchTerm === '' || 
+                                log.message.toLowerCase().includes(searchTerm.toLowerCase());
+                            
+                            if (passesFilter && passesSearch) {
+                                if (skipped < skip) {
+                                    skipped++;
+                                } else if (fetched < LOGS_PER_PAGE) {
+                                    logs.push(log);
+                                    fetched++;
+                                }
+                            }
+                            
+                            // If we have enough records or have gone through all matching records, we're done
+                            if (fetched < LOGS_PER_PAGE) {
+                                cursor.continue();
+                            } else {
+                                resolve({
+                                    logs,
+                                    total: totalRecords,
+                                    totalPages,
+                                    page
+                                });
+                            }
+                        };
+                        
+                        cursorRequest.onerror = function(event) {
+                            console.error('Error fetching logs:', event.target.error);
+                            reject(event.target.error);
+                        };
+                    };
+                    
+                    countRequest.onerror = function(event) {
+                        console.error('Error counting logs:', event.target.error);
+                        reject(event.target.error);
+                    };
+                    
+                } catch (error) {
+                    console.error('Get logs transaction error:', error);
+                    reject(error);
+                }
+            });
         }
         
         // Add timestamp to messages
@@ -288,24 +615,137 @@
             return `${timestamp} - ${message}`;
         }
         
-        // Render logs to the DOM
-        function renderLogs() {
+        // Render logs with pagination
+        function renderLogs(page = 1, filter = 'all', searchTerm = '') {
             const statusLog = document.getElementById('status-log');
-            if (!statusLog) return;
+            const paginationEl = document.getElementById('log-pagination');
             
-            // Clear current DOM logs
-            statusLog.innerHTML = '';
+            if (!statusLog || !paginationEl) return;
             
-            // Get logs from storage
-            const logs = loadLogsFromStorage();
+            // Show loading indicator
+            statusLog.innerHTML = '<div class="text-center p-3 text-muted small"><i class="fas fa-sync fa-spin me-1"></i> Loading logs...</div>';
             
-            // Render logs in reverse order (newest first)
-            logs.forEach(log => {
-                const logItem = document.createElement('div');
-                logItem.className = log.className;
-                logItem.textContent = log.message;
-                statusLog.appendChild(logItem);
+            // Fetch and render the logs
+            getLogsFromDatabase(page, filter, searchTerm)
+                .then(result => {
+                    // Update current page and total pages
+                    currentLogPage = result.page;
+                    totalLogPages = result.totalPages;
+                    
+                    // Clear current logs
+                    statusLog.innerHTML = '';
+                    
+                    if (result.logs.length === 0) {
+                        statusLog.innerHTML = '<div class="text-center p-3 text-muted small">No logs found</div>';
+                        paginationEl.innerHTML = '';
+                        return;
+                    }
+                    
+                    // Render the logs
+                    result.logs.forEach(log => {
+                        const logItem = document.createElement('div');
+                        logItem.className = log.className;
+                        logItem.textContent = log.message;
+                        statusLog.appendChild(logItem);
+                    });
+                    
+                    // Render pagination if we have more than one page
+                    if (result.totalPages > 1) {
+                        renderPagination(result.page, result.totalPages, paginationEl, filter, searchTerm);
+                    } else {
+                        paginationEl.innerHTML = '';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error rendering logs:', error);
+                    statusLog.innerHTML = '<div class="alert alert-danger mb-1 py-1 small">Error loading logs</div>';
+                });
+        }
+        
+        // Render pagination controls
+        function renderPagination(currentPage, totalPages, element, filter, searchTerm) {
+            element.innerHTML = '';
+            
+            // Create a simpler pagination control for better performance
+            const maxVisiblePages = 5; // Show at most 5 page numbers
+            
+            // Add "Previous" button
+            const prevBtn = document.createElement('button');
+            prevBtn.className = 'btn btn-sm btn-outline-secondary';
+            prevBtn.disabled = currentPage === 1;
+            prevBtn.innerHTML = '&laquo;';
+            prevBtn.addEventListener('click', () => {
+                if (currentPage > 1) {
+                    renderLogs(currentPage - 1, filter, searchTerm);
+                }
             });
+            element.appendChild(prevBtn);
+            
+            // Determine which page numbers to show
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+            
+            // Adjust startPage if endPage is capped
+            if (endPage - startPage + 1 < maxVisiblePages) {
+                startPage = Math.max(1, endPage - maxVisiblePages + 1);
+            }
+            
+            // Add first page button if needed
+            if (startPage > 1) {
+                const firstBtn = document.createElement('button');
+                firstBtn.className = 'btn btn-sm btn-outline-secondary';
+                firstBtn.textContent = '1';
+                firstBtn.addEventListener('click', () => renderLogs(1, filter, searchTerm));
+                element.appendChild(firstBtn);
+                
+                // Add ellipsis if there's a gap
+                if (startPage > 2) {
+                    const ellipsis = document.createElement('span');
+                    ellipsis.className = 'mx-1';
+                    ellipsis.textContent = '...';
+                    element.appendChild(ellipsis);
+                }
+            }
+            
+            // Add page number buttons
+            for (let i = startPage; i <= endPage; i++) {
+                const pageBtn = document.createElement('button');
+                pageBtn.className = i === currentPage 
+                    ? 'btn btn-sm btn-primary' 
+                    : 'btn btn-sm btn-outline-secondary';
+                pageBtn.textContent = i;
+                pageBtn.addEventListener('click', () => renderLogs(i, filter, searchTerm));
+                element.appendChild(pageBtn);
+            }
+            
+            // Add last page button if needed
+            if (endPage < totalPages) {
+                // Add ellipsis if there's a gap
+                if (endPage < totalPages - 1) {
+                    const ellipsis = document.createElement('span');
+                    ellipsis.className = 'mx-1';
+                    ellipsis.textContent = '...';
+                    element.appendChild(ellipsis);
+                }
+                
+                const lastBtn = document.createElement('button');
+                lastBtn.className = 'btn btn-sm btn-outline-secondary';
+                lastBtn.textContent = totalPages;
+                lastBtn.addEventListener('click', () => renderLogs(totalPages, filter, searchTerm));
+                element.appendChild(lastBtn);
+            }
+            
+            // Add "Next" button
+            const nextBtn = document.createElement('button');
+            nextBtn.className = 'btn btn-sm btn-outline-secondary';
+            nextBtn.disabled = currentPage === totalPages;
+            nextBtn.innerHTML = '&raquo;';
+            nextBtn.addEventListener('click', () => {
+                if (currentPage < totalPages) {
+                    renderLogs(currentPage + 1, filter, searchTerm);
+                }
+            });
+            element.appendChild(nextBtn);
         }
         
         // Global log function available to all components
@@ -316,6 +756,7 @@
             let className;
             if (isError) {
                 className = 'alert alert-danger mb-1 py-1 small';
+                logType = 'error';
             } else if (logType === 'success') {
                 className = 'alert alert-success mb-1 py-1 small';
             } else if (logType === 'action') {
@@ -333,40 +774,69 @@
             const logItem = {
                 message: timestampedMessage,
                 className: className,
-                timestamp: new Date().getTime()
+                timestamp: new Date().getTime(),
+                logType: logType
             };
             
-            // Get existing logs
-            const logs = loadLogsFromStorage();
-            
-            // Add new log at the beginning
-            logs.unshift(logItem);
-            
-            // Trim logs if needed
-            if (logs.length > MAX_LOG_ITEMS) {
-                logs.length = MAX_LOG_ITEMS;
-            }
-            
-            // Save updated logs
-            saveLogsToStorage(logs);
-            
-            // Update the DOM if status log exists
-            const statusLog = document.getElementById('status-log');
-            if (statusLog) {
-                const domLogItem = document.createElement('div');
-                domLogItem.className = className;
-                domLogItem.textContent = timestampedMessage;
-                statusLog.insertBefore(domLogItem, statusLog.firstChild);
-                
-                // Limit visible DOM log items for performance
-                const items = statusLog.children;
-                if (items.length > MAX_LOG_ITEMS) {
-                    for (let i = MAX_LOG_ITEMS; i < items.length; i++) {
-                        statusLog.removeChild(items[i]);
+            // Add to database
+            addLogToDatabase(logItem)
+                .then(() => {
+                    // Only update UI if we're on the first page and the filter matches
+                    if (currentLogPage === 1 && (currentLogFilter === 'all' || currentLogFilter === logType) 
+                        && (currentLogSearch === '' || message.toLowerCase().includes(currentLogSearch.toLowerCase()))) {
+                        
+                        // Check if status log exists
+                        const statusLog = document.getElementById('status-log');
+                        if (!statusLog) return;
+                        
+                        // If there's a "No logs found" message, remove it
+                        if (statusLog.children.length === 1 && 
+                            statusLog.children[0].classList.contains('text-muted')) {
+                            statusLog.innerHTML = '';
+                        }
+                        
+                        // Add at the beginning
+                        const domLogItem = document.createElement('div');
+                        domLogItem.className = className;
+                        domLogItem.textContent = timestampedMessage;
+                        statusLog.insertBefore(domLogItem, statusLog.firstChild);
+                        
+                        // Limit visible DOM log items for performance
+                        const items = statusLog.children;
+                        if (items.length > LOGS_PER_PAGE) {
+                            statusLog.removeChild(items[items.length - 1]);
+                        }
+                        
+                        // Refresh pagination if needed (the count may have changed)
+                        getLogsFromDatabase(1, currentLogFilter, currentLogSearch)
+                            .then(result => {
+                                if (result.totalPages !== totalLogPages) {
+                                    totalLogPages = result.totalPages;
+                                    const paginationEl = document.getElementById('log-pagination');
+                                    if (paginationEl && totalLogPages > 1) {
+                                        renderPagination(1, totalLogPages, paginationEl, currentLogFilter, currentLogSearch);
+                                    }
+                                }
+                            });
                     }
-                }
-            }
+                })
+                .catch(error => console.error('Error adding log:', error));
         };
+        
+        // Initialize the system
+        async function initSystem() {
+            try {
+                // Initialize IndexedDB
+                await initIndexedDB();
+                
+                // Initial log rendering
+                renderLogs(1, 'all', '');
+            } catch (error) {
+                console.error('Error initializing system:', error);
+                // If IndexedDB fails, we'll use the fallback mechanism
+                renderLogs(1, 'all', '');
+            }
+        }
         
         // Check RFID authentication status periodically
         function checkAuthStatus() {
@@ -392,40 +862,95 @@
                 });
         }
         
-        // Check status when page loads
+        // Setup log filter and search functionality
+        function setupLogFiltering() {
+            const filterSelect = document.getElementById('log-type-filter');
+            const searchInput = document.getElementById('log-search');
+            
+            if (filterSelect) {
+                filterSelect.addEventListener('change', () => {
+                    currentLogFilter = filterSelect.value;
+                    renderLogs(1, currentLogFilter, currentLogSearch);
+                });
+            }
+            
+            if (searchInput) {
+                // Debounce search to avoid too many renders
+                let searchTimeout;
+                searchInput.addEventListener('input', () => {
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(() => {
+                        currentLogSearch = searchInput.value;
+                        renderLogs(1, currentLogFilter, currentLogSearch);
+                    }, 300);
+                });
+            }
+        }
+        
+        // Document ready function
         document.addEventListener('DOMContentLoaded', function() {
+            // Initialize the system
+            initSystem();
+            
             // Initial status check
             checkAuthStatus();
             
             // Check every 30 seconds
             setInterval(checkAuthStatus, 30000);
             
-            // Load and render existing logs
-            renderLogs();
+            // Setup log filtering
+            setupLogFiltering();
+            
+            // Set up log settings button
+            const logSettingsBtn = document.getElementById('log-settings-btn');
+            const logFilters = document.getElementById('log-filters');
+            
+            if (logSettingsBtn && logFilters) {
+                logSettingsBtn.addEventListener('click', () => {
+                    $(logFilters).collapse('toggle');
+                });
+            }
             
             // Set up clear log button
             const clearLogButton = document.getElementById('clear-status-log');
             if (clearLogButton) {
                 clearLogButton.addEventListener('click', function() {
-                    const statusLog = document.getElementById('status-log');
-                    if (statusLog) {
-                        // Clear DOM
-                        statusLog.innerHTML = '';
-                        
-                        // Clear storage
-                        clearLogsFromStorage();
-                        
-                        // Add "Log cleared" message
-                        window.addLogMessage('Log cleared.', false, 'info');
-                    }
+                    // Clear database
+                    clearLogsFromDatabase()
+                        .then(() => {
+                            // Clear UI
+                            const statusLog = document.getElementById('status-log');
+                            if (statusLog) {
+                                statusLog.innerHTML = '';
+                            }
+                            
+                            // Reset pagination
+                            const paginationEl = document.getElementById('log-pagination');
+                            if (paginationEl) {
+                                paginationEl.innerHTML = '';
+                            }
+                            
+                            // Add "Log cleared" message
+                            window.addLogMessage('Log cleared.', false, 'info');
+                            
+                            // Update current state
+                            totalLogPages = 1;
+                            currentLogPage = 1;
+                        })
+                        .catch(error => {
+                            console.error('Error clearing logs:', error);
+                            window.addLogMessage('Error clearing logs: ' + error.message, true);
+                        });
                 });
             }
             
-            // Add initialization message if logs are empty
-            const logs = loadLogsFromStorage();
-            if (logs.length === 0) {
-                window.addLogMessage('System initialized and ready.', false, 'info');
-            }
+            // Add initialization message if system is new
+            getLogsFromDatabase()
+                .then(result => {
+                    if (result.logs.length === 0) {
+                        window.addLogMessage('System initialized and ready.', false, 'info');
+                    }
+                });
         });
     </script>
     

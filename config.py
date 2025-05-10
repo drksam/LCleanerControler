@@ -53,7 +53,7 @@ DEFAULT_CONFIG = {
     
     # RFID access control parameters
     'rfid': {
-        'server_url': 'https://nooyenmachinemonitor.replit.app/api/auth', # Authentication server URL
+        'server_url': 'https://Shopmachinemonitor.replit.app/api/auth', # Authentication server URL
         'api_key': '',                   # API key for server authentication
         'machine_id': 'laser_room_1',    # Machine ID for this device
         'session_hours': 8,              # Session duration in hours

@@ -65,7 +65,7 @@
         "rfid_irq_pin": 16
     },
     "rfid": {
-        "server_url": "https://nooyenmachinemonitor.replit.app/api/auth",
+        "server_url": "https://Shopmachinemonitor.replit.app/api/auth",
         "api_key": "",
         "machine_id": "laser_room_1",
         "session_hours": 8,

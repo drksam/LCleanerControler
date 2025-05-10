@@ -1,0 +1,11 @@
+suite structure
+ShopTracker (Office side app)
+ShopMonitor (Machine Monitor app)
+LCleanerController (this app)-(to the suite this will operate as a machine)
+Database
+More to come
+
+
+this app will interact with the other apps in the suite
+all apps in the suite need to use the same database for deployment (WE STILL NEED DEV DATABASE SQLlite FALLBACK)
+suite database structure found in database.md (ADD ANY NEEDED DATABASE INFO TO THE BOTTOM OF THE database.md FILE)
