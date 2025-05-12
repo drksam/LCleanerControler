@@ -25,7 +25,7 @@
                     <div class="list-group list-group-flush" id="sequenceList">
                         {% if sequences %}
                             {% for id, seq in sequences.items() %}
-                                <a href="#" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center sequence-item" data-id="{{ id }}">
+                                <a href="#" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center sequence-item" data-id="{{ id }}" data-bs-toggle="tooltip" title="Click to edit this sequence">
                                     <div>
                                         <h6 class="mb-1">{{ seq.name }}</h6>
                                         <small class="text-muted">{{ seq.description }}</small>
@@ -40,43 +40,67 @@
                         {% endif %}
                     </div>
                 </div>
-                <div class="card-footer">
-                    <button class="btn btn-success" id="newSequenceBtn">
+                <div class="card-footer d-flex justify-content-between">
+                    <button class="btn btn-success" id="newSequenceBtn" data-bs-toggle="tooltip" title="Create a new blank sequence">
                         <i class="bi bi-plus-circle"></i> New Sequence
+                    </button>
+                    <button class="btn btn-outline-primary" id="importSequenceBtn" data-bs-toggle="tooltip" title="Import sequence from JSON file">
+                        <i class="bi bi-upload"></i> Import
                     </button>
                 </div>
             </div>
             
             <!-- Sequence Player Panel -->
             <div class="card mb-4">
-                <div class="card-header bg-secondary text-white">
+                <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Sequence Player</h5>
+                    <span id="runTime" class="badge bg-light text-dark" data-bs-toggle="tooltip" title="Total execution time">00:00:00</span>
                 </div>
                 <div class="card-body">
                     <div id="playerControls" class="text-center">
                         <div class="btn-group mb-3">
-                            <button class="btn btn-primary" id="playBtn" disabled>
+                            <button class="btn btn-primary" id="playBtn" disabled data-bs-toggle="tooltip" title="Start or resume sequence execution">
                                 <i class="bi bi-play-fill"></i> Play
                             </button>
-                            <button class="btn btn-warning" id="pauseBtn" disabled>
+                            <button class="btn btn-warning" id="pauseBtn" disabled data-bs-toggle="tooltip" title="Pause sequence execution">
                                 <i class="bi bi-pause-fill"></i> Pause
                             </button>
-                            <button class="btn btn-danger" id="stopBtn" disabled>
+                            <button class="btn btn-danger" id="stopBtn" disabled data-bs-toggle="tooltip" title="Stop sequence execution">
                                 <i class="bi bi-stop-fill"></i> Stop
                             </button>
                         </div>
                         
-                        <div class="progress mb-3" style="height: 25px;">
+                        <div class="progress mb-3" style="height: 25px;" data-bs-toggle="tooltip" title="Sequence progress">
                             <div class="progress-bar progress-bar-striped progress-bar-animated" 
                                  role="progressbar" id="sequenceProgress" 
                                  style="width: 0%;" 
                                  aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
                         </div>
                         
+                        <div id="sequenceVisualization" class="mb-3" data-bs-toggle="tooltip" title="Visual representation of sequence steps">
+                            <!-- Real-time visualization will be inserted here -->
+                        </div>
+                        
+                        <div class="alert alert-info mb-3 d-flex align-items-center" id="currentStepDetails" data-bs-toggle="tooltip" title="Details of the currently executing step">
+                            <i class="bi bi-info-circle fs-4 me-2"></i>
+                            <div>No sequence running</div>
+                        </div>
+                        
                         <div class="text-start">
-                            <p class="mb-1"><strong>Status:</strong> <span id="sequenceStatus">Idle</span></p>
-                            <p class="mb-1"><strong>Current Step:</strong> <span id="currentStep">-</span></p>
-                            <p class="mb-0"><strong>Sequence:</strong> <span id="currentSequence">None</span></p>
+                            <p class="mb-1">
+                                <strong>Status:</strong> 
+                                <span id="sequenceStatus" class="badge bg-secondary" data-bs-toggle="tooltip" title="Current execution status">Idle</span>
+                            </p>
+                            <p class="mb-1">
+                                <strong>Current Step:</strong>
+                                <span id="currentStepProgress">
+                                    <span id="currentStep" data-bs-toggle="tooltip" title="Current step / Total steps">-</span>
+                                </span>
+                            </p>
+                            <p class="mb-0">
+                                <strong>Sequence:</strong>
+                                <span id="currentSequence" data-bs-toggle="tooltip" title="Currently loaded sequence">None</span>
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -84,14 +108,27 @@
             
             <!-- Execution Log Panel -->
             <div class="card mb-4">
-                <div class="card-header bg-dark text-white">
+                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Execution Log</h5>
+                    <button class="btn btn-sm btn-outline-light" id="clearLogBtn" data-bs-toggle="tooltip" title="Clear log messages">
+                        <i class="bi bi-trash"></i> Clear
+                    </button>
                 </div>
                 <div class="card-body p-0">
                     <div class="list-group list-group-flush" id="executionLog" style="max-height: 200px; overflow-y: auto;">
                         <div class="list-group-item">
                             <small class="text-muted">Execution log will appear here</small>
                         </div>
+                    </div>
+                </div>
+                <div class="card-footer text-center">
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" id="autoScrollLog" checked>
+                        <label class="form-check-label" for="autoScrollLog" data-bs-toggle="tooltip" title="Automatically scroll to latest log messages">Auto-scroll</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" id="verboseLogging">
+                        <label class="form-check-label" for="verboseLogging" data-bs-toggle="tooltip" title="Show all log messages, not just warnings and errors">Verbose</label>
                     </div>
                 </div>
             </div>
@@ -103,10 +140,13 @@
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Sequence Editor</h5>
                     <div>
-                        <button class="btn btn-sm btn-light" id="saveSequenceBtn" disabled>
+                        <button class="btn btn-sm btn-light" id="exportSequenceBtn" disabled data-bs-toggle="tooltip" title="Export sequence to a JSON file">
+                            <i class="bi bi-download"></i> Export
+                        </button>
+                        <button class="btn btn-sm btn-light" id="saveSequenceBtn" disabled data-bs-toggle="tooltip" title="Save sequence to the database">
                             <i class="bi bi-save"></i> Save
                         </button>
-                        <button class="btn btn-sm btn-danger" id="deleteSequenceBtn" disabled>
+                        <button class="btn btn-sm btn-danger" id="deleteSequenceBtn" disabled data-bs-toggle="tooltip" title="Delete this sequence permanently">
                             <i class="bi bi-trash"></i> Delete
                         </button>
                     </div>
@@ -116,17 +156,20 @@
                         <input type="hidden" id="sequenceId" value="">
                         
                         <div class="mb-3">
-                            <label for="sequenceName" class="form-label">Sequence Name</label>
+                            <label for="sequenceName" class="form-label" data-bs-toggle="tooltip" title="A descriptive name for this sequence">Sequence Name</label>
                             <input type="text" class="form-control" id="sequenceName" placeholder="Enter sequence name" required>
                         </div>
                         
                         <div class="mb-3">
-                            <label for="sequenceDescription" class="form-label">Description</label>
+                            <label for="sequenceDescription" class="form-label" data-bs-toggle="tooltip" title="Optional detailed description of what this sequence does">Description</label>
                             <textarea class="form-control" id="sequenceDescription" rows="2" placeholder="Enter sequence description"></textarea>
                         </div>
                         
                         <div class="mb-3">
-                            <label class="form-label">Steps</label>
+                            <label class="d-flex justify-content-between align-items-center" data-bs-toggle="tooltip" title="Individual operations that will be executed in order">
+                                <span>Steps</span>
+                                <span class="badge bg-info" id="stepCount">0 steps</span>
+                            </label>
                             <div class="list-group mb-2" id="stepsList">
                                 <!-- Steps will be added here dynamically -->
                                 <div class="list-group-item text-center text-muted" id="noStepsMessage">
@@ -134,8 +177,19 @@
                                 </div>
                             </div>
                             
-                            <div class="d-flex justify-content-end">
-                                <button type="button" class="btn btn-success" id="addStepBtn">
+                            <div class="d-flex justify-content-between">
+                                <div class="btn-group">
+                                    <button type="button" class="btn btn-outline-secondary" id="duplicateStepBtn" disabled data-bs-toggle="tooltip" title="Create a copy of the selected step">
+                                        <i class="bi bi-files"></i> Duplicate
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" id="moveStepUpBtn" disabled data-bs-toggle="tooltip" title="Move selected step earlier in the sequence">
+                                        <i class="bi bi-arrow-up"></i> Move Up
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" id="moveStepDownBtn" disabled data-bs-toggle="tooltip" title="Move selected step later in the sequence">
+                                        <i class="bi bi-arrow-down"></i> Move Down
+                                    </button>
+                                </div>
+                                <button type="button" class="btn btn-success" id="addStepBtn" data-bs-toggle="tooltip" title="Add a new step to the end of the sequence">
                                     <i class="bi bi-plus-circle"></i> Add Step
                                 </button>
                             </div>
@@ -146,28 +200,87 @@
             
             <!-- Step Types Reference -->
             <div class="card mb-4">
-                <div class="card-header bg-secondary text-white">
+                <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Available Step Types</h5>
+                    <button class="btn btn-sm btn-light" type="button" data-bs-toggle="collapse" data-bs-target="#stepTypesContent" aria-controls="stepTypesContent" aria-expanded="true" aria-label="Toggle step types" title="Collapse/expand this section">
+                        <i class="bi bi-chevron-down"></i>
+                    </button>
                 </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <ul class="list-unstyled">
-                                <li class="mb-2"><span class="badge bg-primary">stepper_move</span> - Move cleaning head</li>
-                                <li class="mb-2"><span class="badge bg-danger">fire</span> - Press laser trigger</li>
-                                <li class="mb-2"><span class="badge bg-warning">fire_fiber</span> - Start fiber sequence (A-B-A-B)</li>
-                                <li class="mb-2"><span class="badge bg-success">stop_fire</span> - Release laser trigger</li>
-                                <li class="mb-2"><span class="badge bg-warning">wait</span> - Wait for specified time</li>
-                                <li class="mb-2"><span class="badge bg-info">wait_input</span> - Wait for specific input</li>
-                            </ul>
+                <div id="stepTypesContent" class="collapse show">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <ul class="list-unstyled">
+                                    <li class="mb-2" data-bs-toggle="tooltip" title="Moves the cleaning head in or out by a specified number of steps"><span class="badge bg-primary">stepper_move</span> - Move cleaning head</li>
+                                    <li class="mb-2" data-bs-toggle="tooltip" title="Activates the laser for a specified duration"><span class="badge bg-danger">fire</span> - Press laser trigger</li>
+                                    <li class="mb-2" data-bs-toggle="tooltip" title="Initiates the alternating fiber optic sequence pattern"><span class="badge bg-warning">fire_fiber</span> - Start fiber sequence (A-B-A-B)</li>
+                                    <li class="mb-2" data-bs-toggle="tooltip" title="Deactivates the laser"><span class="badge bg-success">stop_fire</span> - Release laser trigger</li>
+                                    <li class="mb-2" data-bs-toggle="tooltip" title="Pauses sequence execution for a specified time"><span class="badge bg-warning">wait</span> - Wait for specified time</li>
+                                    <li class="mb-2" data-bs-toggle="tooltip" title="Pauses sequence execution until a specific input is triggered"><span class="badge bg-info">wait_input</span> - Wait for specific input</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <ul class="list-unstyled">
+                                    <li class="mb-2" data-bs-toggle="tooltip" title="Controls the exhaust fan"><span class="badge bg-info">fan_on</span> / <span class="badge bg-info">fan_off</span> - Control fan</li>
+                                    <li class="mb-2" data-bs-toggle="tooltip" title="Controls the workspace illumination"><span class="badge bg-info">lights_on</span> / <span class="badge bg-info">lights_off</span> - Control lights</li>
+                                    <li class="mb-2" data-bs-toggle="tooltip" title="Moves the table away from the cleaning head"><span class="badge bg-secondary">table_forward</span> - Move table forward</li>
+                                    <li class="mb-2" data-bs-toggle="tooltip" title="Moves the table toward the cleaning head"><span class="badge bg-secondary">table_backward</span> - Move table backward</li>
+                                </ul>
+                            </div>
                         </div>
-                        <div class="col-md-6">
-                            <ul class="list-unstyled">
-                                <li class="mb-2"><span class="badge bg-info">fan_on</span> / <span class="badge bg-info">fan_off</span> - Control fan</li>
-                                <li class="mb-2"><span class="badge bg-info">lights_on</span> / <span class="badge bg-info">lights_off</span> - Control lights</li>
-                                <li class="mb-2"><span class="badge bg-secondary">table_forward</span> - Move table forward</li>
-                                <li class="mb-2"><span class="badge bg-secondary">table_backward</span> - Move table backward</li>
-                            </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Error Handling Options -->
+            <div class="card mb-4">
+                <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Error Handling</h5>
+                    <button class="btn btn-sm btn-light" type="button" data-bs-toggle="collapse" data-bs-target="#errorHandlingContent" aria-controls="errorHandlingContent" aria-expanded="false" aria-label="Toggle error handling" title="Collapse/expand this section">
+                        <i class="bi bi-chevron-down"></i>
+                    </button>
+                </div>
+                <div id="errorHandlingContent" class="collapse">
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="maxRetries" class="form-label" data-bs-toggle="tooltip" title="How many times to retry a failed step before giving up">Max Retries</label>
+                            <input type="number" class="form-control" id="maxRetries" min="0" value="2">
+                            <div class="form-text">Maximum number of retries for failed steps</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="retryDelay" class="form-label" data-bs-toggle="tooltip" title="How long to wait between retry attempts">Retry Delay (ms)</label>
+                            <input type="number" class="form-control" id="retryDelay" min="0" value="1000">
+                            <div class="form-text">Wait time before retry attempts</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="exponentialBackoff" checked>
+                                <label class="form-check-label" for="exponentialBackoff" data-bs-toggle="tooltip" title="Increases delay between consecutive retry attempts">
+                                    Use exponential backoff for retries
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label" data-bs-toggle="tooltip" title="What to do when hardware fails to respond correctly">On Hardware Failure</label>
+                            <select class="form-select" id="hardwareFailureAction">
+                                <option value="retry" data-bs-toggle="tooltip" title="Attempt the operation again">Retry</option>
+                                <option value="skip" data-bs-toggle="tooltip" title="Skip this step and continue with the next one">Skip Step</option>
+                                <option value="abort" data-bs-toggle="tooltip" title="Stop the sequence immediately">Abort Sequence</option>
+                                <option value="pause" data-bs-toggle="tooltip" title="Pause and wait for user intervention">Pause for Input</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label" data-bs-toggle="tooltip" title="What to do when an operation times out">On Timeout</label>
+                            <select class="form-select" id="timeoutAction">
+                                <option value="retry" data-bs-toggle="tooltip" title="Attempt the operation again">Retry</option>
+                                <option value="skip" data-bs-toggle="tooltip" title="Skip this step and continue with the next one">Skip Step</option>
+                                <option value="abort" data-bs-toggle="tooltip" title="Stop the sequence immediately">Abort Sequence</option>
+                                <option value="pause" data-bs-toggle="tooltip" title="Pause and wait for user intervention">Pause for Input</option>
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -187,21 +300,21 @@
             <div class="modal-body">
                 <form id="stepForm">
                     <div class="mb-3">
-                        <label for="stepType" class="form-label">Step Type</label>
+                        <label for="stepType" class="form-label" data-bs-toggle="tooltip" title="The type of operation to perform">Step Type</label>
                         <select class="form-select" id="stepType" required>
                             <option value="">Select a step type...</option>
-                            <option value="stepper_move">Move Cleaning Head (stepper_move)</option>
-                            <option value="fire">Fire Laser (fire)</option>
-                            <option value="fire_fiber">Fire Fiber Sequence (fire_fiber)</option>
-                            <option value="stop_fire">Stop Firing (stop_fire)</option>
-                            <option value="wait">Wait (wait)</option>
-                            <option value="wait_input">Wait for Input (wait_input)</option>
-                            <option value="fan_on">Fan On (fan_on)</option>
-                            <option value="fan_off">Fan Off (fan_off)</option>
-                            <option value="lights_on">Lights On (lights_on)</option>
-                            <option value="lights_off">Lights Off (lights_off)</option>
-                            <option value="table_forward">Table Forward (table_forward)</option>
-                            <option value="table_backward">Table Backward (table_backward)</option>
+                            <option value="stepper_move" data-bs-toggle="tooltip" title="Moves the cleaning head in or out">Move Cleaning Head (stepper_move)</option>
+                            <option value="fire" data-bs-toggle="tooltip" title="Activates the laser for a specified duration">Fire Laser (fire)</option>
+                            <option value="fire_fiber" data-bs-toggle="tooltip" title="Initiates the alternating fiber optic sequence">Fire Fiber Sequence (fire_fiber)</option>
+                            <option value="stop_fire" data-bs-toggle="tooltip" title="Deactivates the laser">Stop Firing (stop_fire)</option>
+                            <option value="wait" data-bs-toggle="tooltip" title="Pauses sequence execution for a specific time">Wait (wait)</option>
+                            <option value="wait_input" data-bs-toggle="tooltip" title="Waits for a specific input to be triggered">Wait for Input (wait_input)</option>
+                            <option value="fan_on" data-bs-toggle="tooltip" title="Turns the exhaust fan on">Fan On (fan_on)</option>
+                            <option value="fan_off" data-bs-toggle="tooltip" title="Turns the exhaust fan off">Fan Off (fan_off)</option>
+                            <option value="lights_on" data-bs-toggle="tooltip" title="Turns workspace lights on">Lights On (lights_on)</option>
+                            <option value="lights_off" data-bs-toggle="tooltip" title="Turns workspace lights off">Lights Off (lights_off)</option>
+                            <option value="table_forward" data-bs-toggle="tooltip" title="Moves table away from cleaning head">Table Forward (table_forward)</option>
+                            <option value="table_backward" data-bs-toggle="tooltip" title="Moves table toward cleaning head">Table Backward (table_backward)</option>
                         </select>
                     </div>
                     
@@ -209,7 +322,7 @@
                     <div id="stepParams"></div>
                     
                     <div class="mb-3">
-                        <label for="delayAfter" class="form-label">Delay After (ms)</label>
+                        <label for="delayAfter" class="form-label" data-bs-toggle="tooltip" title="Additional delay after this step completes">Delay After (ms)</label>
                         <input type="number" class="form-control" id="delayAfter" min="0" value="0">
                         <div class="form-text">Wait this many milliseconds after this step completes</div>
                     </div>
@@ -236,21 +349,21 @@
                     <input type="hidden" id="editStepIndex" value="">
                     
                     <div class="mb-3">
-                        <label for="editStepType" class="form-label">Step Type</label>
+                        <label for="editStepType" class="form-label" data-bs-toggle="tooltip" title="The type of operation to perform">Step Type</label>
                         <select class="form-select" id="editStepType" required>
                             <option value="">Select a step type...</option>
-                            <option value="stepper_move">Move Cleaning Head (stepper_move)</option>
-                            <option value="fire">Fire Laser (fire)</option>
-                            <option value="fire_fiber">Fire Fiber Sequence (fire_fiber)</option>
-                            <option value="stop_fire">Stop Firing (stop_fire)</option>
-                            <option value="wait">Wait (wait)</option>
-                            <option value="wait_input">Wait for Input (wait_input)</option>
-                            <option value="fan_on">Fan On (fan_on)</option>
-                            <option value="fan_off">Fan Off (fan_off)</option>
-                            <option value="lights_on">Lights On (lights_on)</option>
-                            <option value="lights_off">Lights Off (lights_off)</option>
-                            <option value="table_forward">Table Forward (table_forward)</option>
-                            <option value="table_backward">Table Backward (table_backward)</option>
+                            <option value="stepper_move" data-bs-toggle="tooltip" title="Moves the cleaning head in or out">Move Cleaning Head (stepper_move)</option>
+                            <option value="fire" data-bs-toggle="tooltip" title="Activates the laser for a specified duration">Fire Laser (fire)</option>
+                            <option value="fire_fiber" data-bs-toggle="tooltip" title="Initiates the alternating fiber optic sequence">Fire Fiber Sequence (fire_fiber)</option>
+                            <option value="stop_fire" data-bs-toggle="tooltip" title="Deactivates the laser">Stop Firing (stop_fire)</option>
+                            <option value="wait" data-bs-toggle="tooltip" title="Pauses sequence execution for a specific time">Wait (wait)</option>
+                            <option value="wait_input" data-bs-toggle="tooltip" title="Waits for a specific input to be triggered">Wait for Input (wait_input)</option>
+                            <option value="fan_on" data-bs-toggle="tooltip" title="Turns the exhaust fan on">Fan On (fan_on)</option>
+                            <option value="fan_off" data-bs-toggle="tooltip" title="Turns the exhaust fan off">Fan Off (fan_off)</option>
+                            <option value="lights_on" data-bs-toggle="tooltip" title="Turns workspace lights on">Lights On (lights_on)</option>
+                            <option value="lights_off" data-bs-toggle="tooltip" title="Turns workspace lights off">Lights Off (lights_off)</option>
+                            <option value="table_forward" data-bs-toggle="tooltip" title="Moves table away from cleaning head">Table Forward (table_forward)</option>
+                            <option value="table_backward" data-bs-toggle="tooltip" title="Moves table toward cleaning head">Table Backward (table_backward)</option>
                         </select>
                     </div>
                     
@@ -258,7 +371,7 @@
                     <div id="editStepParams"></div>
                     
                     <div class="mb-3">
-                        <label for="editDelayAfter" class="form-label">Delay After (ms)</label>
+                        <label for="editDelayAfter" class="form-label" data-bs-toggle="tooltip" title="Additional delay after this step completes">Delay After (ms)</label>
                         <input type="number" class="form-control" id="editDelayAfter" min="0" value="0">
                         <div class="form-text">Wait this many milliseconds after this step completes</div>
                     </div>
@@ -271,17 +384,75 @@
         </div>
     </div>
 </div>
+
+<!-- Import Sequence Modal -->
+<div class="modal fade" id="importSequenceModal" tabindex="-1" aria-labelledby="importSequenceModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="importSequenceModalLabel">Import Sequence</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="importSequenceFile" class="form-label" data-bs-toggle="tooltip" title="Select a previously exported sequence file">Select Sequence File</label>
+                    <input class="form-control" type="file" id="importSequenceFile" accept=".json">
+                </div>
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="overwriteExisting">
+                        <label class="form-check-label" for="overwriteExisting" data-bs-toggle="tooltip" title="Replace existing sequence if one with the same name exists">
+                            Overwrite if sequence with same name exists
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmImportBtn">Import</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/sequence_visualization.js') }}"></script>
 <script>
     $(document).ready(function() {
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl, {
+                boundary: document.body
+            });
+        });
+        
+        // Initialize sequence visualizer
+        const visualizer = new SequenceVisualizer('sequenceVisualization', {
+            height: 180
+        });
+        
+        // Timer for sequence execution
+        let runTimeInterval;
+        let runTimeStart;
+        let selectedStepIndex = -1;
+        
         // Current sequence being edited
         let currentSequence = {
             id: '',
             name: '',
             description: '',
-            steps: []
+            steps: [],
+            error_recovery: {
+                max_retries: 2,
+                retry_delay: 1000,
+                exponential_backoff: true,
+                recovery_by_type: {
+                    hardware_failure: 'retry',
+                    timeout: 'retry'
+                }
+            }
         };
         
         // Sequence that's currently running (if any)
@@ -289,6 +460,61 @@
         
         // Status update interval
         let statusInterval = null;
+        
+        // Update step count display
+        function updateStepCount() {
+            $('#stepCount').text(`${currentSequence.steps.length} step${currentSequence.steps.length !== 1 ? 's' : ''}`);
+        }
+        
+        // Update error handling form values
+        function updateErrorHandlingForm() {
+            $('#maxRetries').val(currentSequence.error_recovery.max_retries || 2);
+            $('#retryDelay').val(currentSequence.error_recovery.retry_delay || 1000);
+            $('#exponentialBackoff').prop('checked', currentSequence.error_recovery.exponential_backoff !== false);
+            
+            const recoveryByType = currentSequence.error_recovery.recovery_by_type || {};
+            $('#hardwareFailureAction').val(recoveryByType.hardware_failure || 'retry');
+            $('#timeoutAction').val(recoveryByType.timeout || 'retry');
+        }
+        
+        // Get error handling settings from form
+        function getErrorHandlingFromForm() {
+            return {
+                max_retries: parseInt($('#maxRetries').val()) || 0,
+                retry_delay: parseInt($('#retryDelay').val()) || 1000,
+                exponential_backoff: $('#exponentialBackoff').is(':checked'),
+                recovery_by_type: {
+                    hardware_failure: $('#hardwareFailureAction').val(),
+                    timeout: $('#timeoutAction').val()
+                }
+            };
+        }
+        
+        // Format run time display
+        function formatRunTime(ms) {
+            const totalSeconds = Math.floor(ms / 1000);
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+            
+            return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+        
+        // Start run time counter
+        function startRunTimeCounter() {
+            runTimeStart = Date.now();
+            clearInterval(runTimeInterval);
+            
+            runTimeInterval = setInterval(() => {
+                const elapsedTime = Date.now() - runTimeStart;
+                $('#runTime').text(formatRunTime(elapsedTime));
+            }, 1000);
+        }
+        
+        // Stop run time counter
+        function stopRunTimeCounter() {
+            clearInterval(runTimeInterval);
+        }
         
         // Populate parameter fields based on step type
         function populateStepParams(stepType, container) {
@@ -395,24 +621,49 @@
                         currentSequence = response.sequence;
                         currentSequence.id = sequenceId;
                         
+                        // Set default error recovery if not present
+                        if (!currentSequence.error_recovery) {
+                            currentSequence.error_recovery = {
+                                max_retries: 2,
+                                retry_delay: 1000,
+                                exponential_backoff: true,
+                                recovery_by_type: {
+                                    hardware_failure: 'retry',
+                                    timeout: 'retry'
+                                }
+                            };
+                        }
+                        
                         // Fill form
                         $('#sequenceId').val(sequenceId);
                         $('#sequenceName').val(currentSequence.name);
                         $('#sequenceDescription').val(currentSequence.description);
                         
+                        // Update error handling form
+                        updateErrorHandlingForm();
+                        
                         // Enable buttons
                         $('#saveSequenceBtn').prop('disabled', false);
                         $('#deleteSequenceBtn').prop('disabled', false);
                         $('#playBtn').prop('disabled', false);
+                        $('#exportSequenceBtn').prop('disabled', false);
                         
                         // Update steps list
                         updateStepsList();
+                        updateStepCount();
+                        
+                        // Update visualization
+                        visualizer.setSequence(currentSequence);
+                        
+                        // Clear selected step
+                        selectedStepIndex = -1;
+                        updateStepActionButtons();
                     } else {
-                        alert('Error loading sequence: ' + response.message);
+                        showToast('error', 'Error loading sequence', response.message);
                     }
                 },
                 error: function(xhr, status, error) {
-                    alert('Error loading sequence: ' + error);
+                    showToast('error', 'Error loading sequence', error);
                 }
             });
         }
@@ -423,7 +674,16 @@
                 id: 'new_sequence_' + Date.now(),
                 name: 'New Sequence',
                 description: '',
-                steps: []
+                steps: [],
+                error_recovery: {
+                    max_retries: 2,
+                    retry_delay: 1000,
+                    exponential_backoff: true,
+                    recovery_by_type: {
+                        hardware_failure: 'retry',
+                        timeout: 'retry'
+                    }
+                }
             };
             
             // Fill form
@@ -431,13 +691,35 @@
             $('#sequenceName').val(currentSequence.name);
             $('#sequenceDescription').val(currentSequence.description);
             
+            // Update error handling form
+            updateErrorHandlingForm();
+            
             // Enable save button, disable others
             $('#saveSequenceBtn').prop('disabled', false);
             $('#deleteSequenceBtn').prop('disabled', true);
             $('#playBtn').prop('disabled', true);
+            $('#exportSequenceBtn').prop('disabled', true);
             
             // Update steps list (empty)
             updateStepsList();
+            updateStepCount();
+            
+            // Update visualization
+            visualizer.setSequence(currentSequence);
+            
+            // Clear selected step
+            selectedStepIndex = -1;
+            updateStepActionButtons();
+        }
+        
+        // Update step action buttons
+        function updateStepActionButtons() {
+            const hasSteps = currentSequence.steps.length > 0;
+            const hasSelectedStep = selectedStepIndex >= 0;
+            
+            $('#duplicateStepBtn').prop('disabled', !hasSelectedStep);
+            $('#moveStepUpBtn').prop('disabled', !hasSelectedStep || selectedStepIndex === 0);
+            $('#moveStepDownBtn').prop('disabled', !hasSelectedStep || selectedStepIndex === currentSequence.steps.length - 1);
         }
         
         // Update steps list in the UI
@@ -457,25 +739,61 @@
             // Add each step to the list
             currentSequence.steps.forEach((step, index) => {
                 let stepDescription = getStepDescription(step);
+                const isSelected = index === selectedStepIndex;
                 
                 $stepsList.append(`
-                    <div class="list-group-item d-flex justify-content-between align-items-center" data-index="${index}">
-                        <div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center ${isSelected ? 'active' : ''}" 
+                         data-index="${index}">
+                        <div class="step-info">
                             <span class="badge ${getStepBadgeClass(step.action)}">${step.action}</span>
                             <span>${stepDescription}</span>
                             ${step.delay_after ? `<small class="text-muted ms-2">(Delay after: ${step.delay_after}ms)</small>` : ''}
                         </div>
                         <div class="btn-group">
-                            <button class="btn btn-sm btn-primary edit-step-btn">
+                            <button class="btn btn-sm ${isSelected ? 'btn-light' : 'btn-primary'} edit-step-btn">
                                 <i class="bi bi-pencil"></i>
                             </button>
-                            <button class="btn btn-sm btn-danger delete-step-btn">
+                            <button class="btn btn-sm ${isSelected ? 'btn-light' : 'btn-danger'} delete-step-btn">
                                 <i class="bi bi-trash"></i>
                             </button>
                         </div>
                     </div>
                 `);
             });
+        }
+        
+        // Show a toast notification
+        function showToast(type, title, message) {
+            const bgClass = type === 'error' ? 'bg-danger' : 
+                           type === 'success' ? 'bg-success' : 
+                           type === 'warning' ? 'bg-warning' : 'bg-info';
+                           
+            const toast = `
+                <div class="toast align-items-center ${bgClass} text-white" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            <strong>${title}</strong><br>${message}
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                </div>
+            `;
+            
+            const toastContainer = document.getElementById('toast-container');
+            if (!toastContainer) {
+                const container = document.createElement('div');
+                container.id = 'toast-container';
+                container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+                document.body.appendChild(container);
+            }
+            
+            $('#toast-container').append(toast);
+            const toastEl = $('.toast').last();
+            const bsToast = new bootstrap.Toast(toastEl, {
+                autohide: true,
+                delay: 5000
+            });
+            bsToast.show();
         }
         
         // Get description text for a step based on its type and parameters
@@ -672,28 +990,80 @@
                         const sequenceStatus = response.sequence_status;
                         
                         // Update status displays
-                        $('#sequenceStatus').text(sequenceStatus.status);
-                        $('#currentStep').text(sequenceStatus.current_step > 0 ? 
-                                               `${sequenceStatus.current_step} of ${sequenceStatus.total_steps}` : 
-                                               '-');
+                        const statusBadgeClass = {
+                            'IDLE': 'bg-secondary',
+                            'RUNNING': 'bg-primary',
+                            'PAUSED': 'bg-warning',
+                            'COMPLETED': 'bg-success',
+                            'ERROR': 'bg-danger'
+                        }[sequenceStatus.status] || 'bg-secondary';
+                        
+                        $('#sequenceStatus')
+                            .removeClass('bg-secondary bg-primary bg-warning bg-success bg-danger')
+                            .addClass(statusBadgeClass)
+                            .text(sequenceStatus.status);
+                            
+                        // Update step information
+                        if (sequenceStatus.current_step > 0) {
+                            $('#currentStep').text(`${sequenceStatus.current_step} of ${sequenceStatus.total_steps}`);
+                            
+                            // Update current step details
+                            if (sequenceStatus.current_step_details) {
+                                let stepDetails = getStepDescription(sequenceStatus.current_step_details);
+                                let stepType = sequenceStatus.current_step_details.action || 'unknown';
+                                
+                                $('#currentStepDetails').html(`
+                                    <i class="bi bi-arrow-right-circle fs-4 me-2"></i>
+                                    <div>
+                                        <strong>Current step:</strong> 
+                                        <span class="badge ${getStepBadgeClass(stepType)}">${stepType}</span>
+                                        ${stepDetails}
+                                    </div>
+                                `);
+                                
+                                // Update visualization
+                                visualizer.updateCurrentStep(sequenceStatus.current_step - 1);
+                            }
+                        } else {
+                            $('#currentStep').text('-');
+                            $('#currentStepDetails').html(`
+                                <i class="bi bi-info-circle fs-4 me-2"></i>
+                                <div>No sequence running</div>
+                            `);
+                            
+                            // Clear visualization current step
+                            visualizer.updateCurrentStep(-1);
+                        }
+                        
                         $('#currentSequence').text(sequenceStatus.sequence_name || 'None');
                         
                         // Update progress bar
-                        $('#sequenceProgress').css('width', `${sequenceStatus.progress_percent}%`);
-                        $('#sequenceProgress').text(`${sequenceStatus.progress_percent}%`);
+                        const progressPercent = sequenceStatus.progress_percent || 0;
+                        $('#sequenceProgress').css('width', `${progressPercent}%`);
+                        $('#sequenceProgress').text(`${progressPercent}%`);
                         
                         // Update log
-                        updateExecutionLog(sequenceStatus.execution_log);
+                        if (sequenceStatus.execution_log) {
+                            updateExecutionLog(sequenceStatus.execution_log);
+                        }
                         
                         // Update button states based on status
                         if (sequenceStatus.status === 'RUNNING') {
                             $('#playBtn').prop('disabled', true);
                             $('#pauseBtn').prop('disabled', false);
                             $('#stopBtn').prop('disabled', false);
+                            
+                            // Start run time counter if not already running
+                            if (!runTimeInterval) {
+                                startRunTimeCounter();
+                            }
                         } else if (sequenceStatus.status === 'PAUSED') {
                             $('#playBtn').prop('disabled', false);
                             $('#pauseBtn').prop('disabled', true);
                             $('#stopBtn').prop('disabled', false);
+                            
+                            // Stop run time counter
+                            stopRunTimeCounter();
                         } else {
                             // IDLE, COMPLETED, ERROR
                             $('#playBtn').prop('disabled', runningSequenceId === null);
@@ -704,6 +1074,9 @@
                             if (sequenceStatus.status !== 'PAUSED') {
                                 runningSequenceId = null;
                             }
+                            
+                            // Stop run time counter
+                            stopRunTimeCounter();
                             
                             // Clear status update interval if sequence is done
                             if (sequenceStatus.status === 'COMPLETED' || 
@@ -726,6 +1099,10 @@
         // Update the execution log display
         function updateExecutionLog(logs) {
             const $log = $('#executionLog');
+            const autoScroll = $('#autoScrollLog').is(':checked');
+            const isScrolledToBottom = $log[0].scrollHeight - $log[0].scrollTop === $log[0].clientHeight;
+            const verboseLogging = $('#verboseLogging').is(':checked');
+            
             $log.empty();
             
             if (!logs || logs.length === 0) {
@@ -738,15 +1115,93 @@
             }
             
             logs.forEach(log => {
+                // Skip non-error messages in non-verbose mode
+                if (!verboseLogging && !log.includes('ERROR') && !log.includes('WARN')) {
+                    return;
+                }
+                
+                const isError = log.includes('ERROR');
+                const isWarning = log.includes('WARN');
+                const logClass = isError ? 'text-danger' : 
+                                isWarning ? 'text-warning' : '';
+                
                 $log.append(`
-                    <div class="list-group-item">
-                        <small>${log}</small>
+                    <div class="list-group-item py-1 ${isError ? 'list-group-item-danger' : isWarning ? 'list-group-item-warning' : ''}">
+                        <small class="${logClass}">${log}</small>
                     </div>
                 `);
             });
             
-            // Scroll to bottom
-            $log.scrollTop($log[0].scrollHeight);
+            // Scroll to bottom if auto-scroll is enabled or was at bottom before
+            if ((autoScroll || isScrolledToBottom) && $log[0].scrollHeight > 0) {
+                $log.scrollTop($log[0].scrollHeight);
+            }
+        }
+        
+        // Export sequence to file
+        function exportSequence() {
+            // Update sequence data from form
+            currentSequence.name = $('#sequenceName').val();
+            currentSequence.description = $('#sequenceDescription').val();
+            currentSequence.error_recovery = getErrorHandlingFromForm();
+            
+            // Create downloadable JSON file
+            const blob = new Blob([JSON.stringify(currentSequence, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            // Create temporary link and click it
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${currentSequence.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        // Import sequence from file
+        function importSequence(file, overwrite) {
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const sequenceData = JSON.parse(e.target.result);
+                    
+                    // Basic validation
+                    if (!sequenceData.name || !Array.isArray(sequenceData.steps)) {
+                        showToast('error', 'Invalid sequence file', 'The file does not contain a valid sequence');
+                        return;
+                    }
+                    
+                    // Save imported sequence
+                    $.ajax({
+                        url: '/sequences/import',
+                        type: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify({
+                            sequence_data: sequenceData,
+                            overwrite: overwrite
+                        }),
+                        success: function(response) {
+                            if (response.status === 'success') {
+                                showToast('success', 'Import successful', 'Sequence imported successfully');
+                                
+                                // Reload sequences list
+                                window.location.reload();
+                            } else {
+                                showToast('error', 'Import error', response.message);
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            showToast('error', 'Import error', error);
+                        }
+                    });
+                } catch (error) {
+                    showToast('error', 'Invalid JSON', 'The file does not contain valid JSON data');
+                }
+            };
+            
+            reader.readAsText(file);
         }
         
         // Event Handlers
@@ -809,6 +1264,27 @@
             $('#addStepModal').modal('hide');
         });
         
+        // Step selection
+        $(document).on('click', '.list-group-item[data-index]', function(e) {
+            // Skip if clicking a button
+            if ($(e.target).closest('button').length > 0) {
+                return;
+            }
+            
+            const index = parseInt($(this).data('index'));
+            
+            // Toggle selection
+            if (selectedStepIndex === index) {
+                selectedStepIndex = -1;
+            } else {
+                selectedStepIndex = index;
+            }
+            
+            // Update UI
+            updateStepsList();
+            updateStepActionButtons();
+        });
+        
         // Edit Step Button
         $(document).on('click', '.edit-step-btn', function() {
             const stepIndex = $(this).closest('.list-group-item').data('index');
@@ -861,14 +1337,77 @@
             }
         });
         
+        // Duplicate Step Button
+        $('#duplicateStepBtn').click(function() {
+            if (selectedStepIndex < 0) return;
+            
+            // Clone step object
+            const newStep = JSON.parse(JSON.stringify(currentSequence.steps[selectedStepIndex]));
+            
+            // Insert after current position
+            currentSequence.steps.splice(selectedStepIndex + 1, 0, newStep);
+            
+            // Select new step
+            selectedStepIndex = selectedStepIndex + 1;
+            
+            // Update UI
+            updateStepsList();
+            updateStepCount();
+            updateStepActionButtons();
+            
+            // Update visualization
+            visualizer.setSequence(currentSequence);
+        });
+        
+        // Move Step Up Button
+        $('#moveStepUpBtn').click(function() {
+            if (selectedStepIndex <= 0) return;
+            
+            // Swap with previous step
+            const temp = currentSequence.steps[selectedStepIndex];
+            currentSequence.steps[selectedStepIndex] = currentSequence.steps[selectedStepIndex - 1];
+            currentSequence.steps[selectedStepIndex - 1] = temp;
+            
+            // Update selection
+            selectedStepIndex--;
+            
+            // Update UI
+            updateStepsList();
+            updateStepActionButtons();
+            
+            // Update visualization
+            visualizer.setSequence(currentSequence);
+        });
+        
+        // Move Step Down Button
+        $('#moveStepDownBtn').click(function() {
+            if (selectedStepIndex < 0 || selectedStepIndex >= currentSequence.steps.length - 1) return;
+            
+            // Swap with next step
+            const temp = currentSequence.steps[selectedStepIndex];
+            currentSequence.steps[selectedStepIndex] = currentSequence.steps[selectedStepIndex + 1];
+            currentSequence.steps[selectedStepIndex + 1] = temp;
+            
+            // Update selection
+            selectedStepIndex++;
+            
+            // Update UI
+            updateStepsList();
+            updateStepActionButtons();
+            
+            // Update visualization
+            visualizer.setSequence(currentSequence);
+        });
+        
         // Save Sequence Button
         $('#saveSequenceBtn').click(function() {
             // Update sequence data from form
             currentSequence.name = $('#sequenceName').val();
             currentSequence.description = $('#sequenceDescription').val();
+            currentSequence.error_recovery = getErrorHandlingFromForm();
             
             if (!currentSequence.name) {
-                alert('Please enter a sequence name');
+                showToast('error', 'Missing name', 'Please enter a sequence name');
                 return;
             }
             
@@ -883,16 +1422,16 @@
                 }),
                 success: function(response) {
                     if (response.status === 'success') {
-                        alert('Sequence saved successfully');
+                        showToast('success', 'Success', 'Sequence saved successfully');
                         
                         // Reload sequences list
                         window.location.reload();
                     } else {
-                        alert('Error saving sequence: ' + response.message);
+                        showToast('error', 'Save error', response.message);
                     }
                 },
                 error: function(xhr, status, error) {
-                    alert('Error saving sequence: ' + error);
+                    showToast('error', 'Save error', error);
                 }
             });
         });
@@ -921,6 +1460,40 @@
                     }
                 });
             }
+        });
+        
+        // Export Sequence Button
+        $('#exportSequenceBtn').click(function() {
+            exportSequence();
+        });
+        
+        // Import Sequence Button
+        $('#importSequenceBtn').click(function() {
+            $('#importSequenceModal').modal('show');
+        });
+        
+        // Confirm Import Button
+        $('#confirmImportBtn').click(function() {
+            const fileInput = document.getElementById('importSequenceFile');
+            if (fileInput.files.length === 0) {
+                showToast('error', 'Missing file', 'Please select a file to import');
+                return;
+            }
+            
+            const overwrite = $('#overwriteExisting').is(':checked');
+            importSequence(fileInput.files[0], overwrite);
+            
+            // Close modal
+            $('#importSequenceModal').modal('hide');
+        });
+        
+        // Clear Log Button
+        $('#clearLogBtn').click(function() {
+            $('#executionLog').empty().append(`
+                <div class="list-group-item">
+                    <small class="text-muted">Execution log will appear here</small>
+                </div>
+            `);
         });
         
         // Load Sequence
@@ -1030,8 +1603,74 @@
             });
         });
         
+        // Initial setup
+        updateStepCount();
+        updateStepActionButtons();
+        
+        // Add toast container if not present
+        if (!document.getElementById('toast-container')) {
+            const container = document.createElement('div');
+            container.id = 'toast-container';
+            container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+            document.body.appendChild(container);
+        }
+        
         // Initial update of sequence status
         updateStatus();
+        
+        // Function to add tooltips to dynamically created elements
+        function initDynamicTooltips() {
+            var newTooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]:not(.tooltip-initialized)'));
+            newTooltipTriggerList.forEach(function(el) {
+                new bootstrap.Tooltip(el, {
+                    boundary: document.body
+                });
+                el.classList.add('tooltip-initialized');
+            });
+        }
+        
+        // Add tooltips to dynamically created steps
+        const originalUpdateStepsList = updateStepsList;
+        updateStepsList = function() {
+            originalUpdateStepsList.apply(this, arguments);
+            initDynamicTooltips();
+        };
+        
+        // Add tooltips to dynamically created step parameters
+        const originalPopulateStepParams = populateStepParams;
+        populateStepParams = function(stepType, container) {
+            originalPopulateStepParams.apply(this, arguments);
+            initDynamicTooltips();
+            
+            // Add specific tooltips based on step type
+            switch(stepType) {
+                case 'stepper_move':
+                    container.find(`#${container.attr('id') == 'stepParams' ? 'steps' : 'editSteps'}`).attr('data-bs-toggle', 'tooltip')
+                        .attr('title', 'Number of stepper motor steps to move');
+                    break;
+                case 'fire':
+                    container.find(`#${container.attr('id') == 'stepParams' ? 'duration' : 'editDuration'}`).attr('data-bs-toggle', 'tooltip')
+                        .attr('title', 'How long to keep the laser activated (milliseconds)');
+                    break;
+                case 'wait':
+                    container.find(`#${container.attr('id') == 'stepParams' ? 'waitDuration' : 'editWaitDuration'}`).attr('data-bs-toggle', 'tooltip')
+                        .attr('title', 'How long to pause execution (milliseconds)');
+                    break;
+                case 'wait_input':
+                    container.find(`#${container.attr('id') == 'stepParams' ? 'inputType' : 'editInputType'}`).attr('data-bs-toggle', 'tooltip')
+                        .attr('title', 'Which input signal to wait for');
+                    container.find(`#${container.attr('id') == 'stepParams' ? 'inputTimeout' : 'editInputTimeout'}`).attr('data-bs-toggle', 'tooltip')
+                        .attr('title', 'Maximum time to wait before timing out (0 = wait forever)');
+                    break;
+                case 'table_forward':
+                case 'table_backward':
+                    container.find(`#${container.attr('id') == 'stepParams' ? 'tableDuration' : 'editTableDuration'}`).attr('data-bs-toggle', 'tooltip')
+                        .attr('title', 'How long to run the table motor (milliseconds)');
+                    break;
+            }
+            
+            initDynamicTooltips();
+        };
     });
 </script>
 {% endblock %}

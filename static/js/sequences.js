@@ -11,6 +11,21 @@
 // Get access to utility functions if available
 const ShopUtils = window.ShopUtils || {};
 
+// Request cache for AJAX optimization
+const requestCache = {
+    data: new Map(),          // Cache storage: URL -> {data, timestamp}
+    timeouts: new Map(),      // Request debounce timeouts
+    maxAge: 30000,            // Default cache expiry (30 seconds)
+    statusInterval: null,     // Interval timer for polling sequence status
+    adaptivePolling: {        // Settings for adaptive polling frequency
+        enabled: true,
+        baseInterval: 1000,   // Base interval (1 second)
+        slowInterval: 5000,   // Slower interval when idle (5 seconds)
+        currentInterval: 1000 // Current polling interval
+    },
+    pendingPromises: new Map() // Map to track pending promises for the same URL
+};
+
 let sequenceStatus = {
     running: false,
     paused: false,
@@ -33,7 +48,13 @@ const virtualization = {
     lastScrollPosition: 0,   // Last known scroll position
     scrollContainer: null,   // The scrollable container (window or a specific element)
     scrollThrottleTimeout: null, // For scroll event throttling
-    totalHeight: 0           // Total height of all items
+    totalHeight: 0,          // Total height of all items
+    pendingUpdate: false,    // Flag to prevent concurrent updates
+    heightMeasured: false,   // Flag to track if we've measured real item height
+    renderThreshold: 25,     // Number of items above which virtualization is enabled
+    recycledNodes: [],       // Pool of recycled DOM nodes for better performance
+    nodePoolSize: 20,        // Maximum size of recycled nodes pool
+    lastVisibleIndexes: null // Last visible indexes range to prevent unnecessary updates
 };
 
 // Operation mode constants
@@ -60,166 +81,164 @@ const ERROR_PATTERNS = {
 };
 
 /**
- * Makes a standardized AJAX request with consistent error handling
+ * Makes a cached, optimized AJAX request
  * @param {string} url - URL to make the request to
  * @param {string} [method='GET'] - HTTP method to use
  * @param {Object} [data=null] - Data to send with the request
- * @param {Function} [successCallback=null] - Function to call on success
- * @param {Function} [errorCallback=null] - Function to call on error
- * @param {Function} [finallyCallback=null] - Function to call regardless of success/failure
+ * @param {Object} [options={}] - Additional options
+ * @param {boolean} [options.useCache=true] - Whether to use cache for GET requests
+ * @param {number} [options.cacheTTL] - Cache time-to-live in ms (defaults to requestCache.maxAge)
+ * @param {boolean} [options.background=false] - If true, won't show errors in UI
+ * @returns {Promise} - Promise resolving to the response data
  */
-const makeRequest = ShopUtils.makeRequest || function(url, method = 'GET', data = null, successCallback = null, errorCallback = null, finallyCallback = null) {
-    const options = {
-        method: method,
-        headers: {
-            'Content-Type': 'application/json'
-        }
-    };
+function makeOptimizedRequest(url, method = 'GET', data = null, options = {}) {
+    const useCache = options.useCache !== false && method === 'GET';
+    const cacheTTL = options.cacheTTL || requestCache.maxAge;
+    const background = options.background || false;
     
-    if (data && (method === 'POST' || method === 'PUT')) {
-        options.body = JSON.stringify(data);
+    // For GET requests with caching enabled, check cache first
+    if (useCache && method === 'GET') {
+        const cachedData = requestCache.data.get(url);
+        
+        if (cachedData && (Date.now() - cachedData.timestamp) < cacheTTL) {
+            return Promise.resolve(cachedData.data);
+        }
+        
+        // Check if we already have a pending request for this URL
+        const pendingPromise = requestCache.pendingPromises.get(url);
+        if (pendingPromise) {
+            // Return the existing promise to avoid duplicate requests
+            return pendingPromise;
+        }
     }
     
-    fetch(url, options)
-        .then(response => response.json())
-        .then(data => {
-            if (typeof successCallback === 'function') {
-                successCallback(data);
+    // Create the promise for this request
+    const requestPromise = new Promise((resolve, reject) => {
+        const options = {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json'
             }
-            return data;
-        })
-        .catch(error => {
-            console.error(`Error making ${method} request to ${url}:`, error);
-            if (typeof errorCallback === 'function') {
-                errorCallback(error);
-            }
-        })
-        .finally(() => {
-            if (typeof finallyCallback === 'function') {
-                finallyCallback();
+        };
+        
+        if (data && (method === 'POST' || method === 'PUT')) {
+            options.body = JSON.stringify(data);
+        }
+        
+        fetch(url, options)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(responseData => {
+                // For GET requests, cache the result
+                if (useCache && method === 'GET') {
+                    requestCache.data.set(url, {
+                        data: responseData,
+                        timestamp: Date.now()
+                    });
+                }
+                
+                resolve(responseData);
+            })
+            .catch(error => {
+                if (!background) {
+                    console.error(`Error making ${method} request to ${url}:`, error);
+                }
+                reject(error);
+            })
+            .finally(() => {
+                // Remove from pending promises
+                if (useCache && method === 'GET') {
+                    requestCache.pendingPromises.delete(url);
+                }
+            });
+    });
+    
+    // Store the promise if this is a cacheable request
+    if (useCache && method === 'GET') {
+        requestCache.pendingPromises.set(url, requestPromise);
+    }
+    
+    return requestPromise;
+}
+
+/**
+ * Clears the cache for specific URL patterns or all cache if no pattern provided
+ * @param {string|RegExp} [pattern] - Optional URL pattern to clear from cache
+ */
+function clearRequestCache(pattern) {
+    if (!pattern) {
+        // Clear all cache
+        requestCache.data.clear();
+    } else {
+        // Clear only matching URLs
+        const patternObj = pattern instanceof RegExp ? pattern : new RegExp(pattern);
+        
+        // Use a separate array to avoid modifying while iterating
+        const keysToRemove = [];
+        
+        requestCache.data.forEach((value, key) => {
+            if (patternObj.test(key)) {
+                keysToRemove.push(key);
             }
         });
-};
+        
+        keysToRemove.forEach(key => {
+            requestCache.data.delete(key);
+        });
+    }
+}
 
 /**
- * Handles simulation response data consistently based on operation mode
- * @param {Object} data - API response data
- * @param {string} actionName - Description of the action being performed
- * @returns {boolean} - True if simulated, false otherwise
+ * Debounces a function call
+ * @param {string} key - Unique identifier for this debounce operation
+ * @param {Function} fn - Function to debounce
+ * @param {number} delay - Delay time in ms
  */
-const handleSimulationResponse = ShopUtils.handleSimulationResponse || function(data, actionName) {
-    if (!data || !data.simulated) {
-        clearSimulationNotifications();
-        return false;
+function debounce(key, fn, delay) {
+    // Clear existing timeout if any
+    if (requestCache.timeouts.has(key)) {
+        clearTimeout(requestCache.timeouts.get(key));
     }
     
-    // For simulation mode, this is expected
-    if (sequenceStatus.operationMode === OPERATION_MODES.SIMULATION) {
-        displayInfoMessage(`${actionName} (simulation mode)`);
-    } 
-    // For prototype mode, this should NEVER happen
-    else if (sequenceStatus.operationMode === OPERATION_MODES.PROTOTYPE) {
-        displayErrorMessage(`ERROR: ${actionName} simulation in PROTOTYPE MODE. Hardware is required!`);
-    } 
-    // For normal mode, it's a warning
-    else {
-        displayWarningMessage(`WARNING: ${actionName} simulated due to hardware error`);
-    }
+    // Set new timeout
+    const timeout = setTimeout(() => {
+        fn();
+        requestCache.timeouts.delete(key);
+    }, delay);
     
-    return true;
-};
+    requestCache.timeouts.set(key, timeout);
+}
 
 /**
- * Add a simulation warning message
- * @param {string} message - Warning message to display
- */
-const addSimulationWarning = ShopUtils.addSimulationWarning || function(message) {
-    displayWarningMessage(message);
-};
-
-/**
- * Add a simulation error message
- * @param {string} message - Error message to display
- */
-const addSimulationError = ShopUtils.addSimulationError || function(message) {
-    displayErrorMessage(message);
-};
-
-/**
- * Initialize sequences module
+ * Initialize sequences module with optimized polling
  */
 function initSequences() {
     // Get current operation mode from server
-    makeRequest(
+    makeOptimizedRequest(
         '/api/system/operation_mode',
-        'GET',
-        null,
-        function(data) {
-            sequenceStatus.operationMode = data.mode || 'normal';
-            console.log('Operation mode:', sequenceStatus.operationMode);
-        },
-        function(error) {
-            console.error('Error getting operation mode:', error);
-            // Default to normal mode if there's an error
-            sequenceStatus.operationMode = 'normal';
-        }
-    );
+        'GET'
+    ).then(data => {
+        sequenceStatus.operationMode = data.mode || 'normal';
+        console.log('Operation mode:', sequenceStatus.operationMode);
+    }).catch(error => {
+        console.error('Error getting operation mode:', error);
+        // Default to normal mode if there's an error
+        sequenceStatus.operationMode = 'normal';
+    });
     
-    // Set up update interval for sequence status
-    setInterval(updateSequenceStatus, 1000);
+    // Set up adaptive polling for sequence status
+    setupAdaptivePolling();
     
     // Initialize virtualization if on sequences page
-    if (document.getElementById('available-sequences')) {
-        initVirtualizedScrolling();
-    }
-}
-
-/**
- * Initialize virtualized scrolling for sequences
- */
-function initVirtualizedScrolling() {
-    virtualization.container = document.getElementById('available-sequences');
-    
-    if (!virtualization.container) {
-        return;
-    }
-    
-    // Determine scroll container (either window or a specific container)
-    const sequencesContainer = document.querySelector('.sequences-container');
-    virtualization.scrollContainer = sequencesContainer || window;
-    
-    // Add scroll event listener with throttling
-    virtualization.scrollContainer.addEventListener('scroll', function() {
-        if (virtualization.scrollThrottleTimeout) {
-            window.cancelAnimationFrame(virtualization.scrollThrottleTimeout);
-        }
-        
-        virtualization.scrollThrottleTimeout = window.requestAnimationFrame(function() {
-            handleVirtualScroll();
-        });
-    });
-    
-    // Also handle resize events to recalculate visible area
-    window.addEventListener('resize', function() {
-        if (virtualization.scrollThrottleTimeout) {
-            window.cancelAnimationFrame(virtualization.scrollThrottleTimeout);
-        }
-        
-        virtualization.scrollThrottleTimeout = window.requestAnimationFrame(function() {
-            handleVirtualScroll();
-        });
-    });
-}
-
-/**
- * Handle virtual scrolling - determine which items should be visible
- */
-function handleVirtualScroll() {
     if (!virtualization.enabled || !virtualization.container || virtualization.allSequences.length === 0) {
         return;
     }
     
-    // Get current scroll position and container dimensions
+    // Get current scroll position and container dimensions with better caching
     const scrollTop = virtualization.scrollContainer === window ? 
         window.scrollY : 
         virtualization.scrollContainer.scrollTop;
@@ -228,6 +247,12 @@ function handleVirtualScroll() {
         window.innerHeight :
         virtualization.scrollContainer.clientHeight;
     
+    // Skip processing if scrolled less than 5px from last position
+    const scrollDelta = Math.abs(scrollTop - virtualization.lastScrollPosition);
+    if (scrollDelta < 5 && virtualization.visibleItems.length > 0) {
+        return;
+    }
+    
     // Calculate visible range with buffer
     const startIndex = Math.max(0, Math.floor(scrollTop / virtualization.itemHeight) - virtualization.bufferSize);
     const endIndex = Math.min(
@@ -235,38 +260,87 @@ function handleVirtualScroll() {
         Math.ceil((scrollTop + containerHeight) / virtualization.itemHeight) + virtualization.bufferSize
     );
     
-    // Update DOM only if the visible range has changed
-    if (hasVisibleRangeChanged(startIndex, endIndex)) {
+    // Store the visible range for comparison
+    if (!virtualization.lastVisibleIndexes) {
+        virtualization.lastVisibleIndexes = { start: startIndex, end: endIndex };
+    }
+    
+    // Update DOM only if the visible range has changed significantly
+    if (hasVisibleRangeChangedSignificantly(startIndex, endIndex)) {
         updateVisibleItems(startIndex, endIndex);
+        virtualization.lastVisibleIndexes = { start: startIndex, end: endIndex };
     }
     
     virtualization.lastScrollPosition = scrollTop;
 }
 
 /**
- * Check if the visible range of items has changed
+ * Check if the visible range of items has changed significantly
  * @param {number} startIndex - New start index
  * @param {number} endIndex - New end index
- * @returns {boolean} - True if range has changed
+ * @returns {boolean} - True if range has changed significantly
  */
-function hasVisibleRangeChanged(startIndex, endIndex) {
+function hasVisibleRangeChangedSignificantly(startIndex, endIndex) {
     if (virtualization.visibleItems.length === 0) {
         return true;
     }
     
-    const currentStartIndex = virtualization.visibleItems[0]?.index || 0;
-    const currentEndIndex = virtualization.visibleItems[virtualization.visibleItems.length - 1]?.index || 0;
+    // If we don't have a previous range, then it's changed
+    if (!virtualization.lastVisibleIndexes) {
+        return true;
+    }
     
-    return startIndex !== currentStartIndex || endIndex !== currentEndIndex;
+    const previousStart = virtualization.lastVisibleIndexes.start;
+    const previousEnd = virtualization.lastVisibleIndexes.end;
+    
+    // Check if the start or end differs by more than a threshold
+    const startDiff = Math.abs(startIndex - previousStart);
+    const endDiff = Math.abs(endIndex - previousEnd);
+    
+    // If either end changed by more than 2 items, we update
+    return startDiff > 2 || endDiff > 2;
 }
 
 /**
- * Update the visible items in the DOM
+ * Update the visible items in the DOM with node recycling for better performance
  * @param {number} startIndex - Start index of visible range
  * @param {number} endIndex - End index of visible range
  */
 function updateVisibleItems(startIndex, endIndex) {
-    // Clear the current visible items
+    // Create map of existing nodes by index for recycling
+    const existingNodeMap = new Map();
+    virtualization.visibleItems.forEach(item => {
+        existingNodeMap.set(item.index, item.element);
+    });
+    
+    // Determine which elements to keep and which to recycle
+    const newVisibleIndexes = new Set();
+    for (let i = startIndex; i <= endIndex; i++) {
+        newVisibleIndexes.add(i);
+    }
+    
+    // Collect nodes to recycle or keep
+    const nodesToKeep = [];
+    const nodesToRecycle = [];
+    
+    virtualization.visibleItems.forEach(item => {
+        if (newVisibleIndexes.has(item.index)) {
+            // Keep this node as it's still visible
+            nodesToKeep.push(item);
+        } else {
+            // Recycle this node as it's no longer visible
+            nodesToRecycle.push(item.element);
+        }
+    });
+    
+    // Add recycled nodes to pool
+    nodesToRecycle.forEach(node => {
+        if (virtualization.recycledNodes.length < virtualization.nodePoolSize) {
+            virtualization.recycledNodes.push(node);
+        }
+    });
+    
+    // Clear the container but don't recreate everything
     virtualization.container.innerHTML = '';
     virtualization.visibleItems = [];
     
@@ -279,11 +353,26 @@ function updateVisibleItems(startIndex, endIndex) {
         virtualization.container.appendChild(topSpacer);
     }
     
-    // Render visible items
+    // Render visible items - reusing existing nodes where possible
     for (let i = startIndex; i <= endIndex; i++) {
         if (i >= 0 && i < virtualization.allSequences.length) {
             const sequence = virtualization.allSequences[i];
-            const sequenceCard = createSequenceCard(sequence, i);
+            let sequenceCard;
+            
+            // Check if we have an existing node for this index
+            const existingNode = existingNodeMap.get(i);
+            if (existingNode) {
+                // Reuse existing node
+                sequenceCard = existingNode;
+            } else if (virtualization.recycledNodes.length > 0) {
+                // Reuse a recycled node
+                sequenceCard = virtualization.recycledNodes.pop();
+                updateSequenceCard(sequenceCard, sequence, i);
+            } else {
+                // Create a new node if we must
+                sequenceCard = createSequenceCard(sequence, i);
+            }
+            
             virtualization.container.appendChild(sequenceCard);
             virtualization.visibleItems.push({ index: i, element: sequenceCard });
         }
@@ -298,47 +387,46 @@ function updateVisibleItems(startIndex, endIndex) {
         bottomSpacer.style.height = `${bottomSpacerHeight}px`;
         virtualization.container.appendChild(bottomSpacer);
     }
+    
+    // Measure actual height if we haven't yet
+    if (!virtualization.heightMeasured && virtualization.visibleItems.length > 0) {
+        requestAnimationFrame(measureCardHeight);
+    }
 }
 
 /**
- * Create a sequence card element
- * @param {Object} sequence - Sequence data
- * @param {number} index - Index of the sequence in the array
- * @returns {HTMLElement} - The created card element
+ * Update an existing sequence card with new data
+ * @param {HTMLElement} card - Existing card element to update
+ * @param {Object} sequence - New sequence data
+ * @param {number} index - New index
  */
-function createSequenceCard(sequence, index) {
-    const sequenceCard = document.createElement('div');
-    sequenceCard.className = 'card mb-3';
-    sequenceCard.setAttribute('data-sequence-index', index);
+function updateSequenceCard(card, sequence, index) {
+    // Update data attributes
+    card.setAttribute('data-sequence-index', index);
     
-    const cardBody = document.createElement('div');
-    cardBody.className = 'card-body';
+    // Update title
+    const titleElement = card.querySelector('.card-title');
+    if (titleElement) {
+        titleElement.textContent = sequence.name;
+    }
     
-    const title = document.createElement('h5');
-    title.className = 'card-title';
-    title.textContent = sequence.name;
+    // Update description
+    const descriptionElement = card.querySelector('.card-text:not(.text-muted)');
+    if (descriptionElement) {
+        descriptionElement.textContent = sequence.description || 'No description available';
+    }
     
-    const description = document.createElement('p');
-    description.className = 'card-text';
-    description.textContent = sequence.description || 'No description available';
+    // Update steps count
+    const stepsCountElement = card.querySelector('.card-text.text-muted');
+    if (stepsCountElement) {
+        stepsCountElement.textContent = `${sequence.steps.length} steps`;
+    }
     
-    const stepsCount = document.createElement('p');
-    stepsCount.className = 'card-text text-muted';
-    stepsCount.textContent = `${sequence.steps.length} steps`;
-    
-    const startButton = document.createElement('button');
-    startButton.className = 'btn btn-primary';
-    startButton.textContent = 'Start Sequence';
-    startButton.onclick = () => startSequence(sequence.id);
-    
-    // Assemble card
-    cardBody.appendChild(title);
-    cardBody.appendChild(description);
-    cardBody.appendChild(stepsCount);
-    cardBody.appendChild(startButton);
-    
-    sequenceCard.appendChild(cardBody);
-    return sequenceCard;
+    // Update start button (ensure click handler is updated)
+    const startButton = card.querySelector('.btn-primary');
+    if (startButton) {
+        startButton.onclick = () => startSequence(sequence.id);
+    }
 }
 
 /**
@@ -351,7 +439,8 @@ function measureCardHeight() {
             const height = card.offsetHeight;
             if (height > 0) {
                 virtualization.itemHeight = height;
-                console.log('Updated item height:', height);
+                virtualization.heightMeasured = true;
+                console.log('Measured item height:', height);
                 
                 // Recalculate total height
                 virtualization.totalHeight = virtualization.allSequences.length * virtualization.itemHeight;
@@ -679,7 +768,7 @@ function updateSequenceUI() {
 }
 
 /**
- * Load available sequences from server using virtualization
+ * Load available sequences from server using enhanced virtualization
  * @returns {Promise} - Promise resolving to array of sequences
  */
 function loadAvailableSequences() {
@@ -706,13 +795,22 @@ function loadAvailableSequences() {
                 // Clear existing sequences
                 sequencesContainer.innerHTML = '';
                 
-                // Enable virtual scrolling only for large datasets
-                if (data.sequences.length > 20 && virtualization.enabled) {
+                // Reset recycled nodes
+                virtualization.recycledNodes = [];
+                virtualization.visibleItems = [];
+                virtualization.lastVisibleIndexes = null;
+                
+                // Enable virtual scrolling for datasets above the threshold
+                if (data.sequences.length > virtualization.renderThreshold && virtualization.enabled) {
                     // Initial render of visible items
                     handleVirtualScroll();
                     
                     // After first render, measure actual item height for better performance
-                    setTimeout(measureCardHeight, 100);
+                    setTimeout(() => {
+                        if (!virtualization.heightMeasured) {
+                            measureCardHeight();
+                        }
+                    }, 100);
                 } else {
                     // For small datasets, render all at once (no virtualization)
                     virtualization.enabled = false;

@@ -11,6 +11,12 @@
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     
+    <!-- Base CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
+    <!-- Mobile-specific CSS (loaded conditionally via JavaScript) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile.css') }}" id="mobile-css">
+    
     <style>
         body {
             min-height: 100vh;
@@ -146,6 +152,14 @@
     
     <!-- Custom additional styling -->
     {% block additional_styles %}{% endblock %}
+    
+    <!-- Base JS -->
+    <script src="{{ url_for('static', filename='js/utility.js') }}"></script>
+    
+    <!-- Mobile-specific JavaScript -->
+    <script src="{{ url_for('static', filename='js/mobile.js') }}"></script>
+    
+    {% block extra_head %}{% endblock %}
 </head>
 <body>
     <!-- Navigation Bar -->

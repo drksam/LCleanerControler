@@ -3,6 +3,10 @@
  * Handles servo positioning, movement, and firing actions with proper logging
  */
 
+// Check if we're on a mobile device
+const isServoPanelMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+    || (window.innerWidth <= 768);
+
 document.addEventListener('DOMContentLoaded', function() {
     // Use the utility library for simulation mode
     const ShopUtils = window.ShopUtils || {};
@@ -147,6 +151,333 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
     
+    // Enhance servo controls with touch-friendly features if on mobile
+    if (isServoPanelMobile) {
+        initMobileServoControls();
+    }
+    
+    // Initialize existing servo controls
+    initServoControls();
+});
+
+/**
+ * Initialize mobile-specific servo controls
+ */
+function initMobileServoControls() {
+    // Find all servo sliders
+    const servoSliders = document.querySelectorAll('.servo-slider');
+    
+    servoSliders.forEach(slider => {
+        // Replace with enhanced mobile slider if not already
+        if (!slider.classList.contains('mobile-slider')) {
+            slider.classList.add('mobile-slider');
+            
+            // Add touch value indicator
+            const valueDisplay = document.createElement('div');
+            valueDisplay.className = 'servo-value-display';
+            valueDisplay.textContent = slider.value + '°';
+            valueDisplay.style.position = 'absolute';
+            valueDisplay.style.bottom = '100%';
+            valueDisplay.style.left = '50%';
+            valueDisplay.style.transform = 'translateX(-50%)';
+            valueDisplay.style.backgroundColor = 'var(--bs-primary)';
+            valueDisplay.style.color = 'white';
+            valueDisplay.style.padding = '4px 8px';
+            valueDisplay.style.borderRadius = '4px';
+            valueDisplay.style.display = 'none';
+            valueDisplay.style.marginBottom = '10px';
+            valueDisplay.style.zIndex = '100';
+            valueDisplay.style.fontSize = '14px';
+            valueDisplay.style.fontWeight = 'bold';
+            valueDisplay.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+            
+            // Position the wrapper relatively
+            const wrapper = document.createElement('div');
+            wrapper.style.position = 'relative';
+            wrapper.style.marginBottom = '30px';
+            
+            // Replace slider with wrapper containing slider and display
+            slider.parentNode.insertBefore(wrapper, slider);
+            wrapper.appendChild(slider);
+            wrapper.appendChild(valueDisplay);
+            
+            // Show indicator on touch start
+            slider.addEventListener('touchstart', function() {
+                valueDisplay.style.display = 'block';
+                valueDisplay.textContent = this.value + '°';
+                
+                // Apply haptic feedback if available
+                if (window.navigator && window.navigator.vibrate) {
+                    window.navigator.vibrate(20);
+                }
+            });
+            
+            // Update indicator on touch move
+            slider.addEventListener('input', function() {
+                valueDisplay.textContent = this.value + '°';
+                
+                // Calculate position based on slider value
+                const percent = (this.value - this.min) / (this.max - this.min);
+                const leftPosition = percent * (this.offsetWidth - 20) + 10; // 10px for thumb width offset
+                valueDisplay.style.left = `${leftPosition}px`;
+                valueDisplay.style.transform = 'translateX(-50%)';
+                
+                // Small haptic feedback on steps (every 10 degrees)
+                if (window.navigator && window.navigator.vibrate && this.value % 10 === 0) {
+                    window.navigator.vibrate(10);
+                }
+            });
+            
+            // Hide indicator on touch end
+            slider.addEventListener('touchend', function() {
+                valueDisplay.style.display = 'none';
+            });
+        }
+    });
+    
+    // Add easy preset buttons for servo positions
+    addServoPresetButtons();
+    
+    // Add gesture controls for fine-tuning
+    addServoGestureControls();
+}
+
+/**
+ * Add preset buttons for common servo positions
+ */
+function addServoPresetButtons() {
+    const servoForms = document.querySelectorAll('.servo-control-form');
+    
+    servoForms.forEach(form => {
+        // Don't add presets if they already exist
+        if (form.querySelector('.servo-presets')) return;
+        
+        const slider = form.querySelector('.servo-slider');
+        if (!slider) return;
+        
+        const min = parseInt(slider.min);
+        const max = parseInt(slider.max);
+        
+        // Create preset container
+        const presetContainer = document.createElement('div');
+        presetContainer.className = 'servo-presets d-flex justify-content-between mt-2 mb-3';
+        
+        // Add presets based on min and max
+        [min, min + Math.floor((max-min)*0.25), min + Math.floor((max-min)*0.5), 
+         min + Math.floor((max-min)*0.75), max].forEach(value => {
+            const presetBtn = document.createElement('button');
+            presetBtn.type = 'button';
+            presetBtn.className = 'btn btn-sm btn-outline-secondary';
+            presetBtn.textContent = value + '°';
+            presetBtn.dataset.value = value;
+            
+            presetBtn.addEventListener('click', function() {
+                slider.value = this.dataset.value;
+                slider.dispatchEvent(new Event('input', { bubbles: true }));
+                slider.dispatchEvent(new Event('change', { bubbles: true }));
+                
+                // Visual feedback
+                this.classList.add('active');
+                setTimeout(() => {
+                    this.classList.remove('active');
+                }, 300);
+                
+                // Haptic feedback
+                if (window.navigator && window.navigator.vibrate) {
+                    window.navigator.vibrate(30);
+                }
+            });
+            
+            presetContainer.appendChild(presetBtn);
+        });
+        
+        // Add fine tuning buttons
+        const fineTuneDiv = document.createElement('div');
+        fineTuneDiv.className = 'servo-fine-tune d-flex justify-content-between mt-2 mb-3';
+        
+        // Decrement button
+        const decrementBtn = document.createElement('button');
+        decrementBtn.type = 'button';
+        decrementBtn.className = 'btn btn-outline-primary mobile-control-btn';
+        decrementBtn.innerHTML = '<i class="fas fa-minus"></i>';
+        decrementBtn.addEventListener('click', function() {
+            const currentVal = parseInt(slider.value);
+            if (currentVal > min) {
+                slider.value = currentVal - 1;
+                slider.dispatchEvent(new Event('input', { bubbles: true }));
+                slider.dispatchEvent(new Event('change', { bubbles: true }));
+                
+                // Haptic feedback
+                if (window.navigator && window.navigator.vibrate) {
+                    window.navigator.vibrate(20);
+                }
+            }
+        });
+        
+        // Current value display
+        const valueDisplay = document.createElement('div');
+        valueDisplay.className = 'servo-current-value d-flex justify-content-center align-items-center';
+        valueDisplay.style.fontSize = '1.2em';
+        valueDisplay.style.fontWeight = 'bold';
+        valueDisplay.textContent = slider.value + '°';
+        
+        // Update display when slider changes
+        slider.addEventListener('input', function() {
+            valueDisplay.textContent = this.value + '°';
+        });
+        
+        // Increment button
+        const incrementBtn = document.createElement('button');
+        incrementBtn.type = 'button';
+        incrementBtn.className = 'btn btn-outline-primary mobile-control-btn';
+        incrementBtn.innerHTML = '<i class="fas fa-plus"></i>';
+        incrementBtn.addEventListener('click', function() {
+            const currentVal = parseInt(slider.value);
+            if (currentVal < max) {
+                slider.value = currentVal + 1;
+                slider.dispatchEvent(new Event('input', { bubbles: true }));
+                slider.dispatchEvent(new Event('change', { bubbles: true }));
+                
+                // Haptic feedback
+                if (window.navigator && window.navigator.vibrate) {
+                    window.navigator.vibrate(20);
+                }
+            }
+        });
+        
+        fineTuneDiv.appendChild(decrementBtn);
+        fineTuneDiv.appendChild(valueDisplay);
+        fineTuneDiv.appendChild(incrementBtn);
+        
+        // Insert presets and fine tuning before the submit button
+        const submitBtn = form.querySelector('button[type="submit"]');
+        form.insertBefore(presetContainer, submitBtn);
+        form.insertBefore(fineTuneDiv, submitBtn);
+    });
+}
+
+/**
+ * Add gesture controls for fine tuning servo positions
+ */
+function addServoGestureControls() {
+    const servoForms = document.querySelectorAll('.servo-control-form');
+    
+    servoForms.forEach(form => {
+        const slider = form.querySelector('.servo-slider');
+        if (!slider) return;
+        
+        // Create gesture area
+        const gestureArea = document.createElement('div');
+        gestureArea.className = 'servo-gesture-area mt-2';
+        gestureArea.style.height = '60px';
+        gestureArea.style.backgroundColor = 'var(--bs-gray-800)';
+        gestureArea.style.borderRadius = '8px';
+        gestureArea.style.position = 'relative';
+        gestureArea.style.overflow = 'hidden';
+        
+        // Add gesture hint text
+        const gestureHint = document.createElement('div');
+        gestureHint.className = 'gesture-hint';
+        gestureHint.textContent = 'Swipe left/right for fine control';
+        gestureHint.style.position = 'absolute';
+        gestureHint.style.top = '50%';
+        gestureHint.style.left = '50%';
+        gestureHint.style.transform = 'translate(-50%, -50%)';
+        gestureHint.style.color = 'var(--bs-gray-500)';
+        gestureHint.style.fontSize = '0.9em';
+        gestureHint.style.textAlign = 'center';
+        gestureHint.style.width = '100%';
+        
+        // Add indicator bar
+        const indicatorBar = document.createElement('div');
+        indicatorBar.className = 'gesture-indicator';
+        indicatorBar.style.position = 'absolute';
+        indicatorBar.style.bottom = '0';
+        indicatorBar.style.left = '0';
+        indicatorBar.style.height = '4px';
+        indicatorBar.style.backgroundColor = 'var(--bs-primary)';
+        indicatorBar.style.width = '50%';
+        
+        gestureArea.appendChild(gestureHint);
+        gestureArea.appendChild(indicatorBar);
+        
+        // Track touch positions
+        let startX = 0;
+        let currentX = 0;
+        
+        gestureArea.addEventListener('touchstart', function(e) {
+            startX = e.touches[0].clientX;
+            currentX = startX;
+            gestureHint.style.opacity = '0';
+            
+            // Initial haptic feedback
+            if (window.navigator && window.navigator.vibrate) {
+                window.navigator.vibrate(20);
+            }
+        });
+        
+        gestureArea.addEventListener('touchmove', function(e) {
+            currentX = e.touches[0].clientX;
+            const deltaX = currentX - startX;
+            const sensitivity = 2; // Higher = more sensitive
+            const sliderRange = parseInt(slider.max) - parseInt(slider.min);
+            const gestureWidth = this.offsetWidth;
+            
+            // Calculate new value based on gesture movement
+            const movementRatio = deltaX / gestureWidth;
+            const valueChange = Math.round(movementRatio * sliderRange * sensitivity);
+            const startValue = parseInt(slider.getAttribute('data-start-value') || slider.value);
+            let newValue = Math.min(Math.max(parseInt(slider.min), startValue + valueChange), parseInt(slider.max));
+            
+            // Update slider with new value
+            if (slider.value != newValue) {
+                slider.value = newValue;
+                slider.dispatchEvent(new Event('input', { bubbles: true }));
+                
+                // Update indicator position
+                const percent = (newValue - slider.min) / (slider.max - slider.min);
+                indicatorBar.style.width = `${percent * 100}%`;
+                
+                // Small haptic feedback on degree changes
+                if (window.navigator && window.navigator.vibrate && 
+                   (Math.abs(deltaX) % 10 < 2)) { // Throttle vibration
+                    window.navigator.vibrate(5);
+                }
+            }
+        });
+        
+        gestureArea.addEventListener('touchstart', function() {
+            // Store start value for relative movement
+            slider.setAttribute('data-start-value', slider.value);
+            
+            // Update indicator position initially
+            const percent = (slider.value - slider.min) / (slider.max - slider.min);
+            indicatorBar.style.width = `${percent * 100}%`;
+        });
+        
+        gestureArea.addEventListener('touchend', function() {
+            // Final haptic feedback
+            if (window.navigator && window.navigator.vibrate) {
+                window.navigator.vibrate(30);
+            }
+            
+            // Dispatch change event at end of gesture
+            slider.dispatchEvent(new Event('change', { bubbles: true }));
+            
+            // Reset hint after a moment
+            setTimeout(() => {
+                gestureHint.style.opacity = '1';
+            }, 2000);
+        });
+        
+        // Add gesture area before the submit button
+        const submitBtn = form.querySelector('button[type="submit"]');
+        form.insertBefore(gestureArea, submitBtn);
+    });
+}
+
+// Initialize existing servo controls (your current implementation)
+function initServoControls() {
     // Position sliders
     const servoPositionASlider = document.getElementById('servo-position-a');
     const servoPositionAValue = document.getElementById('servo-position-a-value');
@@ -509,4 +840,4 @@ document.addEventListener('DOMContentLoaded', function() {
             );
         });
     }
-});
+}

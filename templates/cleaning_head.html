@@ -12,19 +12,19 @@
             <div class="card-body text-center">
                 <div class="row">
                     <div class="col-md-6 border-end">
-                        <h1 id="position-display-mm" class="display-4">{{ (current_position / stepper_config.steps_per_mm)|round(2) }}</h1>
+                        <h1 id="position-display-mm" class="display-4" data-bs-toggle="tooltip" title="Current position in millimeters">{{ (current_position / stepper_config.steps_per_mm)|round(2) }}</h1>
                         <h5 class="text-muted">Millimeters from home position</h5>
                     </div>
                     <div class="col-md-6">
-                        <h3 id="position-display" class="text-secondary">{{ current_position }}</h3>
+                        <h3 id="position-display" class="text-secondary" data-bs-toggle="tooltip" title="Current position in motor steps">{{ current_position }}</h3>
                         <p class="text-muted">Steps from home position</p>
-                        <div class="badge bg-info">
+                        <div class="badge bg-info" data-bs-toggle="tooltip" title="Number of motor steps needed to move 1mm">
                             <i class="fas fa-info-circle me-1"></i>
                             Conversion: {{ stepper_config.steps_per_mm }} steps per mm
                         </div>
                     </div>
                 </div>
-                <div class="progress mt-4" style="height: 15px;">
+                <div class="progress mt-4" style="height: 15px;" data-bs-toggle="tooltip" title="Visual representation of current position">
                     <div id="position-progress" class="progress-bar" role="progressbar" 
                         style="width: 50%;" aria-valuenow="{{ current_position }}" aria-valuemin="0" aria-valuemax="1000">
                     </div>
@@ -41,8 +41,8 @@
             </div>
             <div class="card-body">
                 <div class="mb-3">
-                    <label for="step-size" class="form-label">Step Size:</label>
-                    <input type="range" class="form-range" id="step-size" min="1" max="100" value="10">
+                    <label for="step-size" class="form-label" data-bs-toggle="tooltip" title="Number of steps for each jog operation">Step Size:</label>
+                    <input type="range" class="form-range" id="step-size" min="1" max="100" value="10" data-bs-toggle="tooltip" title="Adjust jog distance">
                     <div class="d-flex justify-content-between">
                         <span>1</span>
                         <span id="step-size-value">10</span>
@@ -53,17 +53,17 @@
                 <!-- Index Distance Control -->
                 <div class="card bg-info text-white mb-3">
                     <div class="card-header">
-                        <h6 class="card-title mb-0">Index Distance</h6>
+                        <h6 class="card-title mb-0" data-bs-toggle="tooltip" title="Standard movement increment">Index Distance</h6>
                     </div>
                     <div class="card-body">
                         <div class="mb-3">
-                            <label for="index-distance-mm" class="form-label">Index Distance (mm):</label>
+                            <label for="index-distance-mm" class="form-label" data-bs-toggle="tooltip" title="Standard distance to move when indexing">Index Distance (mm):</label>
                             <div class="input-group">
                                 <input type="number" id="index-distance-mm" class="form-control" 
                                     value="{{ (stepper_config.index_distance / stepper_config.steps_per_mm)|round(2) }}" 
-                                    min="0.1" step="0.1">
+                                    min="0.1" step="0.1" data-bs-toggle="tooltip" title="Standard movement distance in mm">
                                 <span class="input-group-text">mm</span>
-                                <button id="update-index-distance" class="btn btn-primary">
+                                <button id="update-index-distance" class="btn btn-primary" data-bs-toggle="tooltip" title="Save the index distance setting">
                                     <i class="fas fa-save"></i> Update
                                 </button>
                             </div>
@@ -72,10 +72,10 @@
                             </small>
                         </div>
                         <div class="d-flex justify-content-between mb-2">
-                            <button id="index-button" class="btn btn-light w-100 me-2">
+                            <button id="index-button" class="btn btn-light w-100 me-2" data-bs-toggle="tooltip" title="Move forward by the index distance">
                                 <i class="fas fa-forward me-2"></i> Index Forward
                             </button>
-                            <button id="index-back-button" class="btn btn-light w-100 ms-2">
+                            <button id="index-back-button" class="btn btn-light w-100 ms-2" data-bs-toggle="tooltip" title="Move backward by the index distance">
                                 <i class="fas fa-backward me-2"></i> Index Back
                             </button>
                         </div>
@@ -84,18 +84,18 @@
 
                 <div class="d-grid gap-2">
                     <div class="d-flex justify-content-between mb-3">
-                        <button id="jog-backward" class="btn btn-danger btn-lg w-100 me-2">
+                        <button id="jog-backward" class="btn btn-danger btn-lg w-100 me-2" data-bs-toggle="tooltip" title="Move cleaning head backward by step size">
                             <i class="fas fa-arrow-left me-2"></i> Jog Backward
                         </button>
-                        <button id="jog-forward" class="btn btn-success btn-lg w-100 ms-2">
+                        <button id="jog-forward" class="btn btn-success btn-lg w-100 ms-2" data-bs-toggle="tooltip" title="Move cleaning head forward by step size">
                             Jog Forward <i class="fas fa-arrow-right ms-2"></i>
                         </button>
                     </div>
-                    <button id="home-motor" class="btn btn-primary btn-lg">
+                    <button id="home-motor" class="btn btn-primary btn-lg" data-bs-toggle="tooltip" title="Return cleaning head to home position (zero)">
                         <i class="fas fa-home me-2"></i> Home Cleaning Head
                     </button>
                     <div class="form-check form-switch mt-3">
-                        <input class="form-check-input" type="checkbox" id="motor-enabled" checked>
+                        <input class="form-check-input" type="checkbox" id="motor-enabled" checked data-bs-toggle="tooltip" title="Enable/disable the stepper motor">
                         <label class="form-check-label" for="motor-enabled">Cleaning Head Enabled</label>
                     </div>
                 </div>
@@ -115,9 +115,9 @@
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <span>{{ name }}</span>
                         <div>
-                            <span class="badge bg-primary me-2">{{ (position / stepper_config.steps_per_mm) | round(2) }} mm</span>
-                            <span class="badge bg-secondary me-2 small">{{ position }} steps</span>
-                            <button class="btn btn-sm btn-primary move-to-preset" data-position="{{ position }}">
+                            <span class="badge bg-primary me-2" data-bs-toggle="tooltip" title="Position in millimeters">{{ (position / stepper_config.steps_per_mm) | round(2) }} mm</span>
+                            <span class="badge bg-secondary me-2 small" data-bs-toggle="tooltip" title="Position in motor steps">{{ position }} steps</span>
+                            <button class="btn btn-sm btn-primary move-to-preset" data-position="{{ position }}" data-bs-toggle="tooltip" title="Move to this saved position">
                                 Go
                             </button>
                         </div>
@@ -127,8 +127,8 @@
                 <hr>
                 <div class="mt-3">
                     <div class="input-group mb-3">
-                        <input type="text" id="new-preset-name" class="form-control" placeholder="Preset Name">
-                        <button id="save-position" class="btn btn-success">
+                        <input type="text" id="new-preset-name" class="form-control" placeholder="Preset Name" data-bs-toggle="tooltip" title="Enter a name for this position">
+                        <button id="save-position" class="btn btn-success" data-bs-toggle="tooltip" title="Save current position with the specified name">
                             <i class="fas fa-save me-2"></i> Save Current Position
                         </button>
                     </div>
@@ -147,30 +147,30 @@
                 <div class="row">
                     <div class="col-md-6">
                         <div class="mb-3">
-                            <label for="absolute-position-mm" class="form-label">Target Position (millimeters):</label>
+                            <label for="absolute-position-mm" class="form-label" data-bs-toggle="tooltip" title="Enter exact position in millimeters">Target Position (millimeters):</label>
                             <div class="input-group">
-                                <input type="number" class="form-control" id="absolute-position-mm" value="0" min="0" step="0.1">
+                                <input type="number" class="form-control" id="absolute-position-mm" value="0" min="0" step="0.1" data-bs-toggle="tooltip" title="Specific position in millimeters">
                                 <span class="input-group-text">mm</span>
                             </div>
                             <small class="form-text text-muted">Enter target position in millimeters</small>
                         </div>
                         <div class="d-grid">
-                            <button id="move-to-position-mm" class="btn btn-warning">
+                            <button id="move-to-position-mm" class="btn btn-warning" data-bs-toggle="tooltip" title="Move cleaning head to the specified millimeter position">
                                 <i class="fas fa-ruler me-2"></i> Move to Position (mm)
                             </button>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="mb-3">
-                            <label for="absolute-position" class="form-label">Target Position (steps):</label>
+                            <label for="absolute-position" class="form-label" data-bs-toggle="tooltip" title="Enter exact position in motor steps">Target Position (steps):</label>
                             <div class="input-group">
-                                <input type="number" class="form-control" id="absolute-position" value="0" min="0">
+                                <input type="number" class="form-control" id="absolute-position" value="0" min="0" data-bs-toggle="tooltip" title="Specific position in motor steps">
                                 <span class="input-group-text">steps</span>
                             </div>
                             <small class="form-text text-muted">Enter target position in motor steps</small>
                         </div>
                         <div class="d-grid">
-                            <button id="move-to-position" class="btn btn-warning">
+                            <button id="move-to-position" class="btn btn-warning" data-bs-toggle="tooltip" title="Move cleaning head to the specified step position">
                                 <i class="fas fa-crosshairs me-2"></i> Move to Position (steps)
                             </button>
                         </div>
@@ -184,4 +184,27 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/cleaning_head.js') }}"></script>
+<script>
+$(document).ready(function() {
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Function to initialize tooltips on dynamically created elements
+    function initDynamicTooltips() {
+        var newTooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]:not(.tooltip-initialized)'));
+        newTooltipTriggerList.forEach(function(el) {
+            new bootstrap.Tooltip(el);
+            el.classList.add('tooltip-initialized');
+        });
+    }
+    
+    // Initialize tooltips on any dynamically added preset positions
+    $('#presets-container').on('DOMNodeInserted', function() {
+        initDynamicTooltips();
+    });
+});
+</script>
 {% endblock %}
