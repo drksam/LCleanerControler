@@ -1,8 +1,15 @@
-from main import db
+from main import db, app
 from datetime import datetime
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 import json
+import os
+
+# Utility function to determine if we're using SQLite or PostgreSQL
+def is_using_postgres():
+    """Check if we're using PostgreSQL"""
+    database_url = app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    return 'postgresql' in database_url
 
 # Define mixed-in behavior for suite integration
 class SuiteIntegrationMixin:
@@ -34,6 +41,7 @@ class SuiteIntegrationMixin:
 class SuiteUser(UserMixin, db.Model):
     """User model for shared authentication across the suite"""
     __tablename__ = 'suite_users'
+    # Bind key is managed by application, not hardcoded
     __bind_key__ = 'core'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -73,6 +81,7 @@ class SuiteUser(UserMixin, db.Model):
 class SuitePermission(db.Model):
     """Permissions for users across the suite applications"""
     __tablename__ = 'suite_permissions'
+    # Bind key is managed by application, not hardcoded
     __bind_key__ = 'core'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -91,6 +100,7 @@ class SuitePermission(db.Model):
 class SyncEvent(db.Model):
     """Events to track synchronization between apps"""
     __tablename__ = 'sync_events'
+    # Bind key is managed by application, not hardcoded
     __bind_key__ = 'core'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -113,6 +123,7 @@ class SyncEvent(db.Model):
 class User(UserMixin, db.Model, SuiteIntegrationMixin):
     """User model for authentication (links to SuiteUser)"""
     __tablename__ = 'user'
+    # Bind key is managed by application, not hardcoded
     __bind_key__ = 'cleaner_controller'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -180,6 +191,7 @@ class User(UserMixin, db.Model, SuiteIntegrationMixin):
 class RFIDCard(db.Model, SuiteIntegrationMixin):
     """RFID card model"""
     __tablename__ = 'rfid_card'
+    # Bind key is managed by application, not hardcoded
     __bind_key__ = 'cleaner_controller'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -204,6 +216,7 @@ class RFIDCard(db.Model, SuiteIntegrationMixin):
 class AccessLog(db.Model):
     """Log of authentication activities"""
     __tablename__ = 'access_log'
+    # Bind key is managed by application, not hardcoded
     __bind_key__ = 'cleaner_controller'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -230,6 +243,7 @@ class AccessLog(db.Model):
 class ApiKey(db.Model):
     """API keys for server authentication"""
     __tablename__ = 'api_key'
+    # Bind key is managed by application, not hardcoded
     __bind_key__ = 'cleaner_controller'
     
     id = db.Column(db.Integer, primary_key=True)

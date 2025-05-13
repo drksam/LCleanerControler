@@ -47,6 +47,13 @@ if 'postgresql' in database_url:
         'cleaner_controller': os.environ.get("CLEANER_DATABASE_URL", database_url + "?schema=cleaner_controller"),
     }
     logger.info("Configured database schema bindings for Shop Suite integration")
+else:
+    # For SQLite, use same database for all bindings
+    app.config["SQLALCHEMY_BINDS"] = {
+        'core': database_url,
+        'cleaner_controller': database_url,
+    }
+    logger.info("Using SQLite without schema separation for development/prototype mode")
 
 # Initialize SQLAlchemy
 db = SQLAlchemy(app)
@@ -60,8 +67,19 @@ login_manager.login_view = 'login'
 with app.app_context():
     # First import models to create tables
     from models import User, RFIDCard, AccessLog, ApiKey, SuiteUser, SuitePermission, SyncEvent
-    db.create_all()
     
+    # For SQLite mode, dynamically adjust the model bindings
+    if 'sqlite' in database_url:
+        for model in [SuiteUser, SuitePermission, SyncEvent, User, RFIDCard, AccessLog, ApiKey]:
+            try:
+                # Reset any bind keys for SQLite to use main database
+                if hasattr(model, '__bind_key__'):
+                    model.__bind_key__ = None
+            except:
+                pass
+    
+    # Create all tables
+    db.create_all()
     # Initialize sync handler for Shop Suite integration
     try:
         from sync_handler import SyncHandler, register_sync_tasks
