@@ -1,6 +1,6 @@
 {
   "system": {
-    "operation_mode": "prototype",
+    "operation_mode": "simulation",
     "debug_level": "info",
     "bypass_safety": false,
     "use_gpioctrl": true

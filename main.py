@@ -136,4 +136,4 @@ register_api_routes(app)
 logger.info("API routes registered successfully")
 
 # Import app routes last to avoid circular imports
-from app import *
+# from app import *  # <-- REMOVE THIS LINE TO BREAK THE CIRCULAR IMPORT
