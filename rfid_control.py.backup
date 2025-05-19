@@ -29,6 +29,8 @@ if not SIMULATION_MODE and not PROTOTYPE_MODE:
         logging.warning("MFRC522 module not available, RFID functionality disabled")
 else:
     status_msg = "will be used but not required" if PROTOTYPE_MODE else "will not be used"
+    status_msg = "will be used but not required" if PROTOTYPE_MODE else "will not be used"
+    status_msg = "will be used but not required" if PROTOTYPE_MODE else "will not be used"
     logging.info(f"Running in {OPERATION_MODE} mode - RFID hardware {status_msg}")
 
 logger = logging.getLogger(__name__)

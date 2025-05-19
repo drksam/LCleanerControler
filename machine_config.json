@@ -1,75 +1,76 @@
 {
-    "system": {
-        "operation_mode": "simulation",
-        "debug_level": "info",
-        "bypass_safety": false
+  "system": {
+    "operation_mode": "prototype",
+    "debug_level": "info",
+    "bypass_safety": false,
+    "use_gpioctrl": true
+  },
+  "stepper": {
+    "max_speed": 3500,
+    "acceleration": 2000,
+    "index_distance": 5500,
+    "jog_speed": 500,
+    "jog_step_size": 20,
+    "steps_per_mm": 100,
+    "max_position": 50000,
+    "min_position": -50000,
+    "limit_a_pin": 27,
+    "limit_b_pin": 22
+  },
+  "servo": {
+    "position_normal": 75,
+    "position_inverted": 97,
+    "detach_delay": 0.5,
+    "sequence_delay": 500
+  },
+  "timing": {
+    "fan_off_delay": 600000,
+    "red_lights_off_delay": 60000,
+    "debounce_delay": 200,
+    "laser_fire_threshold": 2000
+  },
+  "statistics": {
+    "laser_fire_count": 0,
+    "total_laser_fire_time": 0
+  },
+  "temperature": {
+    "high_limit": 50.0,
+    "sampling_interval": 5.0,
+    "enabled": true,
+    "device_ids": {
+      "simulator1": "Control Sensor"
     },
-    "stepper": {
-        "max_speed": 3500,
-        "acceleration": 2000,
-        "index_distance": 5500,
-        "jog_speed": 500,
-        "jog_step_size": 20,
-        "steps_per_mm": 100,
-        "max_position": 50000,
-        "min_position": -50000,
-        "limit_a_pin": 27,
-        "limit_b_pin": 22
+    "sensor_limits": {
+      "simulator1": 45.0,
+      "simulator2": 50.0
     },
-    "servo": {
-        "position_normal": 75,
-        "position_inverted": 97,
-        "detach_delay": 0.5,
-        "sequence_delay": 500
-    },
-    "timing": {
-        "fan_off_delay": 600000,
-        "red_lights_off_delay": 60000,
-        "debounce_delay": 200,
-        "laser_fire_threshold": 2000
-    },
-    "statistics": {
-        "laser_fire_count": 0,
-        "total_laser_fire_time": 0
-    },
-    "temperature": {
-        "high_limit": 50.0,
-        "sampling_interval": 5.0,
-        "enabled": true,
-        "device_ids": {
-            "simulator1": "Control Sensor"
-        },
-        "sensor_limits": {
-            "simulator1": 45.0,
-            "simulator2": 50.0
-        },
-        "primary_sensor": null
-    },
-    "gpio": {
-        "step_pin": 3,
-        "dir_pin": 4,
-        "enable_pin": 17,
-        "home_switch_pin": 27,
-        "servo_pin": 22,
-        "button_in_pin": 23,
-        "button_out_pin": 24,
-        "fire_button_pin": 25,
-        "servo_invert_switch_pin": 5,
-        "red_lights_pin": 13,
-        "fan_pin": 6,
-        "table_forward_pin": 19,
-        "table_backward_pin": 26,
-        "table_front_switch_pin": 21,
-        "table_back_switch_pin": 20,
-        "rfid_rst_pin": 12,
-        "rfid_irq_pin": 16
-    },
-    "rfid": {
-        "server_url": "https://Shopmachinemonitor.replit.app/api/auth",
-        "api_key": "",
-        "machine_id": "laser_room_1",
-        "session_hours": 8,
-        "access_control_enabled": true,
-        "offline_mode": true
-    }
+    "primary_sensor": null
+  },
+  "gpio": {
+    "step_pin": 3,
+    "dir_pin": 4,
+    "enable_pin": 17,
+    "home_switch_pin": 27,
+    "servo_pin": 22,
+    "button_in_pin": 23,
+    "button_out_pin": 24,
+    "fire_button_pin": 25,
+    "servo_invert_switch_pin": 5,
+    "red_lights_pin": 13,
+    "fan_pin": 6,
+    "table_forward_pin": 19,
+    "table_backward_pin": 26,
+    "table_front_switch_pin": 21,
+    "table_back_switch_pin": 20,
+    "rfid_rst_pin": 12,
+    "rfid_irq_pin": 16
+  },
+  "rfid": {
+    "server_url": "https://Shopmachinemonitor.replit.app/api/auth",
+    "api_key": "",
+    "machine_id": "laser_room_1",
+    "session_hours": 8,
+    "access_control_enabled": true,
+    "offline_mode": true
+  }
 }

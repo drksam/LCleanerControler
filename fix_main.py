@@ -1,4 +1,19 @@
+#!/usr/bin/env python3
+"""
+This script fixes the main.py file by rewriting it with proper indentation
+and correctly setting up SQLAlchemy bindings for both PostgreSQL and SQLite.
+"""
 import os
+import shutil
+
+# Create a backup of the original file
+if os.path.exists('main.py'):
+    print("Creating backup of main.py as main.py.bak")
+    shutil.copy2('main.py', 'main.py.bak')
+
+# Rewrite the file with proper indentation
+with open('main.py', 'w') as f:
+    f.write('''import os
 import logging
 import sys
 import secrets
@@ -137,3 +152,6 @@ logger.info("API routes registered successfully")
 
 # Import app routes last to avoid circular imports
 from app import *
+''')
+
+print("Fixed main.py successfully!")
