@@ -84,6 +84,7 @@ servo_config = config.get_servo_config()
 # Initialize stepper motor with configuration
 force_hardware = os.environ.get('FORCE_HARDWARE', 'False').lower() == 'true'
 
+logger.info("Starting StepperMotor initialization...")
 try:
     # Use GPIOController-based stepper
     stepper = StepperMotor()
@@ -108,8 +109,9 @@ except Exception as e:
             logger.error(f"Failed to create simulated stepper motor: {inner_e}")
             motor_initialized = False
             stepper = None
+logger.info("StepperMotor initialization complete.")
 
-# Initialize servo controller with configuration
+logger.info("Starting ServoController initialization...")
 try:
     # Use GPIOController-based servo
     servo = ServoController()
@@ -135,8 +137,9 @@ except Exception as e:
             logger.error(f"Failed to create simulated servo: {inner_e}")
             servo_initialized = False
             servo = None
+logger.info("ServoController initialization complete.")
 
-# Initialize output controller for fan and red lights
+logger.info("Starting OutputController initialization...")
 try:
     output_controller = OutputController()
     outputs_initialized = True
@@ -160,47 +163,7 @@ except Exception as e:
             logger.error(f"Failed to create simulated output controller: {inner_e}")
             outputs_initialized = False
             output_controller = None
-
-# Store the current position in memory
-current_position = 0
-# Define preset positions (can be modified via the UI)
-preset_positions = {
-    "Position 1": 200,
-    "Position 2": 400,
-    "Position 3": 600,
-    "Position 4": 800
-}
-
-# Servo positions
-servo_position_a = 0
-servo_position_b = 90
-servo_inverted = False
-
-# Create a background thread to monitor and update outputs
-def update_outputs_thread():
-    """Background thread to update fan and lights based on servo position"""
-    while True:
-        try:
-            if servo_initialized and servo is not None and outputs_initialized and output_controller is not None:
-                # Get current servo status
-                servo_status = servo.get_status()
-                current_angle = servo_status.get('current_angle', 0)
-                
-                # Get normal position from configuration
-                normal_position = servo_config['position_normal']
-                
-                # Update outputs based on current servo position
-                output_controller.update(current_angle, normal_position)
-            
-            # Sleep to reduce CPU usage
-            time.sleep(0.5)
-        except Exception as e:
-            logger.error(f"Error in output update thread: {e}")
-            time.sleep(1)  # Sleep longer on error
-
-# Start the background thread for output control
-output_update_thread = threading.Thread(target=update_outputs_thread, daemon=True)
-output_update_thread.start()
+logger.info("OutputController initialization complete.")
 
 # Callback functions for hardware button/switch control
 def stepper_callback(action, **kwargs):
@@ -325,20 +288,6 @@ def servo_callback(action, **kwargs):
     except Exception as e:
         logger.error(f"Error in servo button callback: {e}")
 
-# Initialize input controller for physical button control
-try:
-    input_controller = InputController(
-        stepper_handler=stepper_callback,
-        servo_handler=servo_callback
-    )
-    inputs_initialized = True
-    logger.info("Input controller initialized successfully")
-except Exception as e:
-    logger.error(f"Failed to initialize input controller: {e}")
-    logger.info("Physical button control will not be available")
-    inputs_initialized = False
-    input_controller = None  # Explicitly set to None to avoid unbound variable issues
-
 # Access control callback when user is authenticated/deauthenticated
 def access_control_callback(granted, user_data):
     """Callback when a user is authenticated or deauthenticated"""
@@ -385,6 +334,89 @@ def access_control_callback(granted, user_data):
     except Exception as e:
         logging.error(f"Error in access control callback: {e}")
 
+logger.info("Starting InputController initialization...")
+try:
+    input_controller = InputController(
+        stepper_handler=stepper_callback,
+        servo_handler=servo_callback
+    )
+    inputs_initialized = True
+    logger.info("Input controller initialized successfully")
+except Exception as e:
+    logger.error(f"Failed to initialize input controller: {e}")
+    logger.info("Physical button control will not be available")
+    inputs_initialized = False
+    input_controller = None  # Explicitly set to None to avoid unbound variable issues
+logger.info("InputController initialization complete.")
+
+logger.info("Starting RFIDController initialization...")
+try:
+    rfid_controller = RFIDController(access_callback=access_control_callback)
+    rfid_initialized = True
+    logger.info("RFID controller initialized successfully")
+except Exception as e:
+    logger.error(f"Failed to initialize RFID controller: {e}")
+    logger.info("RFID functionality will not be available")
+    rfid_initialized = False
+    rfid_controller = None
+logger.info("RFIDController initialization complete.")
+
+# Store the current position in memory
+current_position = 0
+# Define preset positions (can be modified via the UI)
+preset_positions = {
+    "Position 1": 200,
+    "Position 2": 400,
+    "Position 3": 600,
+    "Position 4": 800
+}
+
+# Servo positions
+servo_position_a = 0
+servo_position_b = 90
+servo_inverted = False
+
+# Create a background thread to monitor and update outputs
+def update_outputs_thread():
+    """Background thread to update fan and lights based on servo position"""
+    while True:
+        try:
+            if servo_initialized and servo is not None and outputs_initialized and output_controller is not None:
+                # Get current servo status
+                servo_status = servo.get_status()
+                current_angle = servo_status.get('current_angle', 0)
+                
+                # Get normal position from configuration
+                normal_position = servo_config['position_normal']
+                
+                # Update outputs based on current servo position
+                output_controller.update(current_angle, normal_position)
+            
+            # Sleep to reduce CPU usage
+            time.sleep(0.5)
+        except Exception as e:
+            logger.error(f"Error in output update thread: {e}")
+            time.sleep(1)  # Sleep longer on error
+
+# Start the background thread for output control
+output_update_thread = threading.Thread(target=update_outputs_thread, daemon=True)
+output_update_thread.start()
+
+# Initialize input controller for physical button control
+try:
+    input_controller = InputController(
+        stepper_handler=stepper_callback,
+        servo_handler=servo_callback
+    )
+    inputs_initialized = True
+    logger.info("Input controller initialized successfully")
+except Exception as e:
+    logger.error(f"Failed to initialize input controller: {e}")
+    logger.info("Physical button control will not be available")
+    inputs_initialized = False
+    input_controller = None  # Explicitly set to None to avoid unbound variable issues
+logger.info("InputController initialization complete.")
+
 # Initialize RFID controller
 try:
     rfid_controller = RFIDController(access_callback=access_control_callback)
@@ -395,6 +427,7 @@ except Exception as e:
     logger.info("RFID functionality will not be available")
     rfid_initialized = False
     rfid_controller = None
+logger.info("RFIDController initialization complete.")
 
 # Function to stop all operations (used by temperature controller)
 def stop_all_operations():
@@ -426,6 +459,7 @@ def stop_all_operations():
 from temperature_control import TemperatureController
 
 # Initialize temperature controller
+logger.info("Starting TemperatureController initialization...")
 try:
     temp_config = config.get_temperature_config()
     temp_controller = TemperatureController(
@@ -452,8 +486,10 @@ except Exception as e:
             logger.error(f"Failed to create simulated temperature controller: {inner_e}")
             temp_initialized = False
             temp_controller = None
+logger.info("TemperatureController initialization complete.")
 
 # Initialize sequence runner for automated operation sequences
+logger.info("Starting SequenceRunner initialization...")
 try:
     sequence_runner = SequenceRunner(
         stepper=stepper,
@@ -472,6 +508,7 @@ except Exception as e:
         logger.error(f"Failed to create simulated sequence runner: {inner_e}")
         sequences_initialized = False
         sequence_runner = None
+logger.info("SequenceRunner initialization complete.")
 
 @app.route('/')
 def index():
