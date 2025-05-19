@@ -345,42 +345,45 @@ def access_control_callback(granted, user_data):
     try:
         # Import webhook integration module to avoid circular imports
         from webhook_integration import handle_login_event, handle_logout_event, handle_status_change_event
+        from main import app  # Import the Flask app instance
         
         if granted:
             username = user_data.get('username', 'Unknown')
             access_level = user_data.get('access_level', 'operator')
             user_id = user_data.get('user_id', 0)
             card_id = user_data.get('card_id')
-            logger.info(f"User {username} authenticated with access level {access_level}")
-            
+            logging.info(f"User {username} authenticated with access level {access_level}")
             # Send webhook event for user login and machine status change
             if user_id:
                 try:
+                    from models import User
                     user = User.query.get(user_id)
                     if user:
-                        handle_login_event(user_id, card_id)
-                        handle_status_change_event("active", {"user": username})
-                        logger.info(f"Login and status change webhook events sent for user {username}")
+                        with app.app_context():
+                            handle_login_event(user_id, card_id)
+                            handle_status_change_event("active", {"user": username})
+                        logging.info(f"Login and status change webhook events sent for user {username}")
                 except Exception as e:
-                    logger.error(f"Error sending login webhooks: {e}")
+                    logging.error(f"Error sending login webhooks: {e}")
         else:
             reason = user_data.get('reason', 'Unknown reason')
-            logger.info(f"Authentication removed: {reason}")
-            
+            logging.info(f"Authentication removed: {reason}")
             # Send webhook event for user logout and machine status change
             user_id = user_data.get('user_id', 0)
             card_id = user_data.get('card_id')
             if user_id:
                 try:
+                    from models import User
                     user = User.query.get(user_id)
                     if user:
-                        handle_logout_event(user_id, reason, card_id)
-                        handle_status_change_event("idle", {"reason": reason})
-                        logger.info(f"Logout and status change webhook events sent for user {user.username}")
+                        with app.app_context():
+                            handle_logout_event(user_id, reason, card_id)
+                            handle_status_change_event("idle", {"reason": reason})
+                        logging.info(f"Logout and status change webhook events sent for user {user.username}")
                 except Exception as e:
-                    logger.error(f"Error sending logout webhooks: {e}")
+                    logging.error(f"Error sending logout webhooks: {e}")
     except Exception as e:
-        logger.error(f"Error in access control callback: {e}")
+        logging.error(f"Error in access control callback: {e}")
 
 # Initialize RFID controller
 try:
