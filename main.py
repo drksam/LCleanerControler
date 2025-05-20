@@ -63,6 +63,12 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
+from models import User
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
 # Initialize Shop Suite integration and webhook system
 with app.app_context():
     # First import models to create tables
@@ -135,5 +141,14 @@ from api_routes import register_api_routes
 register_api_routes(app)
 logger.info("API routes registered successfully")
 
-# Import app routes last to avoid circular imports
-# from app import *  # <-- REMOVE THIS LINE TO BREAK THE CIRCULAR IMPORT
+# Register main app routes blueprint
+from app import main_bp, init_controllers, inject_globals, page_not_found, server_error
+
+app.register_blueprint(main_bp)
+
+# Register context processor and error handlers
+app.context_processor(inject_globals)
+app.register_error_handler(404, page_not_found)
+app.register_error_handler(500, server_error)
+
+init_controllers(app)

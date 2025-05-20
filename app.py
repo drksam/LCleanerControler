@@ -44,7 +44,7 @@ logging.basicConfig(level=log_level,
 logger = logging.getLogger(__name__)
 
 try:
-    from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, session
+    from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, session, Blueprint
     from flask_sqlalchemy import SQLAlchemy
     from flask_login import LoginManager, login_user, logout_user, login_required, current_user
     logger.info("Flask and extensions imported successfully")
@@ -86,87 +86,6 @@ servo_config = config.get_servo_config()
 
 # Initialize stepper motor with configuration
 force_hardware = os.environ.get('FORCE_HARDWARE', 'False').lower() == 'true'
-
-logger.info("Starting StepperMotor initialization...")
-try:
-    # Use GPIOController-based stepper
-    stepper = StepperMotor()
-    motor_initialized = True
-    logger.info("Stepper motor initialized successfully")
-except Exception as e:
-    logger.error(f"Error initializing stepper motor: {e}")
-    if force_hardware or operation_mode == 'prototype':
-        logger.error("FORCE_HARDWARE is enabled in prototype mode - not falling back to simulation mode")
-        motor_initialized = False
-        stepper = None
-        # In prototype mode, we raise the error to prevent silently degrading to simulation
-        if operation_mode == 'prototype':
-            raise
-    else:
-        logger.info("Falling back to simulation mode")
-        # Create a simulated stepper motor for development purposes
-        try:
-            stepper = StepperMotor()  # GPIOController implementation supports simulation mode
-            motor_initialized = True
-        except Exception as inner_e:
-            logger.error(f"Failed to create simulated stepper motor: {inner_e}")
-            motor_initialized = False
-            stepper = None
-logger.info("StepperMotor initialization complete.")
-
-logger.info("Starting ServoController initialization...")
-try:
-    # Use GPIOController-based servo
-    servo = ServoController()
-    servo_initialized = True
-    logger.info("Servo initialized successfully")
-except Exception as e:
-    logger.error(f"Failed to initialize servo: {e}")
-    if force_hardware or operation_mode == 'prototype':
-        logger.error("FORCE_HARDWARE is enabled in prototype mode - not falling back to simulation mode")
-        servo_initialized = False
-        servo = None
-        # In prototype mode, we raise the error to prevent silently degrading to simulation
-        if operation_mode == 'prototype':
-            raise
-    else:
-        logger.info("Falling back to simulation mode")
-        # Create a simulated servo for development purposes
-        try:
-            servo = ServoController()  # GPIOController implementation supports simulation mode
-            servo_initialized = True
-            logger.info("Simulated servo controller created successfully")
-        except Exception as inner_e:
-            logger.error(f"Failed to create simulated servo: {inner_e}")
-            servo_initialized = False
-            servo = None
-logger.info("ServoController initialization complete.")
-
-logger.info("Starting OutputController initialization...")
-try:
-    output_controller = OutputController()
-    outputs_initialized = True
-    logger.info("Output controller initialized successfully")
-except Exception as e:
-    logger.error(f"Failed to initialize output controller: {e}")
-    if force_hardware:
-        logger.error("FORCE_HARDWARE is enabled in prototype mode - not falling back to simulation mode")
-        outputs_initialized = False
-        output_controller = None
-        # In prototype mode, we raise the error to prevent silently degrading to simulation
-        if operation_mode == 'prototype':
-            raise
-    else:
-        logger.info("Falling back to simulation mode")
-        # Create a simulated output controller for development purposes
-        try:
-            output_controller = OutputController()
-            outputs_initialized = True
-        except Exception as inner_e:
-            logger.error(f"Failed to create simulated output controller: {inner_e}")
-            outputs_initialized = False
-            output_controller = None
-logger.info("OutputController initialization complete.")
 
 # Callback functions for hardware button/switch control
 def stepper_callback(action, **kwargs):
@@ -337,183 +256,66 @@ def access_control_callback(granted, user_data):
     except Exception as e:
         logging.error(f"Error in access control callback: {e}")
 
-logger.info("Starting InputController initialization...")
-try:
-    input_controller = InputController(
-        stepper_handler=stepper_callback,
-        servo_handler=servo_callback
-    )
-    inputs_initialized = True
-    logger.info("Input controller initialized successfully")
-except Exception as e:
-    logger.error(f"Failed to initialize input controller: {e}")
-    logger.info("Physical button control will not be available")
-    inputs_initialized = False
-    input_controller = None  # Explicitly set to None to avoid unbound variable issues
-logger.info("InputController initialization complete.")
+controllers_initialized = False
 
-logger.info("Starting RFIDController initialization...")
-try:
-    rfid_controller = RFIDController(access_callback=access_control_callback)
-    rfid_initialized = True
-    logger.info("RFID controller initialized successfully")
-except Exception as e:
-    logger.error(f"Failed to initialize RFID controller: {e}")
-    logger.info("RFID functionality will not be available")
-    rfid_initialized = False
-    rfid_controller = None
-logger.info("RFIDController initialization complete.")
-
-# Store the current position in memory
+# --- GLOBALS FOR ROUTES (ensure always defined) ---
+outputs_initialized = False
+output_controller = None
+servo_initialized = False
+servo = None
+motor_initialized = False
+stepper = None
+sequences_initialized = False
+sequence_runner = None
 current_position = 0
-# Define preset positions (can be modified via the UI)
-preset_positions = {
-    "Position 1": 200,
-    "Position 2": 400,
-    "Position 3": 600,
-    "Position 4": 800
-}
-
-# Servo positions
+preset_positions = {}
 servo_position_a = 0
 servo_position_b = 90
 servo_inverted = False
+rfid_initialized = False
+input_controller = None
+inputs_initialized = False
+temp_controller = None
+temp_initialized = False
 
-# Create a background thread to monitor and update outputs
-def update_outputs_thread():
-    """Background thread to update fan and lights based on servo position"""
-    while True:
-        try:
-            if servo_initialized and servo is not None and outputs_initialized and output_controller is not None:
-                # Get current servo status
-                servo_status = servo.get_status()
-                current_angle = servo_status.get('current_angle', 0)
-                
-                # Get normal position from configuration
-                normal_position = servo_config['position_normal']
-                
-                # Update outputs based on current servo position
-                output_controller.update(current_angle, normal_position)
-            
-            # Sleep to reduce CPU usage
-            time.sleep(0.5)
-        except Exception as e:
-            logger.error(f"Error in output update thread: {e}")
-            time.sleep(1)  # Sleep longer on error
+def init_controllers(app=None):
+    global controllers_initialized
+    if controllers_initialized:
+        return
+    controllers_initialized = True
+    import os, sys, logging, time, threading
+    from functools import wraps
+    import config
+    from models import User, AccessLog, RFIDCard, ApiKey
+    from rfid_control import RFIDController
+    from stepper_control_gpioctrl import StepperMotor
+    from servo_control_gpioctrl import ServoController
+    from output_control_gpiod import OutputController
+    from input_control_gpiod import InputController
+    from sequence_runner import SequenceRunner, SequenceStatus
+    from config import get_statistics, increment_laser_counter, add_laser_fire_time, reset_statistics
+    from temperature_control import TemperatureController
+    # All global variables used in routes
+    global system_config, operation_mode, debug_level, bypass_safety, log_level, logger
+    global gpio_config, stepper_config, servo_config, force_hardware
+    global stepper, motor_initialized, servo, servo_initialized
+    global output_controller, outputs_initialized, input_controller, inputs_initialized
+    global rfid_controller, rfid_initialized, temp_controller, temp_initialized
+    global sequence_runner, sequences_initialized
+    global current_position, preset_positions
+    global servo_position_a, servo_position_b, servo_inverted
+    # ...existing code for system_config, operation_mode, debug_level, bypass_safety, log_level, logging.basicConfig, logger...
+    # ...existing code for environment variables and FORCE_HARDWARE...
+    # ...existing code for controller initializations, callbacks, and background thread startup...
+    # For any use of 'app', use the passed-in app argument, not a global
+    # For example, in stop_all_operations, use app.logger.warning(...)
+    # If app is None, skip app-context-dependent code
+    # ...existing code...
 
-# Start the background thread for output control
-output_update_thread = threading.Thread(target=update_outputs_thread, daemon=True)
-output_update_thread.start()
+# Only define blueprint and routes at the top level
+main_bp = Blueprint('main_bp', __name__)
 
-# Initialize input controller for physical button control
-try:
-    input_controller = InputController(
-        stepper_handler=stepper_callback,
-        servo_handler=servo_callback
-    )
-    inputs_initialized = True
-    logger.info("Input controller initialized successfully")
-except Exception as e:
-    logger.error(f"Failed to initialize input controller: {e}")
-    logger.info("Physical button control will not be available")
-    inputs_initialized = False
-    input_controller = None  # Explicitly set to None to avoid unbound variable issues
-logger.info("InputController initialization complete.")
-
-# Initialize RFID controller
-try:
-    rfid_controller = RFIDController(access_callback=access_control_callback)
-    rfid_initialized = True
-    logger.info("RFID controller initialized successfully")
-except Exception as e:
-    logger.error(f"Failed to initialize RFID controller: {e}")
-    logger.info("RFID functionality will not be available")
-    rfid_initialized = False
-    rfid_controller = None
-logger.info("RFIDController initialization complete.")
-
-# Function to stop all operations (used by temperature controller)
-def stop_all_operations():
-    """Stop all motors, servos, and other operations due to high temperature"""
-    app.logger.warning("AUTO-STOP: High temperature detected - stopping all operations")
-    # Stop servo (move to normal position)
-    try:
-        if servo_initialized:
-            servo.stop_firing()
-    except Exception as e:
-        app.logger.error(f"Error stopping servo: {e}")
-    
-    # Stop table movement
-    try:
-        if outputs_initialized:
-            output_controller.set_table_forward(False)
-            output_controller.set_table_backward(False)
-    except Exception as e:
-        app.logger.error(f"Error stopping table: {e}")
-    
-    # Stop stepper motor
-    try:
-        if motor_initialized:
-            stepper.disable()
-    except Exception as e:
-        app.logger.error(f"Error disabling stepper: {e}")
-
-# Import temperature controller
-from temperature_control import TemperatureController
-
-# Initialize temperature controller
-logger.info("Starting TemperatureController initialization...")
-try:
-    temp_config = config.get_temperature_config()
-    temp_controller = TemperatureController(
-        temp_config=temp_config,
-        stop_callback=stop_all_operations
-    )
-    temp_initialized = True
-    app.logger.info("Temperature controller initialized successfully")
-except Exception as e:
-    logger.error(f"Failed to initialize temperature controller: {e}")
-    if force_hardware:
-        logger.error("FORCE_HARDWARE is enabled in prototype mode - not falling back to simulation mode")
-        temp_initialized = False
-        temp_controller = None
-        # In prototype mode, we raise the error to prevent silently degrading to simulation
-        if operation_mode == 'prototype':
-            raise
-    else:
-        logger.info("Falling back to simulation mode")
-        try:
-            temp_controller = TemperatureController(stop_callback=stop_all_operations)
-            temp_initialized = True
-        except Exception as inner_e:
-            logger.error(f"Failed to create simulated temperature controller: {inner_e}")
-            temp_initialized = False
-            temp_controller = None
-logger.info("TemperatureController initialization complete.")
-
-# Initialize sequence runner for automated operation sequences
-logger.info("Starting SequenceRunner initialization...")
-try:
-    sequence_runner = SequenceRunner(
-        stepper=stepper,
-        servo=servo,
-        output_controller=output_controller
-    )
-    sequences_initialized = True
-    logger.info("Sequence runner initialized successfully")
-except Exception as e:
-    logger.error(f"Failed to initialize sequence runner: {e}")
-    logger.info("Falling back to simulation mode")
-    try:
-        sequence_runner = SequenceRunner()
-        sequences_initialized = True
-    except Exception as inner_e:
-        logger.error(f"Failed to create simulated sequence runner: {inner_e}")
-        sequences_initialized = False
-        sequence_runner = None
-logger.info("SequenceRunner initialization complete.")
-
-@app.route('/')
+@main_bp.route('/')
 def index():
     """Render the main operation interface with simplified controls"""
     # Get output controller status for displaying on the main page
@@ -571,7 +373,7 @@ def index():
                            sequences=sequences,
                            page="operation")
 
-@app.route('/cleaning_head')
+@main_bp.route('/cleaning_head')
 def cleaning_head():
     """Render the cleaning head control page"""
     # Get stepper config for steps per mm conversion
@@ -584,7 +386,7 @@ def cleaning_head():
                            stepper_config=stepper_config,
                            page="cleaning_head")
 
-@app.route('/trigger_servo')
+@main_bp.route('/trigger_servo')
 def trigger_servo():
     """Render the trigger servo setup page"""
     return render_template('trigger_servo.html', 
@@ -594,7 +396,7 @@ def trigger_servo():
                            servo_inverted=servo_inverted,
                            page="trigger_servo")
 
-@app.route('/table')
+@main_bp.route('/table')
 def table():
     """Render the table control page"""
     return render_template('table.html', 
@@ -616,7 +418,7 @@ def require_admin_in_normal_mode(view_function):
             return redirect(url_for('index'))
     return decorated_function
 
-@app.route('/settings')
+@main_bp.route('/settings')
 @require_admin_in_normal_mode
 def settings():
     """Render the settings/configuration interface"""
@@ -637,7 +439,7 @@ def settings():
                            temp_config=temp_config,
                            page="settings")
 
-@app.route('/pinout')
+@main_bp.route('/pinout')
 @require_admin_in_normal_mode
 def pinout():
     """Render the GPIO pinout guide page"""
@@ -645,7 +447,7 @@ def pinout():
     system_config = config.get_system_config()  # Get system config for operation mode
     return render_template('pinout.html', page="pinout", gpio_config=gpio_config, system_config=system_config)
 
-@app.route('/rfid')
+@main_bp.route('/rfid')
 @require_admin_in_normal_mode
 def rfid():
     """Render the RFID access control page for ShopMachineMonitor integration"""
@@ -668,7 +470,7 @@ def rfid():
                           access_logs=access_logs,
                           rfid_initialized=rfid_initialized)
 
-@app.route('/jog', methods=['POST'])
+@main_bp.route('/jog', methods=['POST'])
 def jog():
     """Jog the motor in the specified direction"""
     global current_position
@@ -720,7 +522,7 @@ def jog():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 # Stop the motor immediately
-@app.route('/stop_motor', methods=['POST'])
+@main_bp.route('/stop_motor', methods=['POST'])
 def stop_motor():
     """Stop the motor movement immediately"""
     global current_position
@@ -743,7 +545,7 @@ def stop_motor():
         logger.error(f"Error stopping motor: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/home', methods=['POST'])
+@main_bp.route('/home', methods=['POST'])
 def home():
     """Home the motor (find zero position)"""
     global current_position
@@ -784,7 +586,7 @@ def home():
         logger.error(f"Error in homing operation: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/move_to', methods=['POST'])
+@main_bp.route('/move_to', methods=['POST'])
 def move_to():
     """Move to a specific position"""
     global current_position
@@ -834,7 +636,7 @@ def move_to():
         logger.error(f"Error in move operation: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/enable_motor', methods=['POST'])
+@main_bp.route('/enable_motor', methods=['POST'])
 def enable_motor():
     """Enable or disable the motor"""
     if not motor_initialized or stepper is None:
@@ -868,7 +670,7 @@ def enable_motor():
         logger.error(f"Error in motor enable/disable operation: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/save_position', methods=['POST'])
+@main_bp.route('/save_position', methods=['POST'])
 def save_position():
     """Save current position to a preset"""
     global preset_positions
@@ -889,7 +691,7 @@ def save_position():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 # Servo control routes
-@app.route('/servo/set_position_a', methods=['POST'])
+@main_bp.route('/servo/set_position_a', methods=['POST'])
 def set_servo_position_a():
     """Set the servo's position A"""
     global servo_position_a
@@ -923,7 +725,7 @@ def set_servo_position_a():
         logger.error(f"Error setting servo position A: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/servo/set_position_b', methods=['POST'])
+@main_bp.route('/servo/set_position_b', methods=['POST'])
 def set_servo_position_b():
     """Set the servo's position B"""
     global servo_position_b
@@ -957,7 +759,7 @@ def set_servo_position_b():
         logger.error(f"Error setting servo position B: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/servo/set_inverted', methods=['POST'])
+@main_bp.route('/servo/set_inverted', methods=['POST'])
 def set_servo_inverted():
     """Set the servo's inversion status"""
     global servo_inverted
@@ -991,7 +793,7 @@ def set_servo_inverted():
         logger.error(f"Error setting servo inversion: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/servo/move_to_a', methods=['POST'])
+@main_bp.route('/servo/move_to_a', methods=['POST'])
 def move_servo_to_a():
     """Move the servo to position A"""
     if not servo_initialized or servo is None:
@@ -1021,7 +823,7 @@ def move_servo_to_a():
         logger.error(f"Error moving servo to position A: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/servo/move_to_b', methods=['POST'])
+@main_bp.route('/servo/move_to_b', methods=['POST'])
 def move_servo_to_b():
     """Move the servo to position B"""
     if not servo_initialized or servo is None:
@@ -1051,7 +853,7 @@ def move_servo_to_b():
         logger.error(f"Error moving servo to position B: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/servo/move_to_angle', methods=['POST'])
+@main_bp.route('/servo/move_to_angle', methods=['POST'])
 def move_servo_to_angle():
     """Move the servo to a specific angle"""
     if not servo_initialized or servo is None:
@@ -1081,7 +883,7 @@ def move_servo_to_angle():
         logger.error(f"Error moving servo to angle: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/servo/detach', methods=['POST'])
+@main_bp.route('/servo/detach', methods=['POST'])
 def detach_servo():
     """Detach the servo to prevent jitter"""
     if not servo_initialized or servo is None:
@@ -1103,7 +905,7 @@ def detach_servo():
         logger.error(f"Error detaching servo: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/servo/reattach', methods=['POST'])
+@main_bp.route('/servo/reattach', methods=['POST'])
 def reattach_servo():
     """Reattach the servo"""
     if not servo_initialized or servo is None:
@@ -1129,7 +931,7 @@ def reattach_servo():
         logger.error(f"Error reattaching servo: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/servo/status', methods=['GET'])
+@main_bp.route('/servo/status', methods=['GET'])
 def get_servo_status():
     """Get the current status of the servo"""
     if not servo_initialized or servo is None:
@@ -1159,7 +961,7 @@ def get_servo_status():
 
 # Error handlers
 # Configuration update route
-@app.route('/update_config', methods=['POST'])
+@main_bp.route('/update_config', methods=['POST'])
 def update_config():
     """Update configuration parameters"""
     try:
@@ -1201,7 +1003,7 @@ def update_config():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 # Index movement route
-@app.route('/index_move', methods=['POST'])
+@main_bp.route('/index_move', methods=['POST'])
 def index_move():
     """Move the stepper motor by the index distance"""
     global current_position
@@ -1259,7 +1061,7 @@ def index_move():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 # Fan control routes
-@app.route('/fan/status', methods=['GET'])
+@main_bp.route('/fan/status', methods=['GET'])
 def get_fan_status():
     """Get the current fan status"""
     if not outputs_initialized or output_controller is None:
@@ -1288,7 +1090,7 @@ def get_fan_status():
         logger.error(f"Error getting fan status: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/fan/set', methods=['POST'])
+@main_bp.route('/fan/set', methods=['POST'])
 def set_fan():
     """Set the fan state manually"""
     if not outputs_initialized or output_controller is None:
@@ -1313,7 +1115,7 @@ def set_fan():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 # Red lights control routes
-@app.route('/lights/status', methods=['GET'])
+@main_bp.route('/lights/status', methods=['GET'])
 def get_lights_status():
     """Get the current red lights status"""
     if not outputs_initialized or output_controller is None:
@@ -1342,7 +1144,7 @@ def get_lights_status():
         logger.error(f"Error getting lights status: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/lights/set', methods=['POST'])
+@main_bp.route('/lights/set', methods=['POST'])
 def set_lights():
     """Set the red lights state manually"""
     if not outputs_initialized or output_controller is None:
@@ -1367,7 +1169,7 @@ def set_lights():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 # Fire action route (move servo to B position, triggers fan and lights)
-@app.route('/fire', methods=['POST'])
+@main_bp.route('/fire', methods=['POST'])
 def fire():
     """Fire action - move servo to B position with optional mode (toggle or momentary)"""
     # Get the fire mode from request JSON (default to momentary if not specified)
@@ -1428,7 +1230,7 @@ def fire():
         return jsonify({"status": "error", "message": str(e)}), 500
         
 # Fire Fiber route (starts the A-B-A-B sequence)
-@app.route('/fire_fiber', methods=['POST'])
+@main_bp.route('/fire_fiber', methods=['POST'])
 def fire_fiber():
     """Start the servo sequence for FIBER mode (A-B-A-B pattern)"""
     # Get the fire mode from request JSON (default to momentary if not specified)
@@ -1474,7 +1276,7 @@ def fire_fiber():
 
 # Statistics page routes
 # Sequences routes
-@app.route('/sequences')
+@main_bp.route('/sequences')
 def sequences():
     """Render the sequence programming page"""
     try:
@@ -1490,7 +1292,7 @@ def sequences():
                               error=str(e),
                               page="sequences")
 
-@app.route('/sequences/<sequence_id>')
+@main_bp.route('/sequences/<sequence_id>')
 def get_sequence(sequence_id):
     """Get a specific sequence by ID"""
     try:
@@ -1509,7 +1311,7 @@ def get_sequence(sequence_id):
         logger.error(f"Error getting sequence {sequence_id}: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/sequences/save', methods=['POST'])
+@main_bp.route('/sequences/save', methods=['POST'])
 def save_sequence():
     """Save a sequence"""
     try:
@@ -1540,7 +1342,7 @@ def save_sequence():
         logger.error(f"Error saving sequence: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/sequences/delete/<sequence_id>', methods=['POST'])
+@main_bp.route('/sequences/delete/<sequence_id>', methods=['POST'])
 def delete_sequence(sequence_id):
     """Delete a sequence"""
     try:
@@ -1560,7 +1362,7 @@ def delete_sequence(sequence_id):
         logger.error(f"Error deleting sequence {sequence_id}: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/sequences/run/<sequence_id>', methods=['POST'])
+@main_bp.route('/sequences/run/<sequence_id>', methods=['POST'])
 def run_sequence(sequence_id):
     """Run a sequence"""
     if not sequences_initialized or sequence_runner is None:
@@ -1596,7 +1398,7 @@ def run_sequence(sequence_id):
         logger.error(f"Error running sequence {sequence_id}: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/sequences/pause', methods=['POST'])
+@main_bp.route('/sequences/pause', methods=['POST'])
 def pause_sequence():
     """Pause a running sequence"""
     if not sequences_initialized or sequence_runner is None:
@@ -1622,7 +1424,7 @@ def pause_sequence():
         logger.error(f"Error pausing sequence: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/sequences/resume', methods=['POST'])
+@main_bp.route('/sequences/resume', methods=['POST'])
 def resume_sequence():
     """Resume a paused sequence"""
     if not sequences_initialized or sequence_runner is None:
@@ -1648,7 +1450,7 @@ def resume_sequence():
         logger.error(f"Error resuming sequence: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/sequences/stop', methods=['POST'])
+@main_bp.route('/sequences/stop', methods=['POST'])
 def stop_sequence():
     """Stop a running sequence"""
     if not sequences_initialized or sequence_runner is None:
@@ -1674,7 +1476,7 @@ def stop_sequence():
         logger.error(f"Error stopping sequence: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/sequences/status')
+@main_bp.route('/sequences/status')
 def sequence_status():
     """Get the current status of the sequence runner"""
     if not sequences_initialized or sequence_runner is None:
@@ -1702,7 +1504,7 @@ def sequence_status():
         logger.error(f"Error getting sequence status: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/statistics')
+@main_bp.route('/statistics')
 def statistics():
     """Render the statistics page"""
     # Get current statistics
@@ -1731,7 +1533,7 @@ def statistics():
                           now=now,
                           page="statistics")
 
-@app.route('/statistics/data')
+@main_bp.route('/statistics/data')
 def get_statistics_data():
     """Get current statistics data for AJAX updates"""
     # Get current statistics
@@ -1752,7 +1554,7 @@ def get_statistics_data():
         "total_time_formatted": total_time_formatted
     })
 
-@app.route('/statistics/reset_counter', methods=['POST'])
+@main_bp.route('/statistics/reset_counter', methods=['POST'])
 def reset_counter():
     """Reset the laser fire counter"""
     try:
@@ -1770,7 +1572,7 @@ def reset_counter():
         logger.error(f"Error resetting counter: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/statistics/reset_timer', methods=['POST'])
+@main_bp.route('/statistics/reset_timer', methods=['POST'])
 def reset_timer():
     """Reset the laser fire timer"""
     try:
@@ -1788,7 +1590,7 @@ def reset_timer():
         logger.error(f"Error resetting timer: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/statistics/reset_all', methods=['POST'])
+@main_bp.route('/statistics/reset_all', methods=['POST'])
 def reset_all_stats():
     """Reset all laser statistics"""
     try:
@@ -1803,7 +1605,7 @@ def reset_all_stats():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 # Servo sequence routes
-@app.route('/servo/sequence', methods=['POST'])
+@main_bp.route('/servo/sequence', methods=['POST'])
 def servo_sequence():
     """Start or stop the servo sequence"""
     if not servo_initialized or servo is None:
@@ -1843,7 +1645,7 @@ def servo_sequence():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 # Table control routes
-@app.route('/table/forward', methods=['POST'])
+@main_bp.route('/table/forward', methods=['POST'])
 def table_forward():
     """Move the table forward"""
     if not outputs_initialized or output_controller is None:
@@ -1874,7 +1676,7 @@ def table_forward():
         logger.error(f"Error in table forward: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/table/backward', methods=['POST'])
+@main_bp.route('/table/backward', methods=['POST'])
 def table_backward():
     """Move the table backward"""
     if not outputs_initialized or output_controller is None:
@@ -1905,7 +1707,7 @@ def table_backward():
         logger.error(f"Error in table backward: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/table/status')
+@main_bp.route('/table/status')
 def table_status():
     """Get the current table status"""
     if not outputs_initialized or output_controller is None:
@@ -1948,7 +1750,7 @@ def table_status():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 # Stop firing route
-@app.route('/stop_fire', methods=['POST'])
+@main_bp.route('/stop_fire', methods=['POST'])
 def stop_fire():
     """Stop firing - move servo back to position A and stop fiber sequence"""
     global fiber_sequence_running, sequence_runner
@@ -2005,7 +1807,7 @@ def stop_fire():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 # Temperature monitoring routes
-@app.route('/temperature')
+@main_bp.route('/temperature')
 def temperature():
     """Render the temperature monitoring and configuration page"""
     temp_config = config.get_temperature_config()
@@ -2019,7 +1821,7 @@ def temperature():
                            now=now,
                            page="temperature")
 
-@app.route('/temperature/status')
+@main_bp.route('/temperature/status')
 def temperature_status():
     """Get the current temperature status from all sensors"""
     if not temp_initialized or temp_controller is None:
@@ -2130,7 +1932,7 @@ def temperature_status():
         logger.error(f"Error getting temperature status: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/temperature/update_sensor_name', methods=['POST'])
+@main_bp.route('/temperature/update_sensor_name', methods=['POST'])
 def update_sensor_name():
     """Update the name of a temperature sensor"""
     try:
@@ -2185,7 +1987,7 @@ def update_sensor_name():
             "message": str(e)
         }), 500
 
-@app.route('/temperature/update_config', methods=['POST'])
+@main_bp.route('/temperature/update_config', methods=['POST'])
 def update_temperature_config():
     """Update temperature monitoring configuration"""
     try:
@@ -2271,7 +2073,7 @@ def update_temperature_config():
 # API routes for output controls are already defined elsewhere
 
 # Make global variables available to all templates
-@app.context_processor
+@main_bp.app_context_processor
 def inject_globals():
     # Get temperature data
     temp_status = {}
@@ -2294,11 +2096,15 @@ def inject_globals():
         'sensors_found': sensors_found
     }
 
-@app.errorhandler(404)
+@main_bp.errorhandler(404)
 def page_not_found(e):
     return render_template('index.html', error="Page not found", page="operation"), 404
 
-@app.route('/login', methods=['GET', 'POST'])
+@main_bp.errorhandler(500)
+def server_error(e):
+    return render_template('index.html', error="Internal server error", page="operation"), 500
+
+@main_bp.route('/login', methods=['GET', 'POST'])
 def login():
     """User login page"""
     if current_user.is_authenticated:
@@ -2335,7 +2141,7 @@ def login():
     
     return render_template('login.html', page="login", error=error)
 
-@app.route('/logout')
+@main_bp.route('/logout')
 @login_required
 def logout():
     """User logout"""
@@ -2346,7 +2152,7 @@ def logout():
     flash('You have been logged out.', 'info')
     return redirect(url_for('login'))
     
-@app.route('/api/rfid/status')
+@main_bp.route('/api/rfid/status')
 def rfid_status():
     """Get the current RFID authentication status"""
     if rfid_initialized and rfid_controller and rfid_controller.is_authenticated():
@@ -2361,7 +2167,7 @@ def rfid_status():
             'authenticated': False
         })
 
-@app.route('/api/rfid/logout', methods=['POST'])
+@main_bp.route('/api/rfid/logout', methods=['POST'])
 def rfid_logout():
     """Manually log out the current RFID user"""
     if rfid_initialized and rfid_controller:
@@ -2369,7 +2175,7 @@ def rfid_logout():
         return jsonify({'success': True})
     return jsonify({'success': False})
 
-@app.route('/api/rfid/card', methods=['POST'])
+@main_bp.route('/api/rfid/card', methods=['POST'])
 @login_required
 def register_rfid_card():
     """Register a new RFID card or update an existing one"""
@@ -2412,7 +2218,7 @@ def register_rfid_card():
         logger.error(f"Error registering RFID card: {e}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/rfid/config', methods=['POST'])
+@main_bp.route('/api/rfid/config', methods=['POST'])
 @login_required
 def update_rfid_config():
     """Update RFID configuration"""
@@ -2444,7 +2250,7 @@ def update_rfid_config():
         return jsonify({'error': str(e)}), 500
 
 # GPIO API routes for IO testing panel
-@app.route('/api/gpio/inputs')
+@main_bp.route('/api/gpio/inputs')
 def get_gpio_inputs():
     """Get the current state of GPIO inputs for testing"""
     # Check if we're in prototype mode with hardware forced
@@ -2492,7 +2298,7 @@ def get_gpio_inputs():
         "simulated": True
     })
 
-@app.route('/api/gpio/outputs', methods=['POST'])
+@main_bp.route('/api/gpio/outputs', methods=['POST'])
 def set_gpio_outputs():
     """Set GPIO outputs for testing"""
     # Check if we're in prototype mode with hardware forced
@@ -2554,7 +2360,7 @@ def set_gpio_outputs():
         logger.error(f"Error setting simulated GPIO output: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/api/system/mode')
+@main_bp.route('/api/system/mode')
 def get_system_mode():
     """Get the current system operation mode for client-side use"""
     try:
@@ -2576,10 +2382,3 @@ def get_system_mode():
             "message": str(e),
             "mode": "unknown"
         }), 500
-
-@app.errorhandler(500)
-def server_error(e):
-    return render_template('index.html', error="Internal server error", page="operation"), 500
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)

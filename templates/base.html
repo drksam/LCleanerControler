@@ -165,7 +165,7 @@
     <!-- Navigation Bar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
         <div class="container-fluid">
-            <a class="navbar-brand" href="{{ url_for('index') }}">
+            <a class="navbar-brand" href="{{ url_for('main_bp.index') }}">
                 <i class="fas fa-laser-pointer me-2"></i>ShopLaserRoom
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -174,52 +174,52 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav">
                     <li class="nav-item">
-                        <a class="nav-link {% if page == 'operation' %}active{% endif %}" href="{{ url_for('index') }}">
+                        <a class="nav-link {% if page == 'operation' %}active{% endif %}" href="{{ url_for('main_bp.index') }}">
                             <i class="fas fa-home me-1"></i> Operation
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if page == 'cleaning_head' %}active{% endif %}" href="{{ url_for('cleaning_head') }}">
+                        <a class="nav-link {% if page == 'cleaning_head' %}active{% endif %}" href="{{ url_for('main_bp.cleaning_head') }}">
                             <i class="fas fa-arrows-alt me-1"></i> Cleaning Head
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if page == 'trigger_servo' %}active{% endif %}" href="{{ url_for('trigger_servo') }}">
+                        <a class="nav-link {% if page == 'trigger_servo' %}active{% endif %}" href="{{ url_for('main_bp.trigger_servo') }}">
                             <i class="fas fa-cog me-1"></i> Trigger Servo
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if page == 'table' %}active{% endif %}" href="{{ url_for('table') }}">
+                        <a class="nav-link {% if page == 'table' %}active{% endif %}" href="{{ url_for('main_bp.table') }}">
                             <i class="fas fa-table me-1"></i> Table
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if page == 'statistics' %}active{% endif %}" href="{{ url_for('statistics') }}">
+                        <a class="nav-link {% if page == 'statistics' %}active{% endif %}" href="{{ url_for('main_bp.statistics') }}">
                             <i class="fas fa-chart-bar me-1"></i> Statistics
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if page == 'sequences' %}active{% endif %}" href="{{ url_for('sequences') }}">
+                        <a class="nav-link {% if page == 'sequences' %}active{% endif %}" href="{{ url_for('main_bp.sequences') }}">
                             <i class="fas fa-list-ol me-1"></i> Sequences
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if page == 'temperature' %}active{% endif %}" href="{{ url_for('temperature') }}">
+                        <a class="nav-link {% if page == 'temperature' %}active{% endif %}" href="{{ url_for('main_bp.temperature') }}">
                             <i class="fas fa-thermometer-half me-1"></i> Temperature
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if page == 'settings' %}active{% endif %}" href="{{ url_for('settings') }}">
+                        <a class="nav-link {% if page == 'settings' %}active{% endif %}" href="{{ url_for('main_bp.settings') }}">
                             <i class="fas fa-sliders-h me-1"></i> Settings
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if page == 'pinout' %}active{% endif %}" href="{{ url_for('pinout') }}">
+                        <a class="nav-link {% if page == 'pinout' %}active{% endif %}" href="{{ url_for('main_bp.pinout') }}">
                             <i class="fas fa-microchip me-1"></i> Pinout
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if page == 'rfid' %}active{% endif %}" href="{{ url_for('rfid') }}">
+                        <a class="nav-link {% if page == 'rfid' %}active{% endif %}" href="{{ url_for('main_bp.rfid') }}">
                             <i class="fas fa-id-card me-1"></i> RFID Access
                         </a>
                     </li>
@@ -235,12 +235,12 @@
                             </span>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
-                            <li><a class="dropdown-item" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('main_bp.logout') }}"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
                         </ul>
                     </li>
                     {% else %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('login') }}">
+                        <a class="nav-link" href="{{ url_for('main_bp.login') }}">
                             <i class="fas fa-sign-in-alt me-1"></i> Login
                         </a>
                     </li>
