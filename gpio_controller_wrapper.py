@@ -596,48 +596,23 @@ class LocalGPIOWrapper:
             simulation_mode: Whether to run in simulation mode
         """
         self.simulation_mode = simulation_mode
-        self._chip_name = 'gpiochip4'  # Default for Raspberry Pi 5
+        # Use gpiochip0 for Raspberry Pi 5 and most modern Pis
+        self._chip_name = 'gpiochip0'
         self._chip_instances = {}       # Store chip instances by pin for v2.x
-        self._lines = {}                # Store open lines
-        
-        logging.info(f"LocalGPIOWrapper __init__: simulation_mode={simulation_mode}, FORCE_HARDWARE={os.environ.get('FORCE_HARDWARE')}, GPIOD_AVAILABLE={GPIOD_AVAILABLE}")
-        # Initialize gpiod if not in simulation mode
-        if not simulation_mode and GPIOD_AVAILABLE:
-            try:
-                logging.info(f"Attempting to initialize gpiod for LocalGPIOWrapper")
-                # Check API version
-                if hasattr(gpiod, 'chip'):
-                    logging.info("LocalGPIOWrapper initialized with gpiod v2.x API")
-                else:
-                    logging.error("This version of LocalGPIOWrapper requires gpiod v2.x API")
-                    if FORCE_HARDWARE:
-                        raise ImportError("gpiod v2.x is required when FORCE_HARDWARE is enabled")
-                    self.simulation_mode = True
-                logging.info(f"gpiod initialized for LocalGPIOWrapper")
-            except Exception as e:
-                logging.error(f"Failed to initialize gpiod: {e}")
-                if FORCE_HARDWARE:
-                    logging.error("FORCE_HARDWARE is set - cannot fall back to simulation mode")
-                    raise
-                self.simulation_mode = True
-                logging.info("Falling back to simulation mode for LocalGPIOWrapper")
-        else:
-            if FORCE_HARDWARE and not GPIOD_AVAILABLE and not simulation_mode:
-                logging.error("FORCE_HARDWARE is set but gpiod library is not available!")
-                raise ImportError("gpiod library is required when FORCE_HARDWARE is enabled")
-                
-            self.simulation_mode = True
-            logging.info(f"LocalGPIOWrapper initialized in simulation mode (reason: simulation_mode={simulation_mode}, GPIOD_AVAILABLE={GPIOD_AVAILABLE})")
-    
+        self._lines = {}
+        logging.info(f"LocalGPIOWrapper initialized with chip_name={self._chip_name}, simulation_mode={self.simulation_mode}")
+
     def _get_chip_for_pin(self, pin):
         """
         Get a chip instance for a specific pin, creating it if needed.
         """
-        # For simplicity, use one chip for all pins
         if self._chip_name not in self._chip_instances:
+            logging.info(f"Creating new gpiod chip instance for {self._chip_name}")
             self._chip_instances[self._chip_name] = gpiod.chip(self._chip_name)
+        else:
+            logging.debug(f"Using cached gpiod chip instance for {self._chip_name}")
         return self._chip_instances[self._chip_name]
-    
+
     def setup_output(self, pin, initial_value=0):
         """
         Set up a GPIO pin as an output.
@@ -654,37 +629,25 @@ class LocalGPIOWrapper:
             return True
             
         try:
-            # Convert pin to integer
             pin_offset = int(pin)
-            
-            # Clean up any existing line
+            logging.info(f"Setting up GPIO pin {pin} (offset {pin_offset}) as output on chip {self._chip_name}")
             if pin in self._lines:
                 self.cleanup(pin)
-            
-            # Get chip
             chip = self._get_chip_for_pin(pin)
-            
-            # Create output configuration
             config = gpiod.line_request()
             config.consumer = "ShopLaserRoom"
             config.request_type = gpiod.line_request.DIRECTION_OUTPUT
-            
-            # Get the line
             line = chip.get_line(pin_offset)
-            
-            # Request the line
+            if line is None:
+                logging.error(f"gpiod.get_line({pin_offset}) returned None for chip {self._chip_name}")
+                return False
             line.request(config)
-            
-            # Set initial value
             line.set_value(initial_value)
-            
-            # Store the line
             self._lines[pin] = {"line": line, "chip": chip}
-            
-            logging.debug(f"Set up GPIO pin {pin} as output with value {initial_value}")
+            logging.info(f"Successfully set up GPIO pin {pin} as output (initial value {initial_value})")
             return True
         except Exception as e:
-            logging.error(f"Failed to set up GPIO pin {pin}: {e}")
+            logging.error(f"Failed to set up GPIO pin {pin} as output: {e}")
             return False
     
     def setup_input(self, pin, pull_up=False):
@@ -703,35 +666,23 @@ class LocalGPIOWrapper:
             return True
             
         try:
-            # Convert pin to integer
             pin_offset = int(pin)
-            
-            # Clean up any existing line
+            logging.info(f"Setting up GPIO pin {pin} (offset {pin_offset}) as input on chip {self._chip_name}")
             if pin in self._lines:
                 self.cleanup(pin)
-            
-            # Get chip
             chip = self._get_chip_for_pin(pin)
-            
-            # Create input configuration
             config = gpiod.line_request()
             config.consumer = "ShopLaserRoom"
             config.request_type = gpiod.line_request.DIRECTION_INPUT
-            
-            # Set pull-up if needed
             if pull_up:
                 config.flags = gpiod.line_request.FLAG_BIAS_PULL_UP
-            
-            # Get the line
             line = chip.get_line(pin_offset)
-            
-            # Request the line
+            if line is None:
+                logging.error(f"gpiod.get_line({pin_offset}) returned None for chip {self._chip_name}")
+                return False
             line.request(config)
-            
-            # Store the line
             self._lines[pin] = {"line": line, "chip": chip}
-            
-            logging.debug(f"Set up GPIO pin {pin} as input")
+            logging.info(f"Successfully set up GPIO pin {pin} as input (pull_up={pull_up})")
             return True
         except Exception as e:
             logging.error(f"Failed to set up GPIO pin {pin}: {e}")
