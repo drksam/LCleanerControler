@@ -305,14 +305,6 @@ class StepperWrapper:
                     if self.enable_pin:
                         self._controller.set_pin(self.enable_pin, 0)  # LOW=Enable
                         logging.info(f"Set EN pin {self.enable_pin} LOW (enable)")
-                    # GPIOController doesn't have a dedicated enable method,
-                    # but we can use move_stepper with 0 steps to enable
-                    self._controller.move_stepper(
-                        id=self._stepper_id, 
-                        steps=0, 
-                        direction=1, 
-                        speed=self._speed
-                    )
                     self._enabled = True
                     logging.info("Stepper motor enabled")
                     return True
