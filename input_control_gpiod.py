@@ -34,6 +34,8 @@ class InputController:
         # Set simulation mode based on system configuration
         self.simulation_mode = operation_mode == 'simulation'
         
+        logging.info(f"InputController __init__: simulation_mode={self.simulation_mode}, operation_mode={operation_mode}")
+        
         # GPIO pin assignments
         self.in_button_pin = config.get('in_button_pin', 5)
         self.out_button_pin = config.get('out_button_pin', 6)
@@ -74,7 +76,9 @@ class InputController:
         else:
             # Initialize GPIO with gpiod
             try:
+                logging.info("Attempting to initialize LocalGPIOWrapper for input controller")
                 self.gpio = LocalGPIOWrapper(simulation_mode=False)
+                logging.info("Input controller initialized with gpiod")
                 
                 # Set up input pins with pull-up resistors
                 self.gpio.setup_input(self.in_button_pin, pull_up=True)

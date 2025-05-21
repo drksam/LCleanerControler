@@ -41,6 +41,7 @@ def setup_parser():
 
 def update_config(mode, debug_level):
     """Update configuration with the specified mode and debug level"""
+    print(f"[DEBUG] update_config called with mode={mode}, debug_level={debug_level}")
     try:
         # Load current config
         with open('machine_config.json', 'r') as f:
@@ -61,6 +62,7 @@ def update_config(mode, debug_level):
             json.dump(config, f, indent=2)
         
         print(f"Configuration updated: operation_mode={mode}, debug_level={debug_level}")
+        print(f"[DEBUG] config['system']['debug_level'] after update: {config['system']['debug_level']}")
         return True
     except Exception as e:
         print(f"Error updating configuration: {e}")
@@ -132,6 +134,7 @@ def main():
         # CRITICAL: In prototype mode, we NEVER want to fall back to simulation
         # mode regardless of IO issues, so we explicitly set SIMULATION_MODE to 'False'
         os.environ['SIMULATION_MODE'] = 'False'
+        os.environ['PROTOTYPE_MODE'] = 'True'
         os.environ['FORCE_HARDWARE'] = 'True'  # Additional flag to force hardware use
         print("PROTOTYPE MODE: Forcing hardware access regardless of I/O issues")
         

@@ -28,6 +28,8 @@ class OutputController:
         # Check if we should force hardware mode (used in prototype mode)
         self.force_hardware = os.environ.get('FORCE_HARDWARE', 'False').lower() == 'true'
         
+        logging.info(f"OutputController __init__: simulation_mode={self.simulation_mode}, operation_mode={operation_mode}")
+        
         # GPIO pin assignments
         self.fan_pin = config.get('fan_pin', 17)
         self.red_lights_pin = config.get('red_lights_pin', 27)
@@ -62,6 +64,7 @@ class OutputController:
         else:
             # Initialize GPIO with gpiod
             try:
+                logging.info("Attempting to initialize LocalGPIOWrapper for output controller")
                 self.gpio = LocalGPIOWrapper(simulation_mode=False)
                 
                 # Set up output pins
@@ -79,13 +82,13 @@ class OutputController:
                 
                 logging.info("Output controller initialized with gpiod")
             except Exception as e:
+                logging.error(f"Failed to initialize output controller with gpiod: {e}")
                 if self.force_hardware:
                     # In prototype mode with FORCE_HARDWARE, we should raise the exception
                     # rather than falling back to simulation mode
-                    logging.error(f"Failed to initialize output controller with FORCE_HARDWARE enabled: {e}")
+                    logging.error("FORCE_HARDWARE is set - cannot fall back to simulation mode")
                     raise
                 else:
-                    logging.error(f"Failed to initialize output controller with gpiod: {e}")
                     self.simulation_mode = True
                     self.gpio = LocalGPIOWrapper(simulation_mode=True)
                     logging.info("Falling back to simulation mode for output controller")

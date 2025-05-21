@@ -18,6 +18,14 @@ operation_mode = system_config.get('operation_mode', 'simulation')
 debug_level = system_config.get('debug_level', 'info')
 bypass_safety = system_config.get('bypass_safety', False)
 
+# DEBUG: Log the loaded config and debug level
+logging.info(f"Loaded system_config: {system_config}")
+logging.info(f"operation_mode: {operation_mode}")
+logging.info(f"debug_level: {debug_level}")
+logging.info(f"bypass_safety: {bypass_safety}")
+logging.info(f"FORCE_HARDWARE: {os.environ.get('FORCE_HARDWARE')}")
+logging.info(f"SIMULATION_MODE: {os.environ.get('SIMULATION_MODE')}")
+
 # Set simulation mode based on system configuration
 if operation_mode == 'simulation':
     os.environ['SIMULATION_MODE'] = 'True'
