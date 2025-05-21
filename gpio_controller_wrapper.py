@@ -583,9 +583,8 @@ class StepperWrapper:
 
 class LocalGPIOWrapper:
     """
-    Wrapper for local GPIO control using gpiod library.
+    Wrapper for local GPIO control using gpiod v1.x API.
     Provides a simple interface for controlling digital outputs.
-    Compatible with gpiod v2.x API.
     """
     
     def __init__(self, simulation_mode=False):
@@ -596,9 +595,8 @@ class LocalGPIOWrapper:
             simulation_mode: Whether to run in simulation mode
         """
         self.simulation_mode = simulation_mode
-        # Use gpiochip0 for Raspberry Pi 5 and most modern Pis
         self._chip_name = 'gpiochip0'
-        self._chip_instances = {}       # Store chip instances by pin for v2.x
+        self._chip_instances = {}
         self._lines = {}
         logging.info(f"LocalGPIOWrapper initialized with chip_name={self._chip_name}, simulation_mode={self.simulation_mode}")
 
@@ -608,6 +606,7 @@ class LocalGPIOWrapper:
         """
         if self._chip_name not in self._chip_instances:
             logging.info(f"Creating new gpiod chip instance for {self._chip_name}")
+            import gpiod
             self._chip_instances[self._chip_name] = gpiod.chip(self._chip_name)
         else:
             logging.debug(f"Using cached gpiod chip instance for {self._chip_name}")
@@ -629,19 +628,17 @@ class LocalGPIOWrapper:
             return True
             
         try:
+            import gpiod
             pin_offset = int(pin)
             logging.info(f"Setting up GPIO pin {pin} (offset {pin_offset}) as output on chip {self._chip_name}")
             if pin in self._lines:
                 self.cleanup(pin)
             chip = self._get_chip_for_pin(pin)
-            config = gpiod.line_request()
-            config.consumer = "ShopLaserRoom"
-            config.request_type = gpiod.line_request.DIRECTION_OUTPUT
             line = chip.get_line(pin_offset)
             if line is None:
                 logging.error(f"gpiod.get_line({pin_offset}) returned None for chip {self._chip_name}")
                 return False
-            line.request(config)
+            line.request(consumer="ShopLaserRoom", type=gpiod.LINE_REQ_DIR_OUT)
             line.set_value(initial_value)
             self._lines[pin] = {"line": line, "chip": chip}
             logging.info(f"Successfully set up GPIO pin {pin} as output (initial value {initial_value})")
@@ -666,21 +663,18 @@ class LocalGPIOWrapper:
             return True
             
         try:
+            import gpiod
             pin_offset = int(pin)
             logging.info(f"Setting up GPIO pin {pin} (offset {pin_offset}) as input on chip {self._chip_name}")
             if pin in self._lines:
                 self.cleanup(pin)
             chip = self._get_chip_for_pin(pin)
-            config = gpiod.line_request()
-            config.consumer = "ShopLaserRoom"
-            config.request_type = gpiod.line_request.DIRECTION_INPUT
-            if pull_up:
-                config.flags = gpiod.line_request.FLAG_BIAS_PULL_UP
             line = chip.get_line(pin_offset)
             if line is None:
                 logging.error(f"gpiod.get_line({pin_offset}) returned None for chip {self._chip_name}")
                 return False
-            line.request(config)
+            # gpiod v1.x does not support pull-up via API; must be set in hardware or device tree
+            line.request(consumer="ShopLaserRoom", type=gpiod.LINE_REQ_DIR_IN)
             self._lines[pin] = {"line": line, "chip": chip}
             logging.info(f"Successfully set up GPIO pin {pin} as input (pull_up={pull_up})")
             return True
