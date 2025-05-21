@@ -287,6 +287,7 @@ temp_controller = None
 temp_initialized = False
 
 def init_controllers(app=None):
+    logging.info("init_controllers() called")
     global controllers_initialized
     if controllers_initialized:
         return

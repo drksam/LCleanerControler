@@ -239,6 +239,16 @@ The `test_run.py` script allows you to test various components of the system in 
    FORCE_HARDWARE=true python test_run.py
    ```
 
+## Running in Debug Mode
+
+To enable full debug logging, use the `--debug-level debug` flag when running the test script:
+
+```
+python3 test_run.py --prototype --debug-level debug
+```
+
+The `--debug` flag alone only enables Flask debug mode (for hot reloading and error pages), but does not set the logging level to debug. Always use `--debug-level debug` for maximum logging detail in logs.
+
 ### Development in Windows Environment
 For development on Windows where Raspberry Pi hardware is not available:
 
