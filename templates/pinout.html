@@ -334,6 +334,108 @@
                             </tbody>
                         </table>
                     </div>
+
+                    <!-- ESP32 Pin Assignments Table -->
+                    <h4 class="mt-4 mb-3">ESP32 Pin Assignments</h4>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-bordered">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>GPIO (ESP32)</th>
+                                    <th>Component</th>
+                                    <th>Function</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>{{ gpio_config.esp_step_pin }}</td>
+                                    <td>Stepper</td>
+                                    <td>STEP</td>
+                                    <td>Stepper step pulse (LOW=Enable)</td>
+                                </tr>
+                                <tr>
+                                    <td>{{ gpio_config.esp_dir_pin }}</td>
+                                    <td>Stepper</td>
+                                    <td>DIR</td>
+                                    <td>Stepper direction</td>
+                                </tr>
+                                <tr>
+                                    <td>{{ gpio_config.esp_enable_pin }}</td>
+                                    <td>Stepper</td>
+                                    <td>EN</td>
+                                    <td>Stepper enable (LOW=Enable)</td>
+                                </tr>
+                                <tr>
+                                    <td>{{ gpio_config.esp_limit_a_pin }}</td>
+                                    <td>Stepper</td>
+                                    <td>Limit A</td>
+                                    <td>Limit switch A (Pull-Up, LOW=Enable)</td>
+                                </tr>
+                                <tr>
+                                    <td>{{ gpio_config.esp_limit_b_pin }}</td>
+                                    <td>Stepper</td>
+                                    <td>Limit B</td>
+                                    <td>Limit switch B (Pull-Up, LOW=Enable)</td>
+                                </tr>
+                                <tr>
+                                    <td>{{ gpio_config.esp_home_pin }}</td>
+                                    <td>Stepper</td>
+                                    <td>Home</td>
+                                    <td>Home switch (Pull-Up, LOW=Enable)</td>
+                                </tr>
+                                <tr>
+                                    <td>{{ gpio_config.esp_servo_pwm_pin }}</td>
+                                    <td>Servo</td>
+                                    <td>PWM</td>
+                                    <td>Servo PWM output</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <h4 class="mt-4 mb-3">All Pin Assignments (Summary)</h4>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-bordered">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Device</th>
+                                    <th>GPIO</th>
+                                    <th>Pin</th>
+                                    <th>Component</th>
+                                    <th>Function</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Raspberry Pi Pins -->
+                                <tr><td rowspan="16" class="align-middle text-center">Raspberry Pi 5</td><td>GPIO {{ gpio_config.step_pin }}</td><td>25</td><td>Stepper</td><td>STEP</td><td>Step pulse</td></tr>
+                                <tr><td>GPIO {{ gpio_config.dir_pin }}</td><td>26</td><td>Stepper</td><td>DIR</td><td>Direction</td></tr>
+                                <tr><td>GPIO {{ gpio_config.enable_pin }}</td><td>27</td><td>Stepper</td><td>EN</td><td>Enable (LOW=Enable)</td></tr>
+                                <tr><td>GPIO {{ gpio_config.home_switch_pin }}</td><td>34</td><td>Stepper</td><td>Home</td><td>Home switch</td></tr>
+                                <tr><td>GPIO {{ gpio_config.servo_pin }}</td><td>12</td><td>Servo</td><td>PWM</td><td>Servo PWM</td></tr>
+                                <tr><td>GPIO {{ gpio_config.button_in_pin }}</td><td>5</td><td>Button</td><td>IN</td><td>Pull-Up, LOW=Enable</td></tr>
+                                <tr><td>GPIO {{ gpio_config.button_out_pin }}</td><td>7</td><td>Button</td><td>OUT</td><td>Pull-Up, LOW=Enable</td></tr>
+                                <tr><td>GPIO {{ gpio_config.fire_button_pin }}</td><td>22</td><td>Button</td><td>FIRE</td><td>Pull-Up, LOW=Enable</td></tr>
+                                <tr><td>GPIO {{ gpio_config.servo_invert_switch_pin }}</td><td>29</td><td>Button</td><td>Invert</td><td>Pull-Up, LOW=Enable</td></tr>
+                                <tr><td>GPIO {{ gpio_config.fan_pin }}</td><td>31</td><td>Output</td><td>Fan</td><td>Fan control</td></tr>
+                                <tr><td>GPIO {{ gpio_config.red_lights_pin }}</td><td>33</td><td>Output</td><td>Red Lights</td><td>Red lights control</td></tr>
+                                <tr><td>GPIO {{ gpio_config.table_forward_pin }}</td><td>26</td><td>Table</td><td>FW</td><td>Table forward</td></tr>
+                                <tr><td>GPIO {{ gpio_config.table_backward_pin }}</td><td>16</td><td>Table</td><td>RV</td><td>Table reverse</td></tr>
+                                <tr><td>GPIO {{ gpio_config.table_front_switch_pin }}</td><td>40</td><td>Table</td><td>FLimit</td><td>Front limit switch</td></tr>
+                                <tr><td>GPIO {{ gpio_config.table_back_switch_pin }}</td><td>38</td><td>Table</td><td>BLimit</td><td>Back limit switch</td></tr>
+                                <tr><td>GPIO 4</td><td>4</td><td>Temp</td><td>1-Wire</td><td>DS18B20</td></tr>
+                                <!-- ESP32 Pins -->
+                                <tr><td rowspan="7" class="align-middle text-center">ESP32</td><td>{{ gpio_config.esp_step_pin }}</td><td>25</td><td>Stepper</td><td>STEP</td><td>Step pulse (LOW=Enable)</td></tr>
+                                <tr><td>{{ gpio_config.esp_dir_pin }}</td><td>26</td><td>Stepper</td><td>DIR</td><td>Direction</td></tr>
+                                <tr><td>{{ gpio_config.esp_enable_pin }}</td><td>27</td><td>Stepper</td><td>EN</td><td>Enable (LOW=Enable)</td></tr>
+                                <tr><td>{{ gpio_config.esp_limit_a_pin }}</td><td>32</td><td>Stepper</td><td>Limit A</td><td>Pull-Up, LOW=Enable</td></tr>
+                                <tr><td>{{ gpio_config.esp_limit_b_pin }}</td><td>33</td><td>Stepper</td><td>Limit B</td><td>Pull-Up, LOW=Enable</td></tr>
+                                <tr><td>{{ gpio_config.esp_home_pin }}</td><td>34</td><td>Stepper</td><td>Home</td><td>Pull-Up, LOW=Enable</td></tr>
+                                <tr><td>{{ gpio_config.esp_servo_pwm_pin }}</td><td>12</td><td>Servo</td><td>PWM</td><td>Servo PWM</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                     
                     <h4 class="mt-4 mb-3">Power Connections</h4>
                     <div class="table-responsive">

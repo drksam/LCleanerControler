@@ -292,7 +292,7 @@ def init_controllers(app=None):
     if controllers_initialized:
         return
     controllers_initialized = True
-    import os, sys, logging, time, threading
+    import os, sys, time, threading  # Removed 'logging' from here
     from functools import wraps
     import config
     from models import User, AccessLog, RFIDCard, ApiKey
@@ -319,7 +319,40 @@ def init_controllers(app=None):
     # For any use of 'app', use the passed-in app argument, not a global
     # For example, in stop_all_operations, use app.logger.warning(...)
     # If app is None, skip app-context-dependent code
-    # ...existing code...
+
+    # --- Begin hardware controller initialization ---
+    try:
+        output_controller = OutputController()
+        outputs_initialized = True
+        logging.info("OutputController initialized successfully")
+    except Exception as e:
+        outputs_initialized = False
+        logging.error(f"Failed to initialize OutputController: {e}")
+
+    try:
+        servo = ServoController()
+        servo_initialized = True
+        logging.info("ServoController initialized successfully")
+    except Exception as e:
+        servo_initialized = False
+        logging.error(f"Failed to initialize ServoController: {e}")
+
+    try:
+        stepper = StepperMotor()
+        motor_initialized = True
+        logging.info("StepperMotor initialized successfully")
+    except Exception as e:
+        motor_initialized = False
+        logging.error(f"Failed to initialize StepperMotor: {e}")
+
+    try:
+        input_controller = InputController()
+        inputs_initialized = True
+        logging.info("InputController initialized successfully")
+    except Exception as e:
+        inputs_initialized = False
+        logging.error(f"Failed to initialize InputController: {e}")
+    # --- End hardware controller initialization ---
 
 # Only define blueprint and routes at the top level
 main_bp = Blueprint('main_bp', __name__)

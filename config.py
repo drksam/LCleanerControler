@@ -108,7 +108,15 @@ DEFAULT_CONFIG = {
         'table_forward_pin': 16,          # Table forward movement relay pin
         'table_backward_pin': 20,         # Table backward movement relay pin
         'table_front_switch_pin': 19,     # Table front end switch pin
-        'table_back_switch_pin': 21       # Table back end switch pin
+        'table_back_switch_pin': 21,      # Table back end switch pin
+        # ESP32 control pins
+        'esp_step_pin': 32,               # ESP32 Stepper motor STEP pin
+        'esp_dir_pin': 33,                # ESP32 Stepper motor DIR pin
+        'esp_enable_pin': 25,             # ESP32 Stepper motor ENABLE pin
+        'esp_limit_a_pin': 26,            # ESP32 Limit switch A pin
+        'esp_limit_b_pin': 27,            # ESP32 Limit switch B pin
+        'esp_home_pin': 14,               # ESP32 Home switch pin
+        'esp_servo_pwm_pin': 12           # ESP32 Servo PWM pin
     }
 }
 
@@ -180,17 +188,20 @@ def get_gpio_config():
         'button_out_pin': 'out_button_pin',
         'servo_invert_switch_pin': 'servo_invert_pin',
         'table_front_switch_pin': 'table_front_limit_pin',
-        'table_back_switch_pin': 'table_back_limit_pin'
+        'table_back_switch_pin': 'table_back_limit_pin',
+        # ESP32 mappings
+        'esp_step_pin': 'esp_step_pin',
+        'esp_dir_pin': 'esp_dir_pin',
+        'esp_enable_pin': 'esp_enable_pin',
+        'esp_limit_a_pin': 'esp_limit_a_pin',
+        'esp_limit_b_pin': 'esp_limit_b_pin',
+        'esp_home_pin': 'esp_home_pin',
+        'esp_servo_pwm_pin': 'esp_servo_pwm_pin',
     }
-    
-    # Create a copy of the config with updated pin names for the template
     mapped_config = gpio_config.copy()
-    
-    # Add the mapped pin names to the config if they exist in the original config
     for old_name, new_name in pin_mapping.items():
         if old_name in gpio_config:
             mapped_config[new_name] = gpio_config[old_name]
-    
     return mapped_config
 
 def get_statistics():

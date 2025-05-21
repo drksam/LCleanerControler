@@ -1,0 +1,41 @@
+Default pinout.txt
+
+
+ESP32 
+    Stepper 
+        Outputs
+            EN 27 (LOW=Enable)
+            DIR 26
+            STEP 25
+        Inputs 
+            Limit A 32 (Pull-Up, LOW=Enable)
+            Limit B 33 (Pull-Up, LOW=Enable)
+            Home 34 (Pull-Up, LOW=Enable)
+    Servo
+        PWM 12
+
+Raspberry Pi5
+    Temp (1-Wire)
+        4
+    Table I/O
+        Out
+            FW 26
+            RV 16
+        In
+            FLimit 40 (Pull-Up, LOW=Enable)
+            BLimit 38 (Pull-Up, LOW=Enable)
+
+    Buttons/Switch
+        In 5 (Pull-Up, LOW=Enable)
+        OUT 7 (Pull-Up, LOW=Enable)
+        FIRE 22 (Pull-Up, LOW=Enable)
+        Invert 29 (Pull-Up, LOW=Enable)
+    Other Outputs
+        Fan 31
+        Red Lights 33
+
+    RFID
+        MOSI 19 
+        MISO 20
+        SCLK 23
+        CE0 24
