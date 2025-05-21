@@ -298,9 +298,13 @@ class StepperWrapper:
                 logging.debug("Simulation: Stepper motor enabled")
                 self._enabled = True
                 return True
-                
+            
             if self._controller:
                 try:
+                    # Explicitly set EN pin LOW (active low) if defined
+                    if self.enable_pin:
+                        self._controller.set_pin(self.enable_pin, 0)  # LOW=Enable
+                        logging.info(f"Set EN pin {self.enable_pin} LOW (enable)")
                     # GPIOController doesn't have a dedicated enable method,
                     # but we can use move_stepper with 0 steps to enable
                     self._controller.move_stepper(
@@ -316,7 +320,7 @@ class StepperWrapper:
                     logging.error(f"Failed to enable stepper motor: {e}")
                     return False
             return False
-    
+
     def disable(self):
         """Disable the stepper motor."""
         with self.lock:
@@ -324,11 +328,14 @@ class StepperWrapper:
                 logging.debug("Simulation: Stepper motor disabled")
                 self._enabled = False
                 return True
-                
+            
             if self._controller:
                 try:
-                    # GPIOController doesn't have a dedicated disable method,
-                    # but we can stop the stepper which should release it
+                    # Explicitly set EN pin HIGH (active low) if defined
+                    if self.enable_pin:
+                        self._controller.set_pin(self.enable_pin, 1)  # HIGH=Disable
+                        logging.info(f"Set EN pin {self.enable_pin} HIGH (disable)")
+                    # Stop the stepper which should release it
                     self._controller.stop_stepper(id=self._stepper_id)
                     self._enabled = False
                     logging.info("Stepper motor disabled")

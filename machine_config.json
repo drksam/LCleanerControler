@@ -13,9 +13,7 @@
     "jog_step_size": 20,
     "steps_per_mm": 100,
     "max_position": 50000,
-    "min_position": -50000,
-    "limit_a_pin": 27,
-    "limit_b_pin": 22
+    "min_position": -50000
   },
   "servo": {
     "position_normal": 75,
