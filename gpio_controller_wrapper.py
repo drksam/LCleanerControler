@@ -583,7 +583,7 @@ class StepperWrapper:
 
 class LocalGPIOWrapper:
     """
-    Wrapper for local GPIO control using gpiod v1.x API.
+    Wrapper for local GPIO control using gpiod v2.x API.
     Provides a simple interface for controlling digital outputs.
     """
     
@@ -605,30 +605,20 @@ class LocalGPIOWrapper:
         Get a chip instance for a specific pin, creating it if needed.
         """
         if self._chip_name not in self._chip_instances:
-            logging.info(f"Creating new gpiod chip instance for {self._chip_name}")
-            import gpiod
-            self._chip_instances[self._chip_name] = gpiod.chip(self._chip_name)
+            logging.info(f"Creating new gpiod Chip instance for {self._chip_name}")
+            self._chip_instances[self._chip_name] = gpiod.Chip(self._chip_name)
         else:
-            logging.debug(f"Using cached gpiod chip instance for {self._chip_name}")
+            logging.debug(f"Using cached gpiod Chip instance for {self._chip_name}")
         return self._chip_instances[self._chip_name]
 
     def setup_output(self, pin, initial_value=0):
         """
         Set up a GPIO pin as an output.
-        
-        Args:
-            pin: GPIO pin number
-            initial_value: Initial pin value (0 or 1)
-        
-        Returns:
-            True if successful, False otherwise
         """
         if self.simulation_mode:
             logging.debug(f"Simulation: Set up GPIO pin {pin} as output with value {initial_value}")
             return True
-            
         try:
-            import gpiod
             pin_offset = int(pin)
             logging.info(f"Setting up GPIO pin {pin} (offset {pin_offset}) as output on chip {self._chip_name}")
             if pin in self._lines:
@@ -636,7 +626,7 @@ class LocalGPIOWrapper:
             chip = self._get_chip_for_pin(pin)
             line = chip.get_line(pin_offset)
             if line is None:
-                logging.error(f"gpiod.get_line({pin_offset}) returned None for chip {self._chip_name}")
+                logging.error(f"gpiod.Chip.get_line({pin_offset}) returned None for chip {self._chip_name}")
                 return False
             line.request(consumer="ShopLaserRoom", type=gpiod.LINE_REQ_DIR_OUT)
             line.set_value(initial_value)
@@ -646,24 +636,15 @@ class LocalGPIOWrapper:
         except Exception as e:
             logging.error(f"Failed to set up GPIO pin {pin} as output: {e}")
             return False
-    
+
     def setup_input(self, pin, pull_up=False):
         """
         Set up a GPIO pin as an input.
-        
-        Args:
-            pin: GPIO pin number
-            pull_up: Whether to use pull-up resistor
-        
-        Returns:
-            True if successful, False otherwise
         """
         if self.simulation_mode:
             logging.debug(f"Simulation: Set up GPIO pin {pin} as input")
             return True
-            
         try:
-            import gpiod
             pin_offset = int(pin)
             logging.info(f"Setting up GPIO pin {pin} (offset {pin_offset}) as input on chip {self._chip_name}")
             if pin in self._lines:
@@ -671,10 +652,16 @@ class LocalGPIOWrapper:
             chip = self._get_chip_for_pin(pin)
             line = chip.get_line(pin_offset)
             if line is None:
-                logging.error(f"gpiod.get_line({pin_offset}) returned None for chip {self._chip_name}")
+                logging.error(f"gpiod.Chip.get_line({pin_offset}) returned None for chip {self._chip_name}")
                 return False
-            # gpiod v1.x does not support pull-up via API; must be set in hardware or device tree
-            line.request(consumer="ShopLaserRoom", type=gpiod.LINE_REQ_DIR_IN)
+            flags = 0
+            if pull_up:
+                # Use bias pull-up if available (gpiod v2.x)
+                try:
+                    flags = gpiod.LINE_REQ_FLAG_BIAS_PULL_UP
+                except AttributeError:
+                    logging.warning("gpiod.LINE_REQ_FLAG_BIAS_PULL_UP not available; ensure hardware pull-up is present")
+            line.request(consumer="ShopLaserRoom", type=gpiod.LINE_REQ_DIR_IN, flags=flags)
             self._lines[pin] = {"line": line, "chip": chip}
             logging.info(f"Successfully set up GPIO pin {pin} as input (pull_up={pull_up})")
             return True
