@@ -1,0 +1,419 @@
+(venv) laser@raspberrypi:~/Downloads/LCleanerControler-main $ python3 test_run.py --prototype --debug-level debug
+[DEBUG] update_config called with mode=prototype, debug_level=debug
+Configuration updated: operation_mode=prototype, debug_level=debug
+[DEBUG] config['system']['debug_level'] after update: debug
+PROTOTYPE MODE: Forcing hardware access regardless of I/O issues
+
+================================================================================
+Starting NooyenLaserRoom Control System in PROTOTYPE mode
+Debug level: DEBUG
+Access the interface at: http://localhost:5000 or http://<your-ip-address>:5000
+Press Ctrl+C to stop the server
+================================================================================
+
+Starting application with Gunicorn on port 5000...
+[2025-05-28 11:43:17 -0400] [2676] [INFO] Starting gunicorn 21.2.0
+[2025-05-28 11:43:17 -0400] [2676] [INFO] Listening at: http://0.0.0.0:5000 (2676)
+[2025-05-28 11:43:17 -0400] [2676] [INFO] Using worker: sync
+[2025-05-28 11:43:17 -0400] [2677] [INFO] Booting worker with pid: 2677
+2025-05-28 11:43:17,709 - main - WARNING - DATABASE_URL environment variable not set! Using SQLite database as fallback.
+2025-05-28 11:43:17,709 - main - WARNING - For production use, please set DATABASE_URL environment variable to your PostgreSQL connection string.
+2025-05-28 11:43:17,709 - main - WARNING - Example: export DATABASE_URL='postgresql://username:password@localhost/shop_suite_db'
+2025-05-28 11:43:17,709 - main - INFO - Using SQLite without schema separation for development/prototype mode
+2025-05-28 11:43:17,750 - sync_handler - INFO - Initializing Shop Suite synchronization
+2025-05-28 11:43:17,895 - tzlocal - DEBUG - /etc/timezone found, contents:
+ America/New_York
+
+2025-05-28 11:43:17,895 - tzlocal - DEBUG - /etc/localtime found
+2025-05-28 11:43:17,896 - tzlocal - DEBUG - 2 found:
+ {'/etc/timezone': 'America/New_York', '/etc/localtime is a symlink to': 'America/New_York'}
+2025-05-28 11:43:17,896 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-05-28 11:43:17,896 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-05-28 11:43:17,897 - apscheduler.scheduler - INFO - Added job "Process pending sync events" to job store "default"
+2025-05-28 11:43:17,897 - apscheduler.scheduler - INFO - Added job "Synchronize users with suite database" to job store "default"
+2025-05-28 11:43:17,897 - apscheduler.scheduler - INFO - Scheduler started
+2025-05-28 11:43:17,897 - apscheduler.scheduler - DEBUG - Looking for jobs to run
+2025-05-28 11:43:17,897 - sync_handler - INFO - Sync tasks registered with scheduler
+2025-05-28 11:43:17,898 - apscheduler.scheduler - DEBUG - Next wakeup is due at 2025-05-28 11:48:17.896453-04:00 (in 299.998449 seconds)
+2025-05-28 11:43:17,898 - main - INFO - Shop Suite synchronization tasks scheduled
+2025-05-28 11:43:17,979 - root - INFO - Configuration loaded from /home/laser/Downloads/LCleanerControler-main/machine_config.json
+2025-05-28 11:43:17,980 - webhook_handler - INFO - Webhook target configured: https://Shopmachinemonitor.replit.app/api/auth/webhooks
+2025-05-28 11:43:17,980 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-05-28 11:43:17,980 - apscheduler.scheduler - INFO - Added job "Retry failed webhook deliveries" to job store "default"
+2025-05-28 11:43:17,980 - apscheduler.scheduler - INFO - Scheduler started
+2025-05-28 11:43:17,980 - apscheduler.scheduler - DEBUG - Looking for jobs to run
+2025-05-28 11:43:17,980 - webhook_handler - INFO - Webhook retry task registered with scheduler
+2025-05-28 11:43:17,980 - apscheduler.scheduler - DEBUG - Next wakeup is due at 2025-05-28 11:48:17.980175-04:00 (in 299.999277 seconds)
+2025-05-28 11:43:17,980 - main - INFO - Webhook retry tasks scheduled
+2025-05-28 11:43:17,981 - webhook_handler - DEBUG - Sending webhook to https://Shopmachinemonitor.replit.app/api/auth/webhooks: node.status_change
+2025-05-28 11:43:18,000 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): shopmachinemonitor.replit.app:443
+2025-05-28 11:43:18,010 - main - INFO - Registered 10 API routes
+2025-05-28 11:43:18,010 - main - INFO - API routes registered successfully
+2025-05-28 11:43:18,030 - root - INFO - Loaded system_config: {'operation_mode': 'prototype', 'debug_level': 'debug', 'bypass_safety': False, 'use_gpioctrl': True}
+2025-05-28 11:43:18,031 - root - INFO - operation_mode: prototype
+2025-05-28 11:43:18,031 - root - INFO - debug_level: debug
+2025-05-28 11:43:18,031 - root - INFO - bypass_safety: False
+2025-05-28 11:43:18,031 - root - INFO - FORCE_HARDWARE: True
+2025-05-28 11:43:18,031 - root - INFO - SIMULATION_MODE: False
+2025-05-28 11:43:18,031 - root - INFO - PROTOTYPE MODE: Setting FORCE_HARDWARE flag to prevent simulation fallback
+2025-05-28 11:43:18,031 - app - INFO - Flask and extensions imported successfully
+2025-05-28 11:43:18,039 - root - INFO - Configuration loaded from /home/laser/Downloads/LCleanerControler-main/machine_config.json
+2025-05-28 11:43:18,040 - root - INFO - Running in prototype mode - RFID hardware will be used but not required
+2025-05-28 11:43:18,081 - app - INFO - Using GPIOController implementation for GPIO
+2025-05-28 11:43:18,111 - root - INFO - init_controllers() called
+2025-05-28 11:43:18,115 - root - INFO - OutputController __init__: simulation_mode=False, operation_mode=prototype
+2025-05-28 11:43:18,115 - root - INFO - Attempting to initialize LocalGPIOWrapper for output controller
+2025-05-28 11:43:18,115 - root - INFO - LocalGPIOWrapper initialized with chip_name=gpiochip0, simulation_mode=False
+2025-05-28 11:43:18,115 - root - INFO - Setting up GPIO pin 31 (offset 31) as output on chip gpiochip0
+2025-05-28 11:43:18,115 - root - INFO - Creating new gpiod Chip instance for gpiochip0
+2025-05-28 11:43:18,115 - root - ERROR - Failed to set up GPIO pin 31 as output: [Errno 2] No such file or directory
+2025-05-28 11:43:18,115 - root - INFO - Setting up GPIO pin 33 (offset 33) as output on chip gpiochip0
+2025-05-28 11:43:18,115 - root - INFO - Creating new gpiod Chip instance for gpiochip0
+2025-05-28 11:43:18,115 - root - ERROR - Failed to set up GPIO pin 33 as output: [Errno 2] No such file or directory
+2025-05-28 11:43:18,115 - root - INFO - Setting up GPIO pin 26 (offset 26) as output on chip gpiochip0
+2025-05-28 11:43:18,115 - root - INFO - Creating new gpiod Chip instance for gpiochip0
+2025-05-28 11:43:18,115 - root - ERROR - Failed to set up GPIO pin 26 as output: [Errno 2] No such file or directory
+2025-05-28 11:43:18,115 - root - INFO - Setting up GPIO pin 16 (offset 16) as output on chip gpiochip0
+2025-05-28 11:43:18,115 - root - INFO - Creating new gpiod Chip instance for gpiochip0
+2025-05-28 11:43:18,115 - root - ERROR - Failed to set up GPIO pin 16 as output: [Errno 2] No such file or directory
+2025-05-28 11:43:18,115 - root - INFO - Setting up GPIO pin 40 (offset 40) as input on chip gpiochip0
+2025-05-28 11:43:18,115 - root - INFO - Creating new gpiod Chip instance for gpiochip0
+2025-05-28 11:43:18,115 - root - ERROR - Failed to set up GPIO pin 40: [Errno 2] No such file or directory
+2025-05-28 11:43:18,115 - root - INFO - Setting up GPIO pin 38 (offset 38) as input on chip gpiochip0
+2025-05-28 11:43:18,115 - root - INFO - Creating new gpiod Chip instance for gpiochip0
+2025-05-28 11:43:18,115 - root - ERROR - Failed to set up GPIO pin 38: [Errno 2] No such file or directory
+2025-05-28 11:43:18,116 - root - INFO - Table reached front limit switch
+2025-05-28 11:43:18,116 - root - INFO - Output controller initialized with gpiod
+2025-05-28 11:43:18,116 - root - DEBUG - Table forward off
+2025-05-28 11:43:18,116 - root - INFO - OutputController initialized successfully
+2025-05-28 11:43:18,116 - root - INFO - Table reached back limit switch
+2025-05-28 11:43:18,116 - root - INFO - ServoWrapper __init__: simulation_mode=False, FORCE_HARDWARE=True, GPIOCTRL_AVAILABLE=True
+2025-05-28 11:43:18,116 - root - DEBUG - Table backward off
+2025-05-28 11:43:18,116 - root - INFO - Attempting to initialize GPIOController for servo on port /dev/ttyUSB0
+2025-05-28 11:43:18,136 - root - INFO - GPIOController initialized for servo
+2025-05-28 11:43:18,137 - root - INFO - Initialized ServoWrapper with GPIOController on pin 12
+2025-05-28 11:43:18,137 - root - INFO - Servo initialized on pin 12 using port /dev/ttyUSB0
+2025-05-28 11:43:18,137 - root - INFO - ServoController initialized successfully
+2025-05-28 11:43:18,137 - root - INFO - StepperWrapper __init__: simulation_mode=False, FORCE_HARDWARE=True, GPIOCTRL_AVAILABLE=True
+2025-05-28 11:43:18,137 - root - INFO - Attempting to initialize GPIOController for stepper on port /dev/ttyUSB0
+2025-05-28 11:43:18,139 - root - INFO - GPIOController initialized for stepper
+2025-05-28 11:43:18,139 - root - INFO - Initialized StepperWrapper with GPIOController
+2025-05-28 11:43:18,139 - root - DEBUG - Stepper speed set to 1000
+2025-05-28 11:43:18,139 - root - INFO - Set EN pin 27 LOW (enable)
+2025-05-28 11:43:18,139 - root - INFO - Stepper motor enabled
+2025-05-28 11:43:18,139 - root - INFO - Stepper motor auto-enabled during initialization
+2025-05-28 11:43:18,139 - root - INFO - Stepper motor initialized with GPIOController on port /dev/ttyUSB0
+2025-05-28 11:43:18,139 - root - INFO - StepperMotor initialized successfully
+2025-05-28 11:43:18,139 - root - INFO - InputController __init__: simulation_mode=False, operation_mode=prototype
+2025-05-28 11:43:18,140 - root - INFO - Attempting to initialize LocalGPIOWrapper for input controller
+2025-05-28 11:43:18,140 - root - INFO - LocalGPIOWrapper initialized with chip_name=gpiochip0, simulation_mode=False
+2025-05-28 11:43:18,140 - root - INFO - Input controller initialized with gpiod
+2025-05-28 11:43:18,140 - root - INFO - Setting up GPIO pin 5 (offset 5) as input on chip gpiochip0
+2025-05-28 11:43:18,140 - root - INFO - Creating new gpiod Chip instance for gpiochip0
+2025-05-28 11:43:18,140 - root - ERROR - Failed to set up GPIO pin 5: [Errno 2] No such file or directory
+2025-05-28 11:43:18,140 - root - INFO - Setting up GPIO pin 7 (offset 7) as input on chip gpiochip0
+2025-05-28 11:43:18,140 - root - INFO - Creating new gpiod Chip instance for gpiochip0
+2025-05-28 11:43:18,140 - root - ERROR - Failed to set up GPIO pin 7: [Errno 2] No such file or directory
+2025-05-28 11:43:18,140 - root - INFO - Setting up GPIO pin 22 (offset 22) as input on chip gpiochip0
+2025-05-28 11:43:18,140 - root - INFO - Creating new gpiod Chip instance for gpiochip0
+2025-05-28 11:43:18,140 - root - ERROR - Failed to set up GPIO pin 22: [Errno 2] No such file or directory
+2025-05-28 11:43:18,140 - root - INFO - Setting up GPIO pin 29 (offset 29) as input on chip gpiochip0
+2025-05-28 11:43:18,140 - root - INFO - Creating new gpiod Chip instance for gpiochip0
+2025-05-28 11:43:18,140 - root - ERROR - Failed to set up GPIO pin 29: [Errno 2] No such file or directory
+2025-05-28 11:43:18,141 - root - INFO - Input controller initialized with gpiod
+2025-05-28 11:43:18,141 - root - INFO - InputController initialized successfully
+Error in _listen: device reports readiness to read but returned no data (device disconnected or multiple access on port?)
+Error in _listen: device reports readiness to read but returned no data (device disconnected or multiple access on port?)
+Error in _listen: Expecting value: line 1 column 1 (char 0)
+Error in _listen: Expecting value: line 1 column 1 (char 0)
+2025-05-28 11:43:18,340 - urllib3.connectionpool - DEBUG - https://shopmachinemonitor.replit.app:443 "POST /api/auth/webhooks HTTP/1.1" 404 9
+2025-05-28 11:43:18,340 - webhook_handler - WARNING - Webhook delivery failed with status 404: Not Found
+Error in _listen: Expecting ',' delimiter: line 1 column 15 (char 14)
+2025-05-28 11:43:32,581 - app - DEBUG - Simulated temperature status returned
+2025-05-28 11:43:38,170 - root - DEBUG - Set servo on pin 12 to 0 degrees
+2025-05-28 11:43:38,170 - root - INFO - Moved to position A (0 degrees)
+Error in _listen: Expecting ':' delimiter: line 1 column 6 (char 5)
+Error in _listen: device reports readiness to read but returned no data (device disconnected or multiple access on port?)
+Error in _listen: Expecting value: line 1 column 1 (char 0)
+Error in _listen: device reports readiness to read but returned no data (device disconnected or multiple access on port?)
+2025-05-28 11:43:39,172 - root - INFO - Closed servo on pin 12
+2025-05-28 11:43:39,172 - root - INFO - Servo detached
+2025-05-28 11:43:39,751 - root - INFO - ServoWrapper __init__: simulation_mode=False, FORCE_HARDWARE=True, GPIOCTRL_AVAILABLE=True
+2025-05-28 11:43:39,751 - root - INFO - Attempting to initialize GPIOController for servo on port /dev/ttyUSB0
+2025-05-28 11:43:39,755 - root - INFO - GPIOController initialized for servo
+2025-05-28 11:43:39,756 - root - INFO - Initialized ServoWrapper with GPIOController on pin 12
+2025-05-28 11:43:39,756 - root - INFO - Servo reattached to pin 12
+2025-05-28 11:43:39,757 - root - DEBUG - Set servo on pin 12 to 90 degrees
+2025-05-28 11:43:39,758 - root - INFO - Moved to position B (90 degrees)
+Error in _listen: Expecting ':' delimiter: line 1 column 9 (char 8)
+Error in _listen: Expecting ':' delimiter: line 1 column 5 (char 4)
+Error in _listen: Expecting value: line 1 column 1 (char 0)
+2025-05-28 11:43:40,759 - root - INFO - Closed servo on pin 12
+2025-05-28 11:43:40,759 - root - INFO - Servo detached
+Error in _listen: Expecting value: line 1 column 1 (char 0)
+2025-05-28 11:43:41,664 - root - INFO - ServoWrapper __init__: simulation_mode=False, FORCE_HARDWARE=True, GPIOCTRL_AVAILABLE=True
+2025-05-28 11:43:41,664 - root - INFO - Attempting to initialize GPIOController for servo on port /dev/ttyUSB0
+2025-05-28 11:43:41,668 - root - INFO - GPIOController initialized for servo
+2025-05-28 11:43:41,669 - root - INFO - Initialized ServoWrapper with GPIOController on pin 12
+2025-05-28 11:43:41,669 - root - INFO - Servo reattached to pin 12
+2025-05-28 11:43:41,670 - root - DEBUG - Set servo on pin 12 to 90 degrees
+2025-05-28 11:43:41,670 - root - INFO - Moved to position B (90 degrees)
+Error in _listen: device reports readiness to read but returned no data (device disconnected or multiple access on port?)
+Error in _listen: Expecting value: line 1 column 1 (char 0)
+Error in _listen: Expecting ':' delimiter: line 1 column 12 (char 11)
+2025-05-28 11:43:42,670 - root - INFO - Closed servo on pin 12
+2025-05-28 11:43:42,670 - root - INFO - Servo detached
+2025-05-28 11:43:43,071 - root - INFO - ServoWrapper __init__: simulation_mode=False, FORCE_HARDWARE=True, GPIOCTRL_AVAILABLE=True
+2025-05-28 11:43:43,071 - root - INFO - Attempting to initialize GPIOController for servo on port /dev/ttyUSB0
+2025-05-28 11:43:43,073 - root - INFO - GPIOController initialized for servo
+2025-05-28 11:43:43,074 - root - INFO - Initialized ServoWrapper with GPIOController on pin 12
+2025-05-28 11:43:43,074 - root - INFO - Servo reattached to pin 12
+2025-05-28 11:43:43,074 - root - DEBUG - Set servo on pin 12 to 90 degrees
+2025-05-28 11:43:43,074 - root - INFO - Moved to position B (90 degrees)
+Error in _listen: device reports readiness to read but returned no data (device disconnected or multiple access on port?)
+Error in _listen: Extra data: line 1 column 17 (char 16)
+Error in _listen: Expecting value: line 1 column 1 (char 0)
+Error in _listen: device reports readiness to read but returned no data (device disconnected or multiple access on port?)
+Error in _listen: device reports readiness to read but returned no data (device disconnected or multiple access on port?)
+Error in _listen: Expecting value: line 1 column 1 (char 0)
+Error in _listen: Extra data: line 1 column 7 (char 6)
+2025-05-28 11:43:44,586 - root - INFO - Closed servo on pin 12
+2025-05-28 11:43:44,586 - root - INFO - Servo detached
+2025-05-28 11:43:51,893 - root - INFO - Jogging forward 10 steps
+[2025-05-28 11:44:22 -0400] [2676] [CRITICAL] WORKER TIMEOUT (pid:2677)
+[2025-05-28 11:44:22 -0400] [2677] [INFO] Worker exiting (pid: 2677)
+[2025-05-28 11:44:27 -0400] [2676] [ERROR] Worker (pid:2677) exited with code 1
+[2025-05-28 11:44:27 -0400] [2676] [ERROR] Worker (pid:2677) exited with code 1.
+[2025-05-28 11:44:27 -0400] [2713] [INFO] Booting worker with pid: 2713
+2025-05-28 11:44:28,128 - main - WARNING - DATABASE_URL environment variable not set! Using SQLite database as fallback.
+2025-05-28 11:44:28,128 - main - WARNING - For production use, please set DATABASE_URL environment variable to your PostgreSQL connection string.
+2025-05-28 11:44:28,128 - main - WARNING - Example: export DATABASE_URL='postgresql://username:password@localhost/shop_suite_db'
+2025-05-28 11:44:28,128 - main - INFO - Using SQLite without schema separation for development/prototype mode
+2025-05-28 11:44:28,155 - sync_handler - INFO - Initializing Shop Suite synchronization
+2025-05-28 11:44:28,235 - tzlocal - DEBUG - /etc/timezone found, contents:
+ America/New_York
+
+2025-05-28 11:44:28,236 - tzlocal - DEBUG - /etc/localtime found
+2025-05-28 11:44:28,236 - tzlocal - DEBUG - 2 found:
+ {'/etc/timezone': 'America/New_York', '/etc/localtime is a symlink to': 'America/New_York'}
+2025-05-28 11:44:28,237 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-05-28 11:44:28,237 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-05-28 11:44:28,237 - apscheduler.scheduler - INFO - Added job "Process pending sync events" to job store "default"
+2025-05-28 11:44:28,237 - apscheduler.scheduler - INFO - Added job "Synchronize users with suite database" to job store "default"
+2025-05-28 11:44:28,237 - apscheduler.scheduler - INFO - Scheduler started
+2025-05-28 11:44:28,238 - apscheduler.scheduler - DEBUG - Looking for jobs to run
+2025-05-28 11:44:28,238 - sync_handler - INFO - Sync tasks registered with scheduler
+2025-05-28 11:44:28,238 - apscheduler.scheduler - DEBUG - Next wakeup is due at 2025-05-28 11:49:28.236972-04:00 (in 299.998848 seconds)
+2025-05-28 11:44:28,238 - main - INFO - Shop Suite synchronization tasks scheduled
+2025-05-28 11:44:28,275 - root - INFO - Configuration loaded from /home/laser/Downloads/LCleanerControler-main/machine_config.json
+2025-05-28 11:44:28,276 - webhook_handler - INFO - Webhook target configured: https://Shopmachinemonitor.replit.app/api/auth/webhooks
+2025-05-28 11:44:28,276 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-05-28 11:44:28,276 - apscheduler.scheduler - INFO - Added job "Retry failed webhook deliveries" to job store "default"
+2025-05-28 11:44:28,276 - apscheduler.scheduler - INFO - Scheduler started
+2025-05-28 11:44:28,277 - apscheduler.scheduler - DEBUG - Looking for jobs to run
+2025-05-28 11:44:28,277 - webhook_handler - INFO - Webhook retry task registered with scheduler
+2025-05-28 11:44:28,277 - apscheduler.scheduler - DEBUG - Next wakeup is due at 2025-05-28 11:49:28.276254-04:00 (in 299.999158 seconds)
+2025-05-28 11:44:28,277 - main - INFO - Webhook retry tasks scheduled
+2025-05-28 11:44:28,277 - webhook_handler - DEBUG - Sending webhook to https://Shopmachinemonitor.replit.app/api/auth/webhooks: node.status_change
+2025-05-28 11:44:28,296 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): shopmachinemonitor.replit.app:443
+2025-05-28 11:44:28,302 - main - INFO - Registered 10 API routes
+2025-05-28 11:44:28,303 - main - INFO - API routes registered successfully
+2025-05-28 11:44:28,303 - root - INFO - Loaded system_config: {'operation_mode': 'prototype', 'debug_level': 'debug', 'bypass_safety': False, 'use_gpioctrl': True}
+2025-05-28 11:44:28,303 - root - INFO - operation_mode: prototype
+2025-05-28 11:44:28,304 - root - INFO - debug_level: debug
+2025-05-28 11:44:28,304 - root - INFO - bypass_safety: False
+2025-05-28 11:44:28,304 - root - INFO - FORCE_HARDWARE: True
+2025-05-28 11:44:28,304 - root - INFO - SIMULATION_MODE: False
+2025-05-28 11:44:28,304 - root - INFO - PROTOTYPE MODE: Setting FORCE_HARDWARE flag to prevent simulation fallback
+2025-05-28 11:44:28,304 - app - INFO - Flask and extensions imported successfully
+2025-05-28 11:44:28,304 - root - INFO - Configuration loaded from /home/laser/Downloads/LCleanerControler-main/machine_config.json
+2025-05-28 11:44:28,304 - root - INFO - Running in prototype mode - RFID hardware will be used but not required
+2025-05-28 11:44:28,316 - app - INFO - Using GPIOController implementation for GPIO
+2025-05-28 11:44:28,334 - root - INFO - init_controllers() called
+2025-05-28 11:44:28,335 - root - INFO - OutputController __init__: simulation_mode=False, operation_mode=prototype
+2025-05-28 11:44:28,335 - root - INFO - Attempting to initialize LocalGPIOWrapper for output controller
+2025-05-28 11:44:28,335 - root - INFO - LocalGPIOWrapper initialized with chip_name=gpiochip0, simulation_mode=False
+2025-05-28 11:44:28,335 - root - INFO - Setting up GPIO pin 31 (offset 31) as output on chip gpiochip0
+2025-05-28 11:44:28,335 - root - INFO - Creating new gpiod Chip instance for gpiochip0
+2025-05-28 11:44:28,335 - root - ERROR - Failed to set up GPIO pin 31 as output: [Errno 2] No such file or directory
+2025-05-28 11:44:28,335 - root - INFO - Setting up GPIO pin 33 (offset 33) as output on chip gpiochip0
+2025-05-28 11:44:28,335 - root - INFO - Creating new gpiod Chip instance for gpiochip0
+2025-05-28 11:44:28,335 - root - ERROR - Failed to set up GPIO pin 33 as output: [Errno 2] No such file or directory
+2025-05-28 11:44:28,335 - root - INFO - Setting up GPIO pin 26 (offset 26) as output on chip gpiochip0
+2025-05-28 11:44:28,335 - root - INFO - Creating new gpiod Chip instance for gpiochip0
+2025-05-28 11:44:28,335 - root - ERROR - Failed to set up GPIO pin 26 as output: [Errno 2] No such file or directory
+2025-05-28 11:44:28,335 - root - INFO - Setting up GPIO pin 16 (offset 16) as output on chip gpiochip0
+2025-05-28 11:44:28,336 - root - INFO - Creating new gpiod Chip instance for gpiochip0
+2025-05-28 11:44:28,336 - root - ERROR - Failed to set up GPIO pin 16 as output: [Errno 2] No such file or directory
+2025-05-28 11:44:28,336 - root - INFO - Setting up GPIO pin 40 (offset 40) as input on chip gpiochip0
+2025-05-28 11:44:28,336 - root - INFO - Creating new gpiod Chip instance for gpiochip0
+2025-05-28 11:44:28,336 - root - ERROR - Failed to set up GPIO pin 40: [Errno 2] No such file or directory
+2025-05-28 11:44:28,336 - root - INFO - Setting up GPIO pin 38 (offset 38) as input on chip gpiochip0
+2025-05-28 11:44:28,336 - root - INFO - Creating new gpiod Chip instance for gpiochip0
+2025-05-28 11:44:28,336 - root - ERROR - Failed to set up GPIO pin 38: [Errno 2] No such file or directory
+2025-05-28 11:44:28,336 - root - INFO - Table reached front limit switch
+2025-05-28 11:44:28,336 - root - INFO - Output controller initialized with gpiod
+2025-05-28 11:44:28,336 - root - DEBUG - Table forward off
+2025-05-28 11:44:28,336 - root - INFO - OutputController initialized successfully
+2025-05-28 11:44:28,336 - root - INFO - Table reached back limit switch
+2025-05-28 11:44:28,336 - root - INFO - ServoWrapper __init__: simulation_mode=False, FORCE_HARDWARE=True, GPIOCTRL_AVAILABLE=True
+2025-05-28 11:44:28,336 - root - DEBUG - Table backward off
+2025-05-28 11:44:28,336 - root - INFO - Attempting to initialize GPIOController for servo on port /dev/ttyUSB0
+2025-05-28 11:44:28,351 - root - INFO - GPIOController initialized for servo
+2025-05-28 11:44:28,351 - root - INFO - Initialized ServoWrapper with GPIOController on pin 12
+2025-05-28 11:44:28,352 - root - INFO - Servo initialized on pin 12 using port /dev/ttyUSB0
+2025-05-28 11:44:28,352 - root - INFO - ServoController initialized successfully
+2025-05-28 11:44:28,352 - root - INFO - StepperWrapper __init__: simulation_mode=False, FORCE_HARDWARE=True, GPIOCTRL_AVAILABLE=True
+2025-05-28 11:44:28,352 - root - INFO - Attempting to initialize GPIOController for stepper on port /dev/ttyUSB0
+2025-05-28 11:44:28,354 - root - INFO - GPIOController initialized for stepper
+2025-05-28 11:44:28,354 - root - INFO - Initialized StepperWrapper with GPIOController
+2025-05-28 11:44:28,354 - root - DEBUG - Stepper speed set to 1000
+2025-05-28 11:44:28,354 - root - INFO - Set EN pin 27 LOW (enable)
+2025-05-28 11:44:28,354 - root - INFO - Stepper motor enabled
+2025-05-28 11:44:28,355 - root - INFO - Stepper motor auto-enabled during initialization
+2025-05-28 11:44:28,355 - root - INFO - Stepper motor initialized with GPIOController on port /dev/ttyUSB0
+2025-05-28 11:44:28,355 - root - INFO - StepperMotor initialized successfully
+2025-05-28 11:44:28,358 - root - INFO - InputController __init__: simulation_mode=False, operation_mode=prototype
+2025-05-28 11:44:28,358 - root - INFO - Attempting to initialize LocalGPIOWrapper for input controller
+2025-05-28 11:44:28,358 - root - INFO - LocalGPIOWrapper initialized with chip_name=gpiochip0, simulation_mode=False
+2025-05-28 11:44:28,358 - root - INFO - Input controller initialized with gpiod
+2025-05-28 11:44:28,358 - root - INFO - Setting up GPIO pin 5 (offset 5) as input on chip gpiochip0
+2025-05-28 11:44:28,358 - root - INFO - Creating new gpiod Chip instance for gpiochip0
+2025-05-28 11:44:28,359 - root - ERROR - Failed to set up GPIO pin 5: [Errno 2] No such file or directory
+2025-05-28 11:44:28,359 - root - INFO - Setting up GPIO pin 7 (offset 7) as input on chip gpiochip0
+2025-05-28 11:44:28,359 - root - INFO - Creating new gpiod Chip instance for gpiochip0
+2025-05-28 11:44:28,359 - root - ERROR - Failed to set up GPIO pin 7: [Errno 2] No such file or directory
+2025-05-28 11:44:28,359 - root - INFO - Setting up GPIO pin 22 (offset 22) as input on chip gpiochip0
+2025-05-28 11:44:28,359 - root - INFO - Creating new gpiod Chip instance for gpiochip0
+2025-05-28 11:44:28,359 - root - ERROR - Failed to set up GPIO pin 22: [Errno 2] No such file or directory
+2025-05-28 11:44:28,359 - root - INFO - Setting up GPIO pin 29 (offset 29) as input on chip gpiochip0
+2025-05-28 11:44:28,359 - root - INFO - Creating new gpiod Chip instance for gpiochip0
+2025-05-28 11:44:28,359 - root - ERROR - Failed to set up GPIO pin 29: [Errno 2] No such file or directory
+2025-05-28 11:44:28,360 - root - INFO - Input controller initialized with gpiod
+2025-05-28 11:44:28,360 - root - INFO - InputController initialized successfully
+2025-05-28 11:44:28,362 - root - INFO - Jogging backward 10 steps
+Error in _listen: Expecting value: line 1 column 1 (char 0)
+Error in _listen: device reports readiness to read but returned no data (device disconnected or multiple access on port?)
+Error in _listen: Expecting value: line 1 column 7 (char 6)
+2025-05-28 11:44:28,513 - urllib3.connectionpool - DEBUG - https://shopmachinemonitor.replit.app:443 "POST /api/auth/webhooks HTTP/1.1" 404 9
+2025-05-28 11:44:28,514 - webhook_handler - WARNING - Webhook delivery failed with status 404: Not Found
+Error in _listen: Expecting value: line 1 column 1 (char 0)
+[2025-05-28 11:44:58 -0400] [2676] [CRITICAL] WORKER TIMEOUT (pid:2713)
+[2025-05-28 11:44:58 -0400] [2713] [INFO] Worker exiting (pid: 2713)
+[2025-05-28 11:45:04 -0400] [2676] [ERROR] Worker (pid:2713) exited with code 1
+[2025-05-28 11:45:04 -0400] [2676] [ERROR] Worker (pid:2713) exited with code 1.
+[2025-05-28 11:45:04 -0400] [2727] [INFO] Booting worker with pid: 2727
+2025-05-28 11:45:04,508 - main - WARNING - DATABASE_URL environment variable not set! Using SQLite database as fallback.
+2025-05-28 11:45:04,508 - main - WARNING - For production use, please set DATABASE_URL environment variable to your PostgreSQL connection string.
+2025-05-28 11:45:04,508 - main - WARNING - Example: export DATABASE_URL='postgresql://username:password@localhost/shop_suite_db'
+2025-05-28 11:45:04,508 - main - INFO - Using SQLite without schema separation for development/prototype mode
+2025-05-28 11:45:04,538 - sync_handler - INFO - Initializing Shop Suite synchronization
+2025-05-28 11:45:04,620 - tzlocal - DEBUG - /etc/timezone found, contents:
+ America/New_York
+
+2025-05-28 11:45:04,621 - tzlocal - DEBUG - /etc/localtime found
+2025-05-28 11:45:04,621 - tzlocal - DEBUG - 2 found:
+ {'/etc/timezone': 'America/New_York', '/etc/localtime is a symlink to': 'America/New_York'}
+2025-05-28 11:45:04,622 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-05-28 11:45:04,622 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-05-28 11:45:04,622 - apscheduler.scheduler - INFO - Added job "Process pending sync events" to job store "default"
+2025-05-28 11:45:04,622 - apscheduler.scheduler - INFO - Added job "Synchronize users with suite database" to job store "default"
+2025-05-28 11:45:04,622 - apscheduler.scheduler - INFO - Scheduler started
+2025-05-28 11:45:04,622 - apscheduler.scheduler - DEBUG - Looking for jobs to run
+2025-05-28 11:45:04,622 - apscheduler.scheduler - DEBUG - Next wakeup is due at 2025-05-28 11:50:04.621892-04:00 (in 299.998971 seconds)
+2025-05-28 11:45:04,623 - sync_handler - INFO - Sync tasks registered with scheduler
+2025-05-28 11:45:04,623 - main - INFO - Shop Suite synchronization tasks scheduled
+2025-05-28 11:45:04,664 - root - INFO - Configuration loaded from /home/laser/Downloads/LCleanerControler-main/machine_config.json
+2025-05-28 11:45:04,664 - webhook_handler - INFO - Webhook target configured: https://Shopmachinemonitor.replit.app/api/auth/webhooks
+2025-05-28 11:45:04,665 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-05-28 11:45:04,665 - apscheduler.scheduler - INFO - Added job "Retry failed webhook deliveries" to job store "default"
+2025-05-28 11:45:04,665 - apscheduler.scheduler - INFO - Scheduler started
+2025-05-28 11:45:04,665 - apscheduler.scheduler - DEBUG - Looking for jobs to run
+2025-05-28 11:45:04,665 - webhook_handler - INFO - Webhook retry task registered with scheduler
+2025-05-28 11:45:04,665 - apscheduler.scheduler - DEBUG - Next wakeup is due at 2025-05-28 11:50:04.664748-04:00 (in 299.999133 seconds)
+2025-05-28 11:45:04,665 - main - INFO - Webhook retry tasks scheduled
+2025-05-28 11:45:04,665 - webhook_handler - DEBUG - Sending webhook to https://Shopmachinemonitor.replit.app/api/auth/webhooks: node.status_change
+2025-05-28 11:45:04,686 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): shopmachinemonitor.replit.app:443
+2025-05-28 11:45:04,692 - main - INFO - Registered 10 API routes
+2025-05-28 11:45:04,692 - main - INFO - API routes registered successfully
+2025-05-28 11:45:04,694 - root - INFO - Loaded system_config: {'operation_mode': 'prototype', 'debug_level': 'debug', 'bypass_safety': False, 'use_gpioctrl': True}
+2025-05-28 11:45:04,694 - root - INFO - operation_mode: prototype
+2025-05-28 11:45:04,694 - root - INFO - debug_level: debug
+2025-05-28 11:45:04,694 - root - INFO - bypass_safety: False
+2025-05-28 11:45:04,694 - root - INFO - FORCE_HARDWARE: True
+2025-05-28 11:45:04,694 - root - INFO - SIMULATION_MODE: False
+2025-05-28 11:45:04,694 - root - INFO - PROTOTYPE MODE: Setting FORCE_HARDWARE flag to prevent simulation fallback
+2025-05-28 11:45:04,694 - app - INFO - Flask and extensions imported successfully
+2025-05-28 11:45:04,695 - root - INFO - Configuration loaded from /home/laser/Downloads/LCleanerControler-main/machine_config.json
+2025-05-28 11:45:04,695 - root - INFO - Running in prototype mode - RFID hardware will be used but not required
+2025-05-28 11:45:04,708 - app - INFO - Using GPIOController implementation for GPIO
+2025-05-28 11:45:04,725 - root - INFO - init_controllers() called
+2025-05-28 11:45:04,726 - root - INFO - OutputController __init__: simulation_mode=False, operation_mode=prototype
+2025-05-28 11:45:04,727 - root - INFO - Attempting to initialize LocalGPIOWrapper for output controller
+2025-05-28 11:45:04,727 - root - INFO - LocalGPIOWrapper initialized with chip_name=gpiochip0, simulation_mode=False
+2025-05-28 11:45:04,727 - root - INFO - Setting up GPIO pin 31 (offset 31) as output on chip gpiochip0
+2025-05-28 11:45:04,727 - root - INFO - Creating new gpiod Chip instance for gpiochip0
+2025-05-28 11:45:04,727 - root - ERROR - Failed to set up GPIO pin 31 as output: [Errno 2] No such file or directory
+2025-05-28 11:45:04,727 - root - INFO - Setting up GPIO pin 33 (offset 33) as output on chip gpiochip0
+2025-05-28 11:45:04,727 - root - INFO - Creating new gpiod Chip instance for gpiochip0
+2025-05-28 11:45:04,727 - root - ERROR - Failed to set up GPIO pin 33 as output: [Errno 2] No such file or directory
+2025-05-28 11:45:04,727 - root - INFO - Setting up GPIO pin 26 (offset 26) as output on chip gpiochip0
+2025-05-28 11:45:04,727 - root - INFO - Creating new gpiod Chip instance for gpiochip0
+2025-05-28 11:45:04,727 - root - ERROR - Failed to set up GPIO pin 26 as output: [Errno 2] No such file or directory
+2025-05-28 11:45:04,727 - root - INFO - Setting up GPIO pin 16 (offset 16) as output on chip gpiochip0
+2025-05-28 11:45:04,727 - root - INFO - Creating new gpiod Chip instance for gpiochip0
+2025-05-28 11:45:04,727 - root - ERROR - Failed to set up GPIO pin 16 as output: [Errno 2] No such file or directory
+2025-05-28 11:45:04,727 - root - INFO - Setting up GPIO pin 40 (offset 40) as input on chip gpiochip0
+2025-05-28 11:45:04,727 - root - INFO - Creating new gpiod Chip instance for gpiochip0
+2025-05-28 11:45:04,727 - root - ERROR - Failed to set up GPIO pin 40: [Errno 2] No such file or directory
+2025-05-28 11:45:04,727 - root - INFO - Setting up GPIO pin 38 (offset 38) as input on chip gpiochip0
+2025-05-28 11:45:04,727 - root - INFO - Creating new gpiod Chip instance for gpiochip0
+2025-05-28 11:45:04,727 - root - ERROR - Failed to set up GPIO pin 38: [Errno 2] No such file or directory
+2025-05-28 11:45:04,727 - root - INFO - Table reached front limit switch
+2025-05-28 11:45:04,727 - root - INFO - Output controller initialized with gpiod
+2025-05-28 11:45:04,727 - root - DEBUG - Table forward off
+2025-05-28 11:45:04,727 - root - INFO - OutputController initialized successfully
+2025-05-28 11:45:04,728 - root - INFO - Table reached back limit switch
+2025-05-28 11:45:04,728 - root - INFO - ServoWrapper __init__: simulation_mode=False, FORCE_HARDWARE=True, GPIOCTRL_AVAILABLE=True
+2025-05-28 11:45:04,728 - root - DEBUG - Table backward off
+2025-05-28 11:45:04,728 - root - INFO - Attempting to initialize GPIOController for servo on port /dev/ttyUSB0
+2025-05-28 11:45:04,742 - root - INFO - GPIOController initialized for servo
+2025-05-28 11:45:04,743 - root - INFO - Initialized ServoWrapper with GPIOController on pin 12
+2025-05-28 11:45:04,743 - root - INFO - Servo initialized on pin 12 using port /dev/ttyUSB0
+2025-05-28 11:45:04,743 - root - INFO - ServoController initialized successfully
+2025-05-28 11:45:04,743 - root - INFO - StepperWrapper __init__: simulation_mode=False, FORCE_HARDWARE=True, GPIOCTRL_AVAILABLE=True
+2025-05-28 11:45:04,743 - root - INFO - Attempting to initialize GPIOController for stepper on port /dev/ttyUSB0
+2025-05-28 11:45:04,745 - root - INFO - GPIOController initialized for stepper
+2025-05-28 11:45:04,746 - root - INFO - Initialized StepperWrapper with GPIOController
+2025-05-28 11:45:04,746 - root - DEBUG - Stepper speed set to 1000
+2025-05-28 11:45:04,746 - root - INFO - Set EN pin 27 LOW (enable)
+2025-05-28 11:45:04,746 - root - INFO - Stepper motor enabled
+2025-05-28 11:45:04,746 - root - INFO - Stepper motor auto-enabled during initialization
+2025-05-28 11:45:04,746 - root - INFO - Stepper motor initialized with GPIOController on port /dev/ttyUSB0
+2025-05-28 11:45:04,746 - root - INFO - StepperMotor initialized successfully
+2025-05-28 11:45:04,746 - root - INFO - InputController __init__: simulation_mode=False, operation_mode=prototype
+2025-05-28 11:45:04,747 - root - INFO - Attempting to initialize LocalGPIOWrapper for input controller
+2025-05-28 11:45:04,747 - root - INFO - LocalGPIOWrapper initialized with chip_name=gpiochip0, simulation_mode=False
+2025-05-28 11:45:04,747 - root - INFO - Input controller initialized with gpiod
+2025-05-28 11:45:04,747 - root - INFO - Setting up GPIO pin 5 (offset 5) as input on chip gpiochip0
+2025-05-28 11:45:04,747 - root - INFO - Creating new gpiod Chip instance for gpiochip0
+2025-05-28 11:45:04,747 - root - ERROR - Failed to set up GPIO pin 5: [Errno 2] No such file or directory
+2025-05-28 11:45:04,747 - root - INFO - Setting up GPIO pin 7 (offset 7) as input on chip gpiochip0
+2025-05-28 11:45:04,747 - root - INFO - Creating new gpiod Chip instance for gpiochip0
+2025-05-28 11:45:04,747 - root - ERROR - Failed to set up GPIO pin 7: [Errno 2] No such file or directory
+2025-05-28 11:45:04,747 - root - INFO - Setting up GPIO pin 22 (offset 22) as input on chip gpiochip0
+2025-05-28 11:45:04,747 - root - INFO - Creating new gpiod Chip instance for gpiochip0
+2025-05-28 11:45:04,748 - root - ERROR - Failed to set up GPIO pin 22: [Errno 2] No such file or directory
+2025-05-28 11:45:04,748 - root - INFO - Setting up GPIO pin 29 (offset 29) as input on chip gpiochip0
+2025-05-28 11:45:04,748 - root - INFO - Creating new gpiod Chip instance for gpiochip0
+2025-05-28 11:45:04,748 - root - ERROR - Failed to set up GPIO pin 29: [Errno 2] No such file or directory
+2025-05-28 11:45:04,748 - root - INFO - Input controller initialized with gpiod
+2025-05-28 11:45:04,748 - root - INFO - InputController initialized successfully
+Error in _listen: Extra data: line 1 column 8 (char 7)
+Error in _listen: device reports readiness to read but returned no data (device disconnected or multiple access on port?)
+Error in _listen: Extra data: line 1 column 5 (char 4)
+2025-05-28 11:45:04,900 - urllib3.connectionpool - DEBUG - https://shopmachinemonitor.replit.app:443 "POST /api/auth/webhooks HTTP/1.1" 404 9
+2025-05-28 11:45:04,900 - webhook_handler - WARNING - Webhook delivery failed with status 404: Not Found
+Error in _listen: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+
+

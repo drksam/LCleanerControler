@@ -86,37 +86,38 @@ DEFAULT_CONFIG = {
     # GPIO pin assignments (BCM numbering)
     'gpio': {
         # Stepper control pins (Laser Head In/Out)
-        'step_pin': 27,                   # Stepper motor STEP pin
-        'dir_pin': 17,                    # Stepper motor DIR pin
-        'enable_pin': 22,                 # Stepper motor ENABLE pin
-        'home_switch_pin': 23,            # Home switch pin
-        
+        'step_pin': 4,                    # Stepper motor STEP pin (BCM 4)
+        'dir_pin': 17,                    # Stepper motor DIR pin (BCM 17)
+        'enable_pin': 27,                 # Stepper motor ENABLE pin (BCM 27, LOW=Enable)
+        'home_switch_pin': 23,            # Home switch pin (BCM 23, Pull-Up, LOW=Active)
+
         # Servo control pin (Laser Trigger)
-        'servo_pin': 18,                  # Servo control pin
-        
+        'servo_pin': 18,                  # Servo control pin (BCM 18, PWM)
+
         # Input pins
-        'button_in_pin': 24,              # Laser Head IN button pin
-        'button_out_pin': 25,             # Laser Head OUT button pin
-        'fire_button_pin': 5,             # Fire button pin
-        'servo_invert_switch_pin': 6,     # Servo inversion switch pin
-        
+        'button_in_pin': 24,              # Laser Head IN button pin (BCM 24)
+        'button_out_pin': 25,             # Laser Head OUT button pin (BCM 25)
+        'fire_button_pin': 5,             # Fire button pin (BCM 5)
+        'servo_invert_switch_pin': 6,     # Servo inversion switch pin (BCM 6)
+
         # Output pins (Fan and Red Lights)
-        'red_lights_pin': 12,             # Red lights output pin
-        'fan_pin': 13,                    # Fan output pin
-        
+        'red_lights_pin': 12,             # Red lights output pin (BCM 12)
+        'fan_pin': 13,                    # Fan output pin (BCM 13)
+
         # Table control pins
-        'table_forward_pin': 16,          # Table forward movement relay pin
-        'table_backward_pin': 20,         # Table backward movement relay pin
-        'table_front_switch_pin': 19,     # Table front end switch pin
-        'table_back_switch_pin': 21,      # Table back end switch pin
-        # ESP32 control pins
-        'esp_step_pin': 32,               # ESP32 Stepper motor STEP pin
-        'esp_dir_pin': 33,                # ESP32 Stepper motor DIR pin
-        'esp_enable_pin': 25,             # ESP32 Stepper motor ENABLE pin
-        'esp_limit_a_pin': 26,            # ESP32 Limit switch A pin
-        'esp_limit_b_pin': 27,            # ESP32 Limit switch B pin
-        'esp_home_pin': 14,               # ESP32 Home switch pin
-        'esp_servo_pwm_pin': 12           # ESP32 Servo PWM pin
+        'table_forward_pin': 16,          # Table forward movement relay pin (BCM 16)
+        'table_backward_pin': 20,         # Table backward movement relay pin (BCM 20)
+        'table_front_switch_pin': 19,     # Table front end switch pin (BCM 19, Pull-Up, LOW=Active)
+        'table_back_switch_pin': 21,      # Table back end switch pin (BCM 21, Pull-Up, LOW=Active)
+
+        # ESP32 control pins (do not use on Pi)
+        'esp_step_pin': 25,               # ESP32 Stepper STEP (GPIO 25)
+        'esp_dir_pin': 26,                # ESP32 Stepper DIR (GPIO 26)
+        'esp_enable_pin': 27,             # ESP32 Stepper EN (GPIO 27, LOW=Enable)
+        'esp_limit_a_pin': 32,            # ESP32 Stepper Limit A (GPIO 32, Pull-Up, LOW=Active)
+        'esp_limit_b_pin': 33,            # ESP32 Stepper Limit B (GPIO 33, Pull-Up, LOW=Active)
+        'esp_home_pin': 34,               # ESP32 Stepper Home (GPIO 34, Pull-Up, LOW=Active)
+        'esp_servo_pwm_pin': 12,          # ESP32 Servo PWM (GPIO 12)
     }
 }
 

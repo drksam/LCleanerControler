@@ -79,8 +79,8 @@
                                                                     <div class="mb-1">Pin 32 <span class="badge bg-info">GPIO 12 (RFID IRQ)</span></div>
                                                                     <div class="mb-1">Pin 34 <span class="badge bg-secondary">GND</span></div>
                                                                     <div class="mb-1">Pin 36 <span class="badge bg-info">GPIO 16 (RFID RST)</span></div>
-                                                                    <div class="mb-1">Pin 38 <span class="badge bg-warning">GPIO {{ gpio_config.table_back_limit_pin }} (Back Limit)</span></div>
-                                                                    <div class="mb-1">Pin 40 <span class="badge bg-warning">GPIO {{ gpio_config.table_front_limit_pin }} (Front Limit)</span></div>
+                                                                    <div class="mb-1"><span class="badge bg-warning">GPIO {{ gpio_config.table_back_limit_pin }} (Back Limit)</span> Pin 38</div>
+                                                                    <div class="mb-1"><span class="badge bg-warning">GPIO {{ gpio_config.table_front_limit_pin }} (Front Limit)</span> Pin 40</div>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -973,7 +973,7 @@ sudo modprobe w1-therm</pre>
             }),
         })
         .then(response => response.json())
-        .then(data => {
+        .then data => {
             if (data.status === 'success') {
                 // Show success toast
                 const toast = document.getElementById('statusToast');
@@ -1028,4 +1028,4 @@ sudo modprobe w1-therm</pre>
 {% block scripts %}
 <!-- Include the GPIO testing JavaScript -->
 <script src="{{ url_for('static', filename='js/gpio_test.js') }}"></script>
-{% endblock %}
+{% endblock %
