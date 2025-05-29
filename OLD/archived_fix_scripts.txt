@@ -1,0 +1,8 @@
+The following fix scripts were archived/removed as they are now obsolete and all their changes are present in the main codebase:
+- fix_main.py
+- fix_models.py
+- fix_rfid.py
+- fix_rfid_complete.py
+- fix_rfid_syntax.py
+- fix_all.py
+- fix_setup.sh
