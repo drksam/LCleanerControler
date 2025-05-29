@@ -26,9 +26,9 @@ class StepperMotor:
         operation_mode = system_config.get('operation_mode', 'simulation')
         
         # Basic configuration
-        self.step_pin = config.get('step_pin', 25)
-        self.dir_pin = config.get('dir_pin', 26)
-        self.enable_pin = config.get('enable_pin', 27)
+        self.step_pin = config.get('esp_step_pin', 25)
+        self.dir_pin = config.get('esp_dir_pin', 26)
+        self.enable_pin = config.get('esp_enable_pin', 27)
         self.position = 0
         self.target_position = 0
         self.speed = config.get('speed', 1000)
@@ -39,9 +39,9 @@ class StepperMotor:
         self.min_position = config.get('min_position', -500)
         
         # Physical limit switch pins
-        self.limit_a_pin = config.get('limit_a_pin', 0)  # Min limit switch
-        self.limit_b_pin = config.get('limit_b_pin', 0)  # Max limit switch
-        self.home_pin = config.get('home_switch_pin', 0) # Home position switch
+        self.limit_a_pin = config.get('esp_limit_a_pin', 32)  # Min limit switch
+        self.limit_b_pin = config.get('esp_limit_b_pin', 33)  # Max limit switch
+        self.home_pin = config.get('esp_home_pin', 34) # Home position switch
         
         # Limit status
         self.limit_a_triggered = False

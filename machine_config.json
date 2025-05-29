@@ -45,11 +45,6 @@
     "primary_sensor": null
   },
   "gpio": {
-    "step_pin": 25,
-    "dir_pin": 26,
-    "enable_pin": 27,
-    "home_switch_pin": 21,
-    "servo_pin": 12,
     "button_in_pin": 5,
     "button_out_pin": 7,
     "fire_button_pin": 22,

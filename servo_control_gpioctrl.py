@@ -26,8 +26,8 @@ class ServoController:
         # Get operation mode from system config
         operation_mode = system_config.get('operation_mode', 'simulation')
         
-        # Basic configuration
-        self.servo_pin = config.get('servo_pin', 12)
+        # Use ESP32 pin for servo control
+        self.servo_pin = config.get('esp_servo_pwm_pin', 12)
         self.position_a = config.get('position_a', 0)
         self.position_b = config.get('position_b', 90)
         self.inverted = config.get('inverted', False)
@@ -73,7 +73,7 @@ class ServoController:
                 serial_port=serial_port
             )
             self.initialized = True
-            logging.info(f"Servo initialized on pin {self.servo_pin} using port {serial_port}")
+            logging.info(f"Servo initialized on ESP32 pin {self.servo_pin} using port {serial_port}")
         except Exception as e:
             logging.error(f"Failed to initialize servo: {e}")
             if self.force_hardware and operation_mode == 'prototype':

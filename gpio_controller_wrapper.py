@@ -223,14 +223,13 @@ class StepperWrapper:
                  serial_port=None):
         """
         Initialize the stepper wrapper.
-        
         Args:
-            step_pin: Step pin number
-            dir_pin: Direction pin number
-            enable_pin: Enable pin number (optional)
-            limit_a_pin: Minimum/lower limit switch pin number
-            limit_b_pin: Maximum/upper limit switch pin number
-            home_pin: Home position switch pin number
+            step_pin: ESP32 Step pin number
+            dir_pin: ESP32 Direction pin number
+            enable_pin: ESP32 Enable pin number (optional)
+            limit_a_pin: ESP32 Minimum/lower limit switch pin number
+            limit_b_pin: ESP32 Maximum/upper limit switch pin number
+            home_pin: ESP32 Home position switch pin number
             min_position: Minimum allowed position (soft limit)
             max_position: Maximum allowed position (soft limit)
             simulation_mode: Whether to run in simulation mode
@@ -264,19 +263,19 @@ class StepperWrapper:
                 logging.info(f"Attempting to initialize GPIOController for stepper on port {self.serial_port}")
                 self._controller = GPIOController(port=self.serial_port)
                 logging.info(f"GPIOController initialized for stepper")
-                # Initialize stepper
+                # Initialize stepper with ESP32 pins only
                 self._controller.init_stepper(
                     id=self._stepper_id,
                     step_pin=step_pin,
                     dir_pin=dir_pin,
-                    limit_a=self.limit_a_pin,  # Use limit_a_pin for min limit switch
-                    limit_b=self.limit_b_pin,  # Use limit_b_pin for max limit switch
-                    home=self.home_pin,        # Use home_pin for home position
+                    limit_a=self.limit_a_pin,
+                    limit_b=self.limit_b_pin,
+                    home=self.home_pin,
                     min_limit=min_position,
                     max_limit=max_position,
                     enable_pin=self.enable_pin
                 )
-                logging.info(f"Initialized StepperWrapper with GPIOController")
+                logging.info(f"Initialized StepperWrapper with GPIOController (ESP32 pins)")
             except Exception as e:
                 logging.error(f"Failed to initialize GPIOController for stepper: {e}")
                 if FORCE_HARDWARE:

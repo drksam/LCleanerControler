@@ -85,15 +85,6 @@ DEFAULT_CONFIG = {
     
     # GPIO pin assignments (BCM numbering)
     'gpio': {
-        # Stepper control pins (Laser Head In/Out)
-        'step_pin': 4,                    # Stepper motor STEP pin (BCM 4)
-        'dir_pin': 17,                    # Stepper motor DIR pin (BCM 17)
-        'enable_pin': 27,                 # Stepper motor ENABLE pin (BCM 27, LOW=Enable)
-        'home_switch_pin': 23,            # Home switch pin (BCM 23, Pull-Up, LOW=Active)
-
-        # Servo control pin (Laser Trigger)
-        'servo_pin': 18,                  # Servo control pin (BCM 18, PWM)
-
         # Input pins
         'button_in_pin': 24,              # Laser Head IN button pin (BCM 24)
         'button_out_pin': 25,             # Laser Head OUT button pin (BCM 25)

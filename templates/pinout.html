@@ -15,7 +15,7 @@
                 </div>
                 <div class="card-body">
                     <p class="alert alert-info">
-                        This page provides a complete pinout guide for connecting all components of the laser cleaning machine to the Raspberry Pi 5.
+                        This page provides a complete pinout guide for connecting all components of the laser cleaning machine to the Raspberry Pi 5 and ESP32.
                     </p>
                     
                     <h4 class="mt-4 mb-3">Visual Connection Diagram</h4>
@@ -41,8 +41,6 @@
                                                                 <div class="col-6 text-end pe-2">
                                                                     <div class="mb-1"><span class="badge bg-warning">3.3V</span> Pin 1</div>
                                                                     <div class="mb-1"><span class="badge bg-warning">GPIO 2 (1-Wire)</span> Pin 3</div>
-                                                                    <div class="mb-1"><span class="badge bg-primary">GPIO {{ gpio_config.step_pin }} (Stepper Step)</span> Pin 5</div>
-                                                                    <div class="mb-1"><span class="badge bg-primary">GPIO {{ gpio_config.dir_pin }} (Stepper Dir)</span> Pin 7</div>
                                                                     <div class="mb-1"><span class="badge bg-secondary">GND</span> Pin 9</div>
                                                                     <div class="mb-1"><span class="badge bg-primary">GPIO {{ gpio_config.enable_pin }} (Stepper Enable)</span> Pin 11</div>
                                                                     <div class="mb-1"><span class="badge bg-primary">GPIO {{ gpio_config.home_switch_pin }} (Home Switch)</span> Pin 13</div>
@@ -85,7 +83,7 @@
                                                             </div>
                                                         </div>
                                                     </div>
-                                                </div> <!-- Added missing closing div tag for Raspberry Pi Board -->
+                                                </div> <!-- End Pi Board -->
                                                 
                                                 <!-- Color Legend -->
                                                 <div class="col-md-6">
@@ -107,22 +105,6 @@
                                                     </div>
                                                 
                                                     <!-- Components -->
-                                                    <!-- Stepper Motor -->
-                                                    <div class="card bg-primary text-white mb-2">
-                                                        <div class="card-body p-2">
-                                                            <h6 class="card-title mb-0">Stepper Motor (Cleaning Head)</h6>
-                                                            <div class="small">Connected to: GPIO {{ gpio_config.step_pin }}, {{ gpio_config.dir_pin }}, {{ gpio_config.enable_pin }}, {{ gpio_config.home_switch_pin }}</div>
-                                                        </div>
-                                                    </div>
-                                                    
-                                                    <!-- Servo -->
-                                                    <div class="card bg-danger text-white mb-2">
-                                                        <div class="card-body p-2">
-                                                            <h6 class="card-title mb-0">Servo Motor (Trigger)</h6>
-                                                            <div class="small">Connected to: GPIO {{ gpio_config.servo_pin }}</div>
-                                                        </div>
-                                                    </div>
-                                                    
                                                     <!-- Input Buttons -->
                                                     <div class="card bg-secondary text-white mb-2">
                                                         <div class="card-body p-2">
@@ -183,41 +165,6 @@
                                     <td>1-Wire Bus</td>
                                     <td>Temperature Sensors</td>
                                     <td>For DS18B20 sensors with 4.7kΩ pull-up resistor</td>
-                                </tr>
-                                <tr>
-                                    <td>GPIO {{ gpio_config.step_pin }}</td>
-                                    <td>5</td>
-                                    <td>Stepper</td>
-                                    <td>Step pulse</td>
-                                    <td>Connected to stepper driver</td>
-                                </tr>
-                                <tr>
-                                    <td>GPIO {{ gpio_config.dir_pin }}</td>
-                                    <td>7</td>
-                                    <td>Stepper</td>
-                                    <td>Direction</td>
-                                    <td>Connected to stepper driver</td>
-                                </tr>
-                                <tr>
-                                    <td>GPIO {{ gpio_config.enable_pin }}</td>
-                                    <td>11</td>
-                                    <td>Stepper</td>
-                                    <td>Enable</td>
-                                    <td>Connected to stepper driver</td>
-                                </tr>
-                                <tr>
-                                    <td>GPIO {{ gpio_config.home_switch_pin }}</td>
-                                    <td>13</td>
-                                    <td>Stepper</td>
-                                    <td>Home switch</td>
-                                    <td>Limit switch with pull-up resistor</td>
-                                </tr>
-                                <tr>
-                                    <td>GPIO {{ gpio_config.servo_pin }}</td>
-                                    <td>15</td>
-                                    <td>Servo</td>
-                                    <td>PWM signal</td>
-                                    <td>Connected to servo signal wire</td>
                                 </tr>
                                 <tr>
                                     <td>GPIO {{ gpio_config.in_button_pin }}</td>
@@ -735,69 +682,8 @@ sudo modprobe w1-therm</pre>
                         
                         <div class="row">
                             <div class="col-md-6">
-                                <h5>Stepper Motor Pins</h5>
-                                <form id="gpio-stepper-form">
-                                    <div class="mb-3">
-                                        <label for="dir_pin" class="form-label">DIR Pin (BCM)</label>
-                                        <div class="input-group">
-                                            <input type="number" class="form-control" id="dir_pin" name="dir_pin" 
-                                                value="{{ gpio_config.dir_pin }}" min="0" max="27">
-                                            <button class="btn btn-warning" type="button" 
-                                                    onclick="updateConfig('gpio', 'dir_pin', document.getElementById('dir_pin').value)">
-                                                Save
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="step_pin" class="form-label">STEP Pin (BCM)</label>
-                                        <div class="input-group">
-                                            <input type="number" class="form-control" id="step_pin" name="step_pin" 
-                                                value="{{ gpio_config.step_pin }}" min="0" max="27">
-                                            <button class="btn btn-warning" type="button" 
-                                                    onclick="updateConfig('gpio', 'step_pin', document.getElementById('step_pin').value)">
-                                                Save
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="enable_pin" class="form-label">ENABLE Pin (BCM)</label>
-                                        <div class="input-group">
-                                            <input type="number" class="form-control" id="enable_pin" name="enable_pin" 
-                                                value="{{ gpio_config.enable_pin }}" min="0" max="27">
-                                            <button class="btn btn-warning" type="button" 
-                                                    onclick="updateConfig('gpio', 'enable_pin', document.getElementById('enable_pin').value)">
-                                                Save
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="home_switch_pin" class="form-label">Home Switch Pin (BCM)</label>
-                                        <div class="input-group">
-                                            <input type="number" class="form-control" id="home_switch_pin" name="home_switch_pin" 
-                                                value="{{ gpio_config.home_switch_pin }}" min="0" max="27">
-                                            <button class="btn btn-warning" type="button" 
-                                                    onclick="updateConfig('gpio', 'home_switch_pin', document.getElementById('home_switch_pin').value)">
-                                                Save
-                                            </button>
-                                        </div>
-                                    </div>
-                                </form>
-                            </div>
-                            
-                            <div class="col-md-6">
-                                <h5>Servo & Input Pins</h5>
-                                <form id="gpio-servo-form">
-                                    <div class="mb-3">
-                                        <label for="servo_pin" class="form-label">Servo Pin (BCM)</label>
-                                        <div class="input-group">
-                                            <input type="number" class="form-control" id="servo_pin" name="servo_pin" 
-                                                value="{{ gpio_config.servo_pin }}" min="0" max="27">
-                                            <button class="btn btn-warning" type="button" 
-                                                    onclick="updateConfig('gpio', 'servo_pin', document.getElementById('servo_pin').value)">
-                                                Save
-                                            </button>
-                                        </div>
-                                    </div>
+                                <h5>Input Pins</h5>
+                                <form id="gpio-input-form">
                                     <div class="mb-3">
                                         <label for="in_button_pin" class="form-label">IN Button Pin (BCM)</label>
                                         <div class="input-group">
@@ -844,9 +730,7 @@ sudo modprobe w1-therm</pre>
                                     </div>
                                 </form>
                             </div>
-                        </div>
-                        
-                        <div class="row mt-3">
+                            
                             <div class="col-md-6">
                                 <h5>Output Pins</h5>
                                 <form id="gpio-output-form">
@@ -874,7 +758,8 @@ sudo modprobe w1-therm</pre>
                                     </div>
                                 </form>
                             </div>
-                            
+                        </div>
+                        <div class="row mt-3">
                             <div class="col-md-6">
                                 <h5>Table Control Pins</h5>
                                 <form id="gpio-table-form">
@@ -973,7 +858,7 @@ sudo modprobe w1-therm</pre>
             }),
         })
         .then(response => response.json())
-        .then data => {
+        .then(data => {
             if (data.status === 'success') {
                 // Show success toast
                 const toast = document.getElementById('statusToast');

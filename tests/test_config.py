@@ -72,7 +72,7 @@ SAMPLE_SEQUENCES = {
         "error_recovery": {
             "max_retries": 2,
             "retry_delay": 0.5,
-            "exponential_backoff": true,
+            "exponential_backoff": True,
             "recovery_by_type": {
                 "hardware_failure": "retry",
                 "hardware_not_available": "abort"
