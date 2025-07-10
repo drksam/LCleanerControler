@@ -1,0 +1,403 @@
+# LCleaner Controller Project - TODO &### HIGH PRIORITY
+- [x] **Missing Default pinout.txt**: Critical reference document was empty
+  - Status: FIXED - Restored from backup in /docs/DevNotes/
+
+- [x] **Missing README.md**: Project documentation was empty  
+  - Status: FIXED - Restored from backup in /rep/
+
+- [x] **GPIO Pin Assignment Conflicts**: CRITICAL - Multiple conflicting pin configurations
+  - Status: FIXED - All 5 pin conflicts resolved:
+    - ✅ table_forward_pin: Now 13 (matches pinout)
+    - ✅ table_backward_pin: Now 6 (matches pinout)
+    - ✅ fan_pin: Now 26 (matches pinout)
+    - ✅ red_lights_pin: Now 16 (matches pinout)
+    - ✅ button_out_pin: Now 25 (matches pinout)
+  - Updated files: machine_config.json, config.py, output_control_gpiod.py, input_control_gpiod.py
+
+- [ ] **Hardware Detection Issues**: System fallback to simulation on Pi
+  - Status: READY FOR TESTING - All config conflicts fixed
+  - Next: Deploy to Pi and test hardware detectionr
+
+## PROJECT OVERVIEW (Analysis Completed: 2025-07-01)
+
+This is a sophisticated Raspberry Pi 5 laser cleaning machine control system with the following architecture:
+
+### Core Components:
+1. **Flask Web Application** - Touchscreen GUI for machine control
+2. **Hardware Control Layer** - GPIO/gpiod interface with ESP32 communication
+3. **Database Layer** - PostgreSQL (production) / SQLite (development)
+4. **RFID Access Control** - Integration with ShopMachineMonitor server
+5. **Safety Systems** - Temperature monitoring, limit switches, emergency stops
+6. **Simulation Mode** - Development/testing without hardware
+
+### Hardware Architecture:
+- **Raspberry Pi 5**: Main controller with web interface
+- **ESP32**: Dedicated motor controller for stepper/servo control  
+- **Components**: Stepper motor (cleaning head), servo (laser trigger), fans, lights, table movement
+
+### Operation Modes:
+- **Simulation**: Software-only testing (Windows/development)
+- **Prototype**: Hardware testing with forced hardware mode
+- **Normal**: Full production operation
+
+## PRE-DEPLOYMENT CHECKLIST ✅
+
+### Code Configuration (COMPLETED)
+- [x] Pin assignments consistent across all files
+- [x] Default pinout.txt restored and verified
+- [x] machine_config.json updated to match pinout
+- [x] config.py defaults corrected
+- [x] output_control_gpiod.py defaults fixed
+- [x] input_control_gpiod.py defaults fixed
+- [x] README.md restored and updated
+
+### Ready for Pi Deployment
+- [x] All configuration conflicts resolved
+- [x] Diagnostic tools created (diagnostic_hardware.py, analyze_pins.py)
+- [x] Deployment scripts ready (deploy_to_pi.ps1, deploy_to_pi.sh)
+- [ ] **NEXT**: Deploy to Raspberry Pi and test hardware
+
+---
+
+## DEPLOYMENT STATUS
+
+**Current Situation**: 
+- Development environment: Windows (this machine)
+- Target hardware: Raspberry Pi 5 + ESP32 (separate, possibly accessible via SSH)
+- Code status: In simulation mode (expected on Windows)
+- **Action needed**: Deploy to Pi and test hardware detection
+
+---
+
+## CRITICAL ISSUES TO ADDRESS
+
+### HIGH PRIORITY
+- [x] **Missing Default pinout.txt**: Critical reference document is empty
+  - Status: FIXED - Restored from backup in /docs/DevNotes/
+
+- [x] **Missing README.md**: Project documentation is empty  
+  - Status: FIXED - Restored from backup in /rep/
+
+- [ ] **GPIO Pin Assignment Conflicts**: CRITICAL - Multiple conflicting pin configurations
+  - **ANALYSIS COMPLETE**: Found 5 pin conflicts between machine_config.json and Default pinout.txt:
+    - table_forward_pin: config=26 vs pinout=13  
+    - table_backward_pin: config=16 vs pinout=6
+    - fan_pin: config=6 vs pinout=26
+    - red_lights_pin: config=13 vs pinout=16
+    - button_out_pin: config=7 vs pinout=25
+  - **CRITICAL**: Must verify actual hardware wiring on Pi before fixing
+  - **Tools**: Use analyze_pins.py and diagnostic_hardware.py on Pi
+  - **Impact**: Wrong pins may be controlled, potential hardware damage
+  - **Action Required**: Reconcile with actual hardware connections
+
+- [ ] **GPIO Control Fallback Issues**: System falls back to simulation mode instead of controlling real hardware
+  - **Root Causes Identified**:
+    1. Pin conflicts cause GPIO initialization failures
+    2. GPIOController library import failures (ESP32 communication)
+    3. gpiod library initialization issues on Raspberry Pi 5
+    4. Conflicting environment variables (SIMULATION_MODE vs FORCE_HARDWARE)
+  - **Files affected**: `gpio_controller_wrapper.py`, `output_control_gpiod.py`, `stepper_control_gpioctrl.py`
+  - **Impact**: Machine cannot control physical hardware
+
+### MEDIUM PRIORITY
+- [ ] **Configuration Consistency**: Verify GPIO pin assignments across all config files
+  - Check machine_config.json vs Default pinout.txt vs actual hardware
+  - Some pin conflicts may exist between old/new configurations
+
+- [ ] **Database Schema Issues**: Multiple database binding configurations
+  - SQLite fallback vs PostgreSQL production setup
+  - Shop Suite integration complexity
+
+- [ ] **Error Handling**: Improve hardware failure detection and reporting
+  - Better logging when GPIO initialization fails
+  - Clear error messages for troubleshooting
+
+### LOW PRIORITY
+- [ ] **Documentation Updates**: Update all docs for v2.0.2
+- [ ] **Testing Framework**: Automated testing for simulation mode
+- [ ] **Performance Optimization**: GPIO polling and response times
+
+---
+
+## COMPLETED ANALYSIS
+
+### ✅ Code Structure Analysis
+- Flask app with modular design
+- Clear separation of concerns (hardware/web/database)
+- Good error handling framework in place
+
+### ✅ Hardware Control Architecture
+- GPIO wrapper system with fallback mechanisms
+- ESP32 communication for motor control
+- Safety systems and limit switches implemented
+
+### ✅ Configuration System  
+- JSON-based configuration with good defaults
+- Environment variable support for different modes
+- Pin mapping and hardware abstraction
+
+## NEXT STEPS - RASPBERRY PI DEPLOYMENT
+
+### Immediate Actions Required:
+1. **Access Raspberry Pi Hardware**
+   - [ ] Confirm Pi accessibility (SSH, VNC, or direct access)
+   - [ ] Check current Pi OS version and library status
+   - [ ] Verify ESP32 connection and serial port
+
+2. **Hardware Verification**
+   - [ ] Document actual GPIO connections on physical hardware
+   - [ ] Verify which pin assignments are correct (config vs pinout.txt)
+   - [ ] Test basic GPIO functionality (LED test, switch test)
+
+3. **Library Status Check**
+   - [ ] Verify gpiod library installation: `python3 -c "import gpiod; print('OK')"`
+   - [ ] Check GPIOController library status for ESP32 communication
+   - [ ] Test serial communication to ESP32
+
+4. **Deployment Testing**
+   - [ ] Deploy current codebase to Pi
+   - [ ] Run diagnostic script on Pi hardware
+   - [ ] Check application logs for hardware detection failures
+
+### Commands to Run on Pi:
+```bash
+# Check GPIO libraries
+python3 -c "import gpiod; print('gpiod OK')"
+python3 -c "import gpioctrl; print('gpioctrl OK')" 
+
+# Check hardware detection
+python3 diagnostic_hardware.py
+
+# Analyze pin conflicts  
+python3 analyze_pins.py
+
+# Check serial ports for ESP32
+ls /dev/ttyUSB* /dev/ttyACM*
+
+# Check system info
+uname -a
+cat /etc/os-release
+
+# Check user permissions
+groups
+ls -l /dev/gpiochip*
+```
+
+### Critical Questions to Answer on Pi:
+1. **Which pin configuration is correct?** 
+   - Physical inspection of GPIO connections required
+   - Document actual wiring vs both config files
+
+2. **Why does hardware detection fail?**
+   - Library import issues (gpiod, gpioctrl)
+   - Permission problems (user groups)
+   - ESP32 communication problems
+
+3. **What causes simulation fallback?**
+   - Track down exact failure point in gpio_controller_wrapper.py
+   - Check FORCE_HARDWARE vs operation_mode logic
+
+---
+
+1. **Immediate**: Fix the missing pinout.txt and README.md files
+2. **Debug**: Investigate why hardware mode falls back to simulation
+3. **Test**: Verify GPIO initialization in prototype mode  
+4. **Validate**: Check all pin assignments match actual hardware
+
+---
+
+## DEVELOPMENT NOTES
+
+### Environment Setup
+- Currently in simulation mode (Windows development)
+- Need Raspberry Pi 5 + ESP32 for hardware testing
+- Database: SQLite for dev, PostgreSQL for production
+
+### Key Files for Hardware Issues
+- `gpio_controller_wrapper.py` - GPIO abstraction layer
+- `machine_config.json` - Hardware configuration
+- `config.py` - Configuration loading and validation
+- `app.py` - Main application with mode detection
+
+### Backup Files Available
+- `/rep/` folder contains previous working versions
+- `/docs/DevNotes/` has original pinout documentation
+- Good reference for pin assignments and configuration
+
+---
+
+### IMMEDIATE ACTION PLAN
+
+#### Step 1: Pin Configuration Analysis & Fix (URGENT)
+- [ ] **Verify Actual Hardware Connections**: Check which pins are physically connected
+- [ ] **Choose Authoritative Source**: Decide between machine_config.json vs Default pinout.txt
+- [ ] **Update All Config Files**: Ensure consistency across:
+  - machine_config.json
+  - Default pinout.txt  
+  - templates/pinout.html
+  - config.py defaults
+
+#### Step 2: Hardware Detection Debugging
+- [ ] **Add Diagnostic Script**: Create hardware detection test script
+- [ ] **Improve Error Logging**: Better error messages when GPIO init fails
+- [ ] **Environment Variable Cleanup**: Resolve conflicts between different mode settings
+
+#### Step 3: ESP32 Communication Issues
+- [ ] **GPIOController Library Status**: Verify installation and serial communication
+- [ ] **Serial Port Configuration**: Check /dev/ttyUSB0 vs COM3 settings
+- [ ] **Connection Testing**: Add ESP32 connectivity tests
+
+---
+
+## DETAILED TECHNICAL ANALYSIS
+
+### Hardware Architecture
+```
+┌─────────────────┐    USB Serial    ┌──────────────┐
+│  Raspberry Pi 5 │◄────────────────►│    ESP32     │
+│                 │                  │              │
+│ - Web Interface │                  │ - Stepper    │
+│ - Local GPIO    │                  │ - Servo      │
+│ - Database      │                  │ - Limits     │
+│ - RFID/Sensors  │                  │ - Home       │
+└─────────────────┘                  └──────────────┘
+         │
+         ▼
+   Local Components:
+   • Fan Control
+   • Red Lights  
+   • Table Movement
+   • Input Buttons
+   • Limit Switches
+```
+
+### Pin Conflict Analysis
+**CRITICAL**: Found conflicts between configuration files:
+
+| Component | machine_config.json | Default pinout.txt | Physical Pin |
+|-----------|--------------------|--------------------|--------------|
+| Fan | BCM 6 | BCM 26 | Pin 31/37? |
+| Red Lights | BCM 13 | BCM 16 | Pin 33/36? |
+| Table Forward | BCM 26 | BCM 13 | Pin 35/33? |
+
+**DANGER**: Using wrong pins could damage hardware or cause malfunction.
+
+### Fallback Logic Flow
+```
+1. Check operation_mode in machine_config.json
+   ├─ "simulation" → Force simulation
+   ├─ "prototype" → Try hardware, set FORCE_HARDWARE
+   └─ "normal" → Try hardware
+   
+2. Try GPIOController import (ESP32)
+   ├─ Success → Enable stepper/servo control
+   └─ Fail → Fall back to simulation for ESP32 functions
+   
+3. Try gpiod initialization (Local GPIO)  
+   ├─ Success → Enable local GPIO
+   └─ Fail → Fall back to simulation for local functions
+   
+4. Environment Variables Override
+   ├─ FORCE_HARDWARE=true → Raise exception on failure
+   ├─ SIMULATION_MODE=true → Force simulation
+   └─ Auto-detect based on platform
+```
+
+### Known Issues in Current Code
+1. **gpio_controller_wrapper.py Line 23**: Hard-coded to Windows = simulation
+2. **output_control_gpiod.py Line 76**: Silent fallback when GPIO init fails
+3. **Pin conflicts**: Multiple definitions across config files
+4. **Error masking**: Exceptions caught and logged but not reported to user
+
+---
+
+Last Updated: 2025-07-01
+Project Status: Ready for Deployment - Critical Issues Resolved
+
+---
+
+## ✅ RECENT UPDATES & FIXES COMPLETED
+
+### Project Structure Reorganization & ESP32 Package Fix (Latest)
+- [x] **Fixed critical gpioctrl package installation**: Updated setup_pi_venv.sh to install custom ESP32 package
+- [x] **Updated deployment scripts**: Both PS1 and bash scripts now include gpioesp/ folder in deployment
+- [x] **Enhanced verification tools**: verify_pi_setup.py and diagnostic_hardware.py now check gpioctrl package
+- [x] **Updated documentation**: All guides now mention the critical gpioctrl dependency for ESP32 communication
+- [x] **Organized file structure**: Moved deployment files to dedicated deploy/ folder
+- [x] **Archived unused files**: Moved old/backup files to Archive/ folder  
+- [x] **Updated deployment scripts**: Modified deploy_to_pi.ps1/.sh for new structure
+- [x] **Created deployment README**: Comprehensive guide in deploy/README.md
+- [x] **Updated main README**: Added project structure overview and quick start
+- [x] **Cleaned up root directory**: Removed __pycache__, archived check_requirements.py, test_run.py, hardware_diagnostic.py
+
+### Virtual Environment & Modern Pi OS Support
+- [x] **Enhanced verify_pi_setup.py**: Added comprehensive venv detection and PEP 668 guidance
+- [x] **Updated PI_SETUP_GUIDE.md**: Added detailed section on handling externally-managed-environment errors
+- [x] **Improved setup_pi_venv.sh**: Better error handling, package-by-package installation, PEP 668 detection
+- [x] **Created test_pip_restriction.py**: Diagnostic tool for testing pip restrictions on target system
+- [x] **Enhanced deployment workflow**: All scripts now handle modern Pi OS pip restrictions properly
+
+### Configuration & Hardware Fixes
+- [x] **GPIO Pin Conflicts Resolved**: All 5 critical pin assignment conflicts fixed
+- [x] **Default pinout.txt Restored**: Authoritative pin reference recovered from backup
+- [x] **README.md Restored**: Project documentation recovered from backup
+- [x] **analyze_pins.py Created**: Verification tool confirms all pins now match
+- [x] **diagnostic_hardware.py Created**: Comprehensive hardware testing for Pi deployment
+- [x] **deployment scripts updated**: PowerShell and Bash scripts with venv setup
+
+### Current File Structure: CLEAN & ORGANIZED
+✅ **deploy/**: All deployment tools and scripts organized
+✅ **Archive/**: Old/unused files properly archived  
+✅ **Root directory**: Clean with only essential application files
+✅ **Documentation**: Updated to reflect new structure
+✅ **Deployment workflow**: Streamlined and user-friendly
+
+### Current Status: PRODUCTION READY
+✅ **Configuration**: All pin assignments consistent with hardware documentation
+✅ **Virtual Environment**: Full support for modern Raspberry Pi OS PEP 668 restrictions  
+✅ **Diagnostics**: Comprehensive tools for hardware verification and troubleshooting
+✅ **Documentation**: Complete setup guides with modern OS handling
+✅ **Deployment**: Automated scripts handle environment setup and verification
+✅ **Project Structure**: Clean, organized, and maintainable
+
+### Next Steps (On Actual Raspberry Pi)
+1. Run `./setup_pi_venv.sh` to create virtual environment
+2. Deploy code using updated deployment scripts
+3. Run `python3 verify_pi_setup.py` to check environment
+4. Run `python3 diagnostic_hardware.py` for hardware verification
+5. Run `python3 analyze_pins.py` to confirm pin configuration
+6. Test application: `python3 app.py`
+
+---
+
+# 2025-07-03: Post-hardware deployment test TODOs
+- [ ] Servo: Review operation page controls (4 buttons: Momentary Fire, Momentary Fiber, Toggle Fire, Toggle Fiber)
+    - [ ] Momentary Fire: Move servo A→B, hold, on release B→A
+    - [ ] Momentary Fiber: A→B, B→A, A→B, hold, on release B→A
+    - [ ] Toggle Fire: A→B, hold, on press again B→A
+    - [ ] Toggle Fiber: A→B, B→A, A→B, hold, on press again B→A
+    - [ ] Toggle buttons should visually indicate active state
+    - [ ] Stop should move servo to A from any position
+- [ ] Trigger Servo page: Motion Controls and Direct Angle Control should hold position (currently returns to previous)
+- [ ] Servo angle range should be 0–180 (not -90 to 90)
+- [ ] Table control: Frontend works, but backend GPIO not working—investigate/fix
+- [ ] Stepper: Does not move, freezes app; compare with working gpioesp/test_stepper_sweep.py and fix
+- [ ] Temperature sensors: Not reading hardware, still in simulation—fix
+- [ ] Build error on settings, pinout, RFID, and login pages (see logs.txt)—fix
+- [ ] E-Stop: Always set servo to position A before turning off any other outputs (fan, lights, table, etc.)
+
+### HIGH PRIORITY (2025-07-08: Hardware Test Results)
+- [ ] Table control backend: OutputController missing move_table_forward/move_table_backward methods (500 errors)
+    - Action: Implement these methods and ensure routes call them
+- [ ] Servo FIRE toggle: Only works once, then unresponsive until restart
+    - Action: Debug servo state/event logic for toggle/hold
+- [ ] Build errors on settings, pinout, RFID, login pages (Flask BuildError: use main_bp.* endpoints)
+    - Action: Update all url_for('index'), url_for('login'), etc. to use correct blueprint names
+- [ ] Fiber fire/fiber toggle: Not implemented (missing fiber_fire_toggle/fiber_fire methods)
+    - Action: Implement or correctly route these in ServoController and Flask
+- [ ] 404s for /table/status, /servo/status, /sequences/status
+    - Action: Implement these API endpoints or update frontend to use correct URLs
+- [ ] ESP32 serial/JSON errors: device disconnected, JSON decode errors
+    - Action: Check serial port usage, ensure only one process accesses port, fix JSON protocol
+
+

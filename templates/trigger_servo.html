@@ -26,7 +26,7 @@
                                     <label for="servo-position-a" class="form-label">Position A (degrees):</label>
                                     <div class="d-flex align-items-center">
                                         <input type="range" class="form-range me-2" id="servo-position-a" 
-                                               min="-90" max="90" value="{{ servo_position_a }}">
+                                               min="0" max="180" value="{{ servo_position_a }}">
                                         <span id="servo-position-a-value" class="badge bg-secondary">{{ servo_position_a }}</span>
                                     </div>
                                 </div>
@@ -36,15 +36,9 @@
                                     <label for="servo-position-b" class="form-label">Position B (degrees):</label>
                                     <div class="d-flex align-items-center">
                                         <input type="range" class="form-range me-2" id="servo-position-b" 
-                                               min="-90" max="90" value="{{ servo_position_b }}">
+                                               min="0" max="180" value="{{ servo_position_b }}">
                                         <span id="servo-position-b-value" class="badge bg-secondary">{{ servo_position_b }}</span>
                                     </div>
-                                </div>
-                                
-                                <!-- Inversion Toggle -->
-                                <div class="form-check form-switch mt-4">
-                                    <input class="form-check-input" type="checkbox" id="servo-invert" {% if servo_inverted %}checked{% endif %}>
-                                    <label class="form-check-label" for="servo-invert">Invert Positions</label>
                                 </div>
                             </div>
                         </div>
@@ -69,7 +63,7 @@
                                     <label for="servo-direct-angle" class="form-label">Direct Angle Control:</label>
                                     <div class="d-flex">
                                         <input type="range" class="form-range me-2" id="servo-direct-angle" 
-                                               min="-90" max="90" value="0">
+                                               min="0" max="180" value="0">
                                         <span id="servo-direct-angle-value" class="badge bg-secondary">0</span>
                                     </div>
                                 </div>

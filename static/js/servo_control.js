@@ -478,18 +478,21 @@ function addServoGestureControls() {
 
 // Initialize existing servo controls (your current implementation)
 function initServoControls() {
+    // Update all servo slider min/max to 0/180
+    document.querySelectorAll('#servo-position-a, #servo-position-b, #servo-direct-angle').forEach(function(slider) {
+        slider.min = 0;
+        slider.max = 180;
+    });
+    
     // Position sliders
     const servoPositionASlider = document.getElementById('servo-position-a');
     const servoPositionAValue = document.getElementById('servo-position-a-value');
     const servoPositionBSlider = document.getElementById('servo-position-b');
     const servoPositionBValue = document.getElementById('servo-position-b-value');
-    const servoInvertSwitch = document.getElementById('servo-invert');
-    
-    // Movement buttons
-    const moveToPositionABtn = document.getElementById('move-to-position-a');
-    const moveToPositionBBtn = document.getElementById('move-to-position-b');
     const servoDirectAngleSlider = document.getElementById('servo-direct-angle');
     const servoDirectAngleValue = document.getElementById('servo-direct-angle-value');
+    const moveToPositionABtn = document.getElementById('move-to-position-a');
+    const moveToPositionBBtn = document.getElementById('move-to-position-b');
     const moveToAngleBtn = document.getElementById('move-to-angle');
     const detachServoBtn = document.getElementById('detach-servo');
     const reattachServoBtn = document.getElementById('reattach-servo');
@@ -556,40 +559,6 @@ function initServoControls() {
                     } else {
                         addLogMessage(`Error setting position B: ${data.message}`, true);
                     }
-                }
-            );
-        });
-    }
-    
-    // Invert switch
-    if (servoInvertSwitch) {
-        servoInvertSwitch.addEventListener('change', function() {
-            const inverted = this.checked;
-            const originalState = inverted;
-            addLogMessage(`${inverted ? 'Enabling' : 'Disabling'} servo inversion...`, false, 'config');
-            clearSimulationWarnings();
-            
-            // Use the makeRequest utility
-            makeRequest(
-                '/servo/set_inverted',
-                'POST',
-                { inverted: inverted },
-                function(data) {
-                    if (data.status === 'success') {
-                        // Use handleSimulationResponse utility
-                        if (!handleSimulationResponse(data, `${inverted ? 'Enable' : 'Disable'} servo inversion`)) {
-                            // This is a real hardware response
-                            addLogMessage(`Servo inversion ${inverted ? 'enabled' : 'disabled'}`, false, 'success');
-                        }
-                    } else {
-                        addLogMessage(`Error setting inversion: ${data.message}`, true);
-                        // Revert switch state on error
-                        servoInvertSwitch.checked = !inverted;
-                    }
-                },
-                function(error) {
-                    // Revert switch state on error
-                    servoInvertSwitch.checked = !inverted;
                 }
             );
         });

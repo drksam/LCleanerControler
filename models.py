@@ -1,13 +1,15 @@
-from main import db, app
+from extensions import db, login_manager
 from datetime import datetime
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 import json
 import os
+import flask
 
 # Utility function to determine if we're using SQLite or PostgreSQL
 def is_using_postgres():
     """Check if we're using PostgreSQL"""
+    app = flask.current_app
     database_url = app.config.get("SQLALCHEMY_DATABASE_URI", "")
     return 'postgresql' in database_url
 

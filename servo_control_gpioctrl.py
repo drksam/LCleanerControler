@@ -31,8 +31,8 @@ class ServoController:
         self.position_a = config.get('position_a', 0)
         self.position_b = config.get('position_b', 90)
         self.inverted = config.get('inverted', False)
-        self.min_angle = config.get('min_angle', -90)
-        self.max_angle = config.get('max_angle', 90)
+        self.min_angle = config.get('min_angle', 0)
+        self.max_angle = config.get('max_angle', 180)
         
         # Sequence mode variables
         self.sequence_mode = False
@@ -90,7 +90,6 @@ class ServoController:
             angle = self.min_angle
         elif angle > self.max_angle:
             angle = self.max_angle
-            
         self.position_a = angle
         logging.info(f"Position A set to {angle} degrees")
         return angle
@@ -101,7 +100,6 @@ class ServoController:
             angle = self.min_angle
         elif angle > self.max_angle:
             angle = self.max_angle
-            
         self.position_b = angle
         logging.info(f"Position B set to {angle} degrees")
         return angle
@@ -112,8 +110,8 @@ class ServoController:
         logging.info(f"Servo inversion set to {inverted}")
         return inverted
         
-    def move_to_a(self, auto_detach=True, detach_delay=0.5):
-        """Move servo to position A"""
+    def move_to_a(self, auto_detach=False, detach_delay=0.5):
+        """Move servo to position A (no auto-detach by default)"""
         if not self.initialized:
             # Try to reattach if not initialized
             if not self.reattach():
@@ -129,19 +127,13 @@ class ServoController:
         try:
             self.servo.angle = angle
             logging.info(f"Moved to position A ({angle} degrees)")
-            
-            # Optionally detach after a delay to prevent jitter
-            if auto_detach:
-                time.sleep(detach_delay)  # Wait for servo to settle
-                self.detach()
-                
             return True
         except Exception as e:
             logging.error(f"Failed to move servo: {e}")
             return False
             
-    def move_to_b(self, auto_detach=True, detach_delay=0.5):
-        """Move servo to position B"""
+    def move_to_b(self, auto_detach=False, detach_delay=0.5):
+        """Move servo to position B (no auto-detach by default)"""
         if not self.initialized:
             # Try to reattach if not initialized
             if not self.reattach():
@@ -157,19 +149,13 @@ class ServoController:
         try:
             self.servo.angle = angle
             logging.info(f"Moved to position B ({angle} degrees)")
-            
-            # Optionally detach after a delay to prevent jitter
-            if auto_detach:
-                time.sleep(detach_delay)  # Wait for servo to settle
-                self.detach()
-                
             return True
         except Exception as e:
             logging.error(f"Failed to move servo: {e}")
             return False
             
-    def move_to_angle(self, angle, auto_detach=True, detach_delay=0.5):
-        """Move servo to a specific angle"""
+    def move_to_angle(self, angle, auto_detach=False, detach_delay=0.5):
+        """Move servo to a specific angle (no auto-detach by default)"""
         if not self.initialized:
             # Try to reattach if not initialized
             if not self.reattach():
@@ -188,12 +174,6 @@ class ServoController:
         try:
             self.servo.angle = angle
             logging.info(f"Moved to {angle} degrees")
-            
-            # Optionally detach after a delay to prevent jitter
-            if auto_detach:
-                time.sleep(detach_delay)  # Wait for servo to settle
-                self.detach()
-                
             return True
         except Exception as e:
             logging.error(f"Failed to move servo: {e}")

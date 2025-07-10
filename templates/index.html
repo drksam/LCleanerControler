@@ -303,6 +303,10 @@
                                     </div>
                                     <h6>Fan</h6>
                                     <span id="fan-state-display" class="badge bg-secondary">Off</span>
+                                    <div class="btn-group mt-2" role="group" aria-label="Fan Controls">
+                                        <button id="fan-on-btn" class="btn btn-success btn-sm">ON</button>
+                                        <button id="fan-off-btn" class="btn btn-danger btn-sm">OFF</button>
+                                    </div>
                                 </div>
                             </div>
                             <div class="col-md-3 mb-3">
@@ -312,6 +316,10 @@
                                     </div>
                                     <h6>Red Lights</h6>
                                     <span id="lights-state-display" class="badge bg-secondary">Off</span>
+                                    <div class="btn-group mt-2" role="group" aria-label="Lights Controls">
+                                        <button id="lights-on-btn" class="btn btn-success btn-sm">ON</button>
+                                        <button id="lights-off-btn" class="btn btn-danger btn-sm">OFF</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -351,6 +359,13 @@
                                     <h6>Back Limit</h6>
                                     <span id="table-back-limit-status" class="badge bg-secondary">Not Active</span>
                                 </div>
+                            </div>
+                        </div>
+                        <div class="row text-center mt-4">
+                            <div class="col-12">
+                                <button id="estop-btn" class="btn btn-lg btn-danger w-50">
+                                    <i class="fas fa-exclamation-triangle me-2"></i> EMERGENCY STOP
+                                </button>
                             </div>
                         </div>
                     </div>

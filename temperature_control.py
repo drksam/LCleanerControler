@@ -56,6 +56,7 @@ class TemperatureController:
     
     def _initialize_sensors(self):
         """Initialize DS18B20 temperature sensors"""
+        logger.debug("_initialize_sensors called. SIMULATION_MODE=%s", os.environ.get('SIMULATION_MODE'))
         # Check if we're in simulation mode
         if os.environ.get('SIMULATION_MODE') == 'True':
             logger.info("Temperature sensors in simulation mode")
@@ -89,95 +90,78 @@ class TemperatureController:
 
         # Try to load the kernel modules needed for 1-Wire (w1) communication on Raspberry Pi
         try:
-            # Get the configured GPIO pin for 1-Wire
             w1_gpio_pin = self.temp_config.get('w1_gpio_pin', 2)
-            
-            # Use the specified GPIO pin for 1-Wire
-            if w1_gpio_pin != 4:  # 4 is the default, so we only need to specify if it's different
+            logger.debug(f"Attempting to load w1-gpio on pin {w1_gpio_pin}")
+            if w1_gpio_pin != 4:
                 subprocess.run(["modprobe", "w1-gpio", f"gpiopin={w1_gpio_pin}"], check=True)
             else:
                 subprocess.run(["modprobe", "w1-gpio"], check=True)
-                
             subprocess.run(["modprobe", "w1-therm"], check=True)
             logger.info(f"Loaded 1-Wire modules using GPIO pin {w1_gpio_pin}")
         except Exception as e:
             logger.warning(f"Could not load w1 kernel modules (normal if not on Raspberry Pi): {e}")
-            
         # Try to find DS18B20 sensors
         try:
             base_dir = '/sys/bus/w1/devices/'
             self.device_folder = glob.glob(base_dir + '28*')
-            
+            logger.debug(f"Sensor search in {base_dir}: found {self.device_folder}")
             if not self.device_folder:
                 logger.error("No DS18B20 temperature sensors found")
                 return
-            
-            # Save the device file paths
             for folder in self.device_folder:
                 device_file = folder + '/w1_slave'
                 device_id = os.path.basename(folder)
-                
-                # Get device name from config if available
                 device_name = self.temp_config.get('device_ids', {}).get(device_id, f"Sensor {device_id}")
-                logger.debug(f"Initializing temperature sensor {device_id} with name: {device_name}")
-                
+                logger.info(f"Initializing temperature sensor {device_id} with name: {device_name}, file: {device_file}")
                 self.device_files.append(device_file)
                 self.temperatures[device_id] = {
                     'temp': 0.0, 
                     'last_reading': datetime.now(),
                     'name': device_name
                 }
-            
             self.devices_loaded = True
-            logger.info(f"Found {len(self.device_files)} DS18B20 temperature sensors")
-            
+            logger.info(f"Found {len(self.device_files)} DS18B20 temperature sensors: {list(self.temperatures.keys())}")
         except Exception as e:
             logger.error(f"Error initializing temperature sensors: {e}")
-            # Fall back to simulation mode
             self.devices_loaded = False
-            
+
     def _read_temp_raw(self, device_file):
         """Read raw temperature data from sensor file"""
         try:
+            logger.debug(f"Reading raw temperature from {device_file}")
             with open(device_file, 'r') as f:
                 lines = f.readlines()
+            logger.debug(f"Raw lines from {device_file}: {lines}")
             return lines
         except Exception as e:
             logger.error(f"Error reading temperature sensor {device_file}: {e}")
             return None
-        
+
     def _read_temp(self, device_file):
         """Convert raw temperature data to Celsius"""
-        # Simulate temperature reading if not on Raspberry Pi
         if os.environ.get('SIMULATION_MODE') == 'True':
             import random
-            return round(25.0 + random.uniform(-2.0, 2.0), 1)  # Simulate around 25°C
-        
+            return round(25.0 + random.uniform(-2.0, 2.0), 1)
         lines = self._read_temp_raw(device_file)
         if not lines:
+            logger.warning(f"No lines read from {device_file}")
             return None
-        
         try:
-            # Check if the CRC is valid (the last 3 characters should be 'YES')
             if lines[0].strip()[-3:] != 'YES':
-                logger.warning(f"CRC check failed for sensor {device_file}")
+                logger.warning(f"CRC check failed for sensor {device_file}: {lines[0].strip()}")
                 return None
-            
-            # Find the temperature reading (t=xxxxx)
             equals_pos = lines[1].find('t=')
             if equals_pos == -1:
-                logger.warning(f"Temperature reading not found for sensor {device_file}")
+                logger.warning(f"Temperature reading not found for sensor {device_file}: {lines[1]}")
                 return None
-            
-            # Convert the temperature reading from millidegrees to degrees Celsius
             temp_string = lines[1][equals_pos+2:]
             temp_c = float(temp_string) / 1000.0
+            logger.info(f"Read temperature {temp_c:.2f}C from {device_file}")
             return temp_c
-        
         except Exception as e:
             logger.error(f"Error processing temperature data from {device_file}: {e}")
             return None
-        
+
     def _monitor_temperatures(self):
         """Background thread to monitor temperatures"""
         logger.info("Temperature monitoring thread started")
@@ -247,37 +231,32 @@ class TemperatureController:
         return False
     
     def update_temperatures(self):
-        """Update temperature readings from sensors"""
+        logger.debug("update_temperatures called. devices_loaded=%s", self.devices_loaded)
         if os.environ.get('SIMULATION_MODE') == 'True':
-            # Simulate temperature changes
             import random
             for device_id in self.temperatures:
-                # Randomly adjust the simulated temperature
                 current = self.temperatures[device_id]['temp']
                 new_temp = current + random.uniform(-0.5, 0.5)
-                
-                # Keep within a reasonable range (20-35°C normally, unless testing high temp)
                 if new_temp < 20:
                     new_temp = 20
-                
                 self.temperatures[device_id]['temp'] = round(new_temp, 1)
                 self.temperatures[device_id]['last_reading'] = datetime.now()
+                logger.debug(f"Simulated temp for {device_id}: {self.temperatures[device_id]['temp']}")
             return True
-                
         if not self.devices_loaded:
+            logger.warning("update_temperatures called but devices_loaded is False")
             return False
-        
         try:
             for i, device_file in enumerate(self.device_files):
                 device_id = os.path.basename(os.path.dirname(device_file))
                 temp = self._read_temp(device_file)
-                
                 if temp is not None:
                     self.temperatures[device_id]['temp'] = temp
                     self.temperatures[device_id]['last_reading'] = datetime.now()
-            
+                    logger.info(f"Updated temperature for {device_id}: {temp}")
+                else:
+                    logger.warning(f"Failed to update temperature for {device_id}")
             return True
-        
         except Exception as e:
             logger.error(f"Error updating temperatures: {e}")
             return False

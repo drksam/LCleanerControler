@@ -107,6 +107,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add fiber toggle button reference
     const fireFiberToggleButton = document.getElementById('fire-fiber-toggle-button');
 
+    // Fan and Lights manual control buttons
+    const fanOnBtn = document.getElementById('fan-on-btn');
+    const fanOffBtn = document.getElementById('fan-off-btn');
+    const lightsOnBtn = document.getElementById('lights-on-btn');
+    const lightsOffBtn = document.getElementById('lights-off-btn');
+    const fanStateDisplay = document.getElementById('fan-state-display');
+    const lightsStateDisplay = document.getElementById('lights-state-display');
+    const estopBtn = document.getElementById('estop-btn');
+
     /**
      * Updates the firing status indicator in the UI
      * @param {string} status - The status text to display
@@ -175,9 +184,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Toggle Fire button (new behavior)
+    let fireToggleActive = false;
     if (fireToggleButton && stopFireButton) {
-        console.log("Fire toggle button found and event listener attached");
         fireToggleButton.addEventListener('click', function() {
+            fireToggleActive = !fireToggleActive;
+            fireToggleButton.classList.toggle('active', fireToggleActive);
             console.log("Fire toggle button clicked");
             window.addLogMessage('FIRING (toggle) - Moving servo to position B...', false, 'action');
             
@@ -205,8 +216,9 @@ document.addEventListener('DOMContentLoaded', function() {
             );
         });
         
-        console.log("Stop fire button listener attached");
         stopFireButton.addEventListener('click', function() {
+            fireToggleActive = false;
+            fireToggleButton.classList.remove('active');
             console.log("Stop fire button clicked");
             window.addLogMessage('STOPPING FIRE - Moving servo to position A...', false, 'action');
             
@@ -268,9 +280,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Fire Fiber Toggle button event
+    let fireFiberToggleActive = false;
     if (fireFiberToggleButton) {
         console.log("Fiber fire toggle button found and event listener attached");
         fireFiberToggleButton.addEventListener('click', function() {
+            fireFiberToggleActive = !fireFiberToggleActive;
+            fireFiberToggleButton.classList.toggle('active', fireFiberToggleActive);
             window.addLogMessage('Starting FIBER sequence (toggle mode)...', false, 'action');
             
             disableFireButtons();
@@ -292,6 +307,37 @@ document.addEventListener('DOMContentLoaded', function() {
                 function(error) {
                     // Error handling is done in makeRequest
                     resetFiringStatus();
+                    enableFireButtons();
+                }
+            );
+        });
+        
+        stopFireButton.addEventListener('click', function() {
+            fireFiberToggleActive = false;
+            fireFiberToggleButton.classList.remove('active');
+            console.log("Stop fire button clicked");
+            window.addLogMessage('STOPPING FIRE - Moving servo to position A...', false, 'action');
+            
+            // Disable stop button
+            setButtonState(false, stopFireButton);
+            
+            makeRequest(
+                '/stop_fire',
+                'POST',
+                null,
+                function(data) {
+                    if (data.status === 'success') {
+                        window.addLogMessage('Firing stopped', false, 'success');
+                        resetFiringStatus();
+                    } else {
+                        window.addLogMessage(`Error stopping firing: ${data.message}`, true);
+                    }
+                    // Always re-enable all fire buttons after stop operation
+                    enableFireButtons();
+                },
+                function(error) {
+                    // Error handling is done in makeRequest
+                    // Always re-enable all fire buttons after stop operation
                     enableFireButtons();
                 }
             );
@@ -556,6 +602,67 @@ document.addEventListener('DOMContentLoaded', function() {
                     );
                 }
             );
+        });
+    }
+    
+    // Helper to update fan/lights state display
+    function updateFanStateDisplay(state) {
+        if (fanStateDisplay) {
+            fanStateDisplay.textContent = state ? 'On' : 'Off';
+            fanStateDisplay.className = 'badge ' + (state ? 'bg-success' : 'bg-secondary');
+        }
+    }
+    function updateLightsStateDisplay(state) {
+        if (lightsStateDisplay) {
+            lightsStateDisplay.textContent = state ? 'On' : 'Off';
+            lightsStateDisplay.className = 'badge ' + (state ? 'bg-success' : 'bg-secondary');
+        }
+    }
+
+    // Fan ON/OFF
+    if (fanOnBtn) {
+        fanOnBtn.addEventListener('click', function() {
+            makeRequest('/fan/set', 'POST', { state: true }, function(data) {
+                updateFanStateDisplay(true);
+                window.addLogMessage('Fan turned ON', false, 'action');
+            });
+        });
+    }
+    if (fanOffBtn) {
+        fanOffBtn.addEventListener('click', function() {
+            makeRequest('/fan/set', 'POST', { state: false }, function(data) {
+                updateFanStateDisplay(false);
+                window.addLogMessage('Fan turned OFF', false, 'action');
+            });
+        });
+    }
+
+    // Lights ON/OFF
+    if (lightsOnBtn) {
+        lightsOnBtn.addEventListener('click', function() {
+            makeRequest('/lights/set', 'POST', { state: true }, function(data) {
+                updateLightsStateDisplay(true);
+                window.addLogMessage('Red lights turned ON', false, 'action');
+            });
+        });
+    }
+    if (lightsOffBtn) {
+        lightsOffBtn.addEventListener('click', function() {
+            makeRequest('/lights/set', 'POST', { state: false }, function(data) {
+                updateLightsStateDisplay(false);
+                window.addLogMessage('Red lights turned OFF', false, 'action');
+            });
+        });
+    }
+
+    // E-Stop button
+    if (estopBtn) {
+        estopBtn.addEventListener('click', function() {
+            if (confirm('Are you sure you want to EMERGENCY STOP all outputs?')) {
+                makeRequest('/estop', 'POST', null, function(data) {
+                    window.addLogMessage('EMERGENCY STOP triggered! All outputs stopped.', false, 'danger');
+                });
+            }
         });
     }
 });

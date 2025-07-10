@@ -28,7 +28,6 @@ DEFAULT_CONFIG = {
     # Servo parameters
     'servo': {
         'position_normal': 75,            # Servo position in normal state (degrees)
-        'position_inverted': 97,          # Servo position in inverted state (degrees)
         'detach_delay': 0.5,              # Time to wait before detaching servo (seconds)
         'sequence_delay': 500,            # Delay between steps in sequence mode (ms)
     },
@@ -86,20 +85,26 @@ DEFAULT_CONFIG = {
     # GPIO pin assignments (BCM numbering)
     'gpio': {
         # Input pins
-        'button_in_pin': 24,              # Laser Head IN button pin (BCM 24)
+        'button_in_pin': 5,               # Laser Head IN button pin (BCM 5)
         'button_out_pin': 25,             # Laser Head OUT button pin (BCM 25)
-        'fire_button_pin': 5,             # Fire button pin (BCM 5)
-        'servo_invert_switch_pin': 6,     # Servo inversion switch pin (BCM 6)
+        'fire_button_pin': 22,            # Fire button pin (BCM 22)
+        'fiber_button_pin': 12,           # Fiber button pin (BCM 12) - repurposed from invert
 
         # Output pins (Fan and Red Lights)
-        'red_lights_pin': 12,             # Red lights output pin (BCM 12)
-        'fan_pin': 13,                    # Fan output pin (BCM 13)
+        'red_lights_pin': 16,             # Red lights output pin (BCM 16)
+        'fan_pin': 26,                    # Fan output pin (BCM 26)
 
         # Table control pins
-        'table_forward_pin': 16,          # Table forward movement relay pin (BCM 16)
-        'table_backward_pin': 20,         # Table backward movement relay pin (BCM 20)
-        'table_front_switch_pin': 19,     # Table front end switch pin (BCM 19, Pull-Up, LOW=Active)
-        'table_back_switch_pin': 21,      # Table back end switch pin (BCM 21, Pull-Up, LOW=Active)
+        'table_forward_pin': 13,          # Table forward movement relay pin (BCM 13)
+        'table_backward_pin': 6,          # Table backward movement relay pin (BCM 6)
+        'table_front_switch_pin': 21,     # Table front end switch pin (BCM 21, Pull-Up, LOW=Active)
+        'table_back_switch_pin': 20,      # Table back end switch pin (BCM 20, Pull-Up, LOW=Active)
+
+        # RFID pins
+        'rfid_mosi_pin': 10,              # RFID MOSI pin (BCM 10)
+        'rfid_miso_pin': 9,               # RFID MISO pin (BCM 9)
+        'rfid_sclk_pin': 11,              # RFID SCLK pin (BCM 11)
+        'rfid_ce0_pin': 8,                # RFID CE0 pin (BCM 8)
 
         # ESP32 control pins (do not use on Pi)
         'esp_step_pin': 25,               # ESP32 Stepper STEP (GPIO 25)
@@ -178,7 +183,7 @@ def get_gpio_config():
     pin_mapping = {
         'button_in_pin': 'in_button_pin',
         'button_out_pin': 'out_button_pin',
-        'servo_invert_switch_pin': 'servo_invert_pin',
+        'fiber_button_pin': 'servo_invert_pin',
         'table_front_switch_pin': 'table_front_limit_pin',
         'table_back_switch_pin': 'table_back_limit_pin',
         # ESP32 mappings

@@ -1,0 +1,79 @@
+(venv) laser@raspberrypi:~/LCleanerController $ python3 test_gpio_wrapper.py
+Starting minimal LocalGPIOWrapper test...
+2025-07-09 16:31:24,741 INFO LocalGPIOWrapper initialized with chip_name=gpiochip0, simulation_mode=False
+Setting up output pin 26...
+2025-07-09 16:31:24,741 INFO LocalGPIOWrapper.setup_output called: pin=26, initial_value=0
+2025-07-09 16:31:24,742 INFO Setting up GPIO pin 26 (offset 26) as output on chip gpiochip0
+2025-07-09 16:31:24,742 INFO Creating new gpiod Chip instance for gpiochip0
+2025-07-09 16:31:24,742 INFO Successfully set up GPIO pin 26 as output (initial value 0)
+Setting pin 26 HIGH
+2025-07-09 16:31:24,742 INFO LocalGPIOWrapper.write called: pin=26, value=1
+2025-07-09 16:31:24,742 DEBUG Set GPIO pin 26 to 1
+Setting pin 26 LOW
+2025-07-09 16:31:25,242 INFO LocalGPIOWrapper.write called: pin=26, value=0
+2025-07-09 16:31:25,242 DEBUG Set GPIO pin 26 to 0
+Setting pin 26 HIGH
+2025-07-09 16:31:25,743 INFO LocalGPIOWrapper.write called: pin=26, value=1
+2025-07-09 16:31:25,743 DEBUG Set GPIO pin 26 to 1
+Setting pin 26 LOW
+2025-07-09 16:31:26,243 INFO LocalGPIOWrapper.write called: pin=26, value=0
+2025-07-09 16:31:26,243 DEBUG Set GPIO pin 26 to 0
+Setting pin 26 HIGH
+2025-07-09 16:31:26,743 INFO LocalGPIOWrapper.write called: pin=26, value=1
+2025-07-09 16:31:26,743 DEBUG Set GPIO pin 26 to 1
+Setting pin 26 LOW
+2025-07-09 16:31:27,243 INFO LocalGPIOWrapper.write called: pin=26, value=0
+2025-07-09 16:31:27,243 DEBUG Set GPIO pin 26 to 0
+Setting pin 26 HIGH
+2025-07-09 16:31:27,743 INFO LocalGPIOWrapper.write called: pin=26, value=1
+2025-07-09 16:31:27,744 DEBUG Set GPIO pin 26 to 1
+Setting pin 26 LOW
+2025-07-09 16:31:28,244 INFO LocalGPIOWrapper.write called: pin=26, value=0
+2025-07-09 16:31:28,244 DEBUG Set GPIO pin 26 to 0
+Setting pin 26 HIGH
+2025-07-09 16:31:28,744 INFO LocalGPIOWrapper.write called: pin=26, value=1
+2025-07-09 16:31:28,744 DEBUG Set GPIO pin 26 to 1
+Setting pin 26 LOW
+2025-07-09 16:31:29,245 INFO LocalGPIOWrapper.write called: pin=26, value=0
+2025-07-09 16:31:29,245 DEBUG Set GPIO pin 26 to 0
+Setting up input pin 12...
+2025-07-09 16:31:29,745 INFO LocalGPIOWrapper.setup_input called: pin=12, pull_up=True
+2025-07-09 16:31:29,745 INFO Setting up GPIO pin 12 (offset 12) as input on chip gpiochip0
+2025-07-09 16:31:29,745 DEBUG Using cached gpiod Chip instance for gpiochip0
+2025-07-09 16:31:29,745 INFO Successfully set up GPIO pin 12 as input (pull_up=True)
+2025-07-09 16:31:29,745 DEBUG LocalGPIOWrapper.read called: pin=12
+2025-07-09 16:31:29,745 DEBUG Read GPIO pin 12 as 1
+Read pin 12: 1
+2025-07-09 16:31:29,945 DEBUG LocalGPIOWrapper.read called: pin=12
+2025-07-09 16:31:29,946 DEBUG Read GPIO pin 12 as 1
+Read pin 12: 1
+2025-07-09 16:31:30,146 DEBUG LocalGPIOWrapper.read called: pin=12
+2025-07-09 16:31:30,146 DEBUG Read GPIO pin 12 as 1
+Read pin 12: 1
+2025-07-09 16:31:30,346 DEBUG LocalGPIOWrapper.read called: pin=12
+2025-07-09 16:31:30,346 DEBUG Read GPIO pin 12 as 1
+Read pin 12: 1
+2025-07-09 16:31:30,547 DEBUG LocalGPIOWrapper.read called: pin=12
+2025-07-09 16:31:30,547 DEBUG Read GPIO pin 12 as 1
+Read pin 12: 1
+2025-07-09 16:31:30,747 DEBUG LocalGPIOWrapper.read called: pin=12
+2025-07-09 16:31:30,747 DEBUG Read GPIO pin 12 as 1
+Read pin 12: 1
+2025-07-09 16:31:30,947 DEBUG LocalGPIOWrapper.read called: pin=12
+2025-07-09 16:31:30,947 DEBUG Read GPIO pin 12 as 1
+Read pin 12: 1
+2025-07-09 16:31:31,147 DEBUG LocalGPIOWrapper.read called: pin=12
+2025-07-09 16:31:31,148 DEBUG Read GPIO pin 12 as 0
+Read pin 12: 0
+2025-07-09 16:31:31,348 DEBUG LocalGPIOWrapper.read called: pin=12
+2025-07-09 16:31:31,348 DEBUG Read GPIO pin 12 as 0
+Read pin 12: 0
+2025-07-09 16:31:31,548 DEBUG LocalGPIOWrapper.read called: pin=12
+2025-07-09 16:31:31,548 DEBUG Read GPIO pin 12 as 0
+Read pin 12: 0
+Cleaning up pins...
+2025-07-09 16:31:31,749 INFO LocalGPIOWrapper.cleanup called: pin=26
+2025-07-09 16:31:31,749 DEBUG Released GPIO pin 26
+2025-07-09 16:31:31,749 INFO LocalGPIOWrapper.cleanup called: pin=12
+2025-07-09 16:31:31,749 DEBUG Released GPIO pin 12
+Test complete.

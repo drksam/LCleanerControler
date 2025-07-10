@@ -3,8 +3,8 @@ import logging
 import sys
 import secrets
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager
+# --- CHANGES: Use extensions.py for db and login_manager ---
+from extensions import db, login_manager
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, 
@@ -55,11 +55,8 @@ else:
     }
     logger.info("Using SQLite without schema separation for development/prototype mode")
 
-# Initialize SQLAlchemy
-db = SQLAlchemy(app)
-
-# Configure login manager
-login_manager = LoginManager()
+# --- CHANGES: Initialize db and login_manager with app here ---
+db.init_app(app)
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 

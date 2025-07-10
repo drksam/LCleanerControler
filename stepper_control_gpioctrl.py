@@ -101,6 +101,7 @@ class StepperMotor:
     
     def enable(self):
         """Enable the stepper motor."""
+        logging.info("StepperMotor.enable called")
         with self.lock:
             if self.stepper:
                 result = self.stepper.enable()
@@ -116,6 +117,7 @@ class StepperMotor:
     
     def disable(self):
         """Disable the stepper motor."""
+        logging.info("StepperMotor.disable called")
         with self.lock:
             if self.stepper:
                 result = self.stepper.disable()
@@ -131,6 +133,7 @@ class StepperMotor:
     
     def set_speed(self, speed):
         """Set the stepper motor speed."""
+        logging.info(f"StepperMotor.set_speed called: speed={speed}")
         with self.lock:
             if self.stepper:
                 self.speed = speed
@@ -142,12 +145,14 @@ class StepperMotor:
                 return False
     
     def get_position(self):
+        logging.info(f"StepperMotor.get_position called, returning {self.position}")
         """Get the current position."""
         if self.stepper:
             return self.stepper.get_position()
         return self.position  # Fall back to tracked position if stepper not available
     
     def set_position(self, position):
+        logging.info(f"StepperMotor.set_position called: position={position}")
         """Set the current position (without moving)."""
         with self.lock:
             self.position = position
@@ -157,12 +162,14 @@ class StepperMotor:
             return True
     
     def is_moving(self):
+        logging.info(f"StepperMotor.is_moving called, returning {self.moving}")
         """Check if the stepper is currently moving."""
         if self.stepper:
             return self.stepper.is_moving()
         return self.moving
     
     def move_to(self, position, wait=False):
+        logging.info(f"StepperMotor.move_to called: position={position}, wait={wait}")
         """
         Move to a specific position.
         
@@ -229,6 +236,7 @@ class StepperMotor:
                 return False
     
     def stop(self):
+        logging.info("StepperMotor.stop called")
         """Stop any ongoing movement."""
         with self.lock:
             if self.stepper:
@@ -244,6 +252,7 @@ class StepperMotor:
                 return False
     
     def home(self, wait=True):
+        logging.info(f"StepperMotor.home called: wait={wait}")
         """
         Home the stepper motor (move to position 0).
         
@@ -292,6 +301,7 @@ class StepperMotor:
                 return False
     
     def jog(self, direction, steps=10):
+        logging.info(f"StepperMotor.jog called: direction={direction}, steps={steps}")
         """
         Jog the stepper motor in the specified direction.
         
@@ -333,6 +343,7 @@ class StepperMotor:
             return self.move_to(new_position)
     
     def move_index(self):
+        logging.info("StepperMotor.move_index called")
         """
         Move the stepper motor by the index distance.
         
@@ -353,6 +364,7 @@ class StepperMotor:
             return self.move_to(new_position)
     
     def cleanup(self):
+        logging.info("StepperMotor.cleanup called")
         """Clean up resources."""
         self.stop()
         self.disable()

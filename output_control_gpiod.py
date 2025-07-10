@@ -15,6 +15,9 @@ class OutputController:
     
     def __init__(self):
         """Initialize the output controller"""
+        logging.info(f"OutputController __init__ from file: {__file__}")
+        logging.info("OutputController version: 2025-07-09 diagnostic logging patch")
+        
         # Load configuration
         config = get_gpio_config()
         system_config = get_system_config()
@@ -30,13 +33,13 @@ class OutputController:
         
         logging.info(f"OutputController __init__: simulation_mode={self.simulation_mode}, operation_mode={operation_mode}")
         
-        # GPIO pin assignments
-        self.fan_pin = config.get('fan_pin', 17)
-        self.red_lights_pin = config.get('red_lights_pin', 27)
-        self.table_forward_pin = config.get('table_forward_pin', 22)
-        self.table_backward_pin = config.get('table_backward_pin', 23)
-        self.table_front_limit_pin = config.get('table_front_limit_pin', 24)
-        self.table_back_limit_pin = config.get('table_back_limit_pin', 25)
+        # GPIO pin assignments from config (with correct defaults matching Default pinout.txt)
+        self.fan_pin = config.get('fan_pin', 26)
+        self.red_lights_pin = config.get('red_lights_pin', 16)
+        self.table_forward_pin = config.get('table_forward_pin', 13)
+        self.table_backward_pin = config.get('table_backward_pin', 6)
+        self.table_front_limit_pin = config.get('table_front_limit_pin', 21)
+        self.table_back_limit_pin = config.get('table_back_limit_pin', 20)
         
         # Current state tracking
         self.fan_on = False
@@ -128,6 +131,7 @@ class OutputController:
             time.sleep(0.1)
     
     def set_fan(self, state):
+        logging.info(f"OutputController.set_fan called: state={state}")
         """Set the fan output state"""
         with self.lock:
             self.fan_on = bool(state)
@@ -141,6 +145,7 @@ class OutputController:
                     logging.error(f"Error setting fan state: {e}")
     
     def set_red_lights(self, state):
+        logging.info(f"OutputController.set_red_lights called: state={state}")
         """Set the red lights output state"""
         with self.lock:
             self.red_lights_on = bool(state)
@@ -154,6 +159,7 @@ class OutputController:
                     logging.error(f"Error setting red lights state: {e}")
     
     def set_table_forward(self, state):
+        logging.info(f"OutputController.set_table_forward called: state={state}")
         """
         Move the table forward (towards front limit switch)
         
@@ -180,6 +186,7 @@ class OutputController:
                     logging.error(f"Error setting table forward state: {e}")
     
     def set_table_backward(self, state):
+        logging.info(f"OutputController.set_table_backward called: state={state}")
         """
         Move the table backward (towards back limit switch)
         
@@ -248,7 +255,47 @@ class OutputController:
                 # Auto-off timeout expired, turn red lights off
                 self.set_red_lights(False)
     
+    # --- Subsystem Independence ---
+    # Table, stepper, and servo controls are independent.
+    # Stopping the laser/servo does NOT stop the table, and vice versa.
+    # Only stop_all_outputs() (E-Stop) stops everything at once.
+    # Do NOT call stop_table() or stop_servo() from unrelated subsystem logic.
+    #
+    # update() only manages fan and red lights based on servo position.
+    # Table movement is controlled solely by set_table_forward/backward and stop_table().
+    #
+    # If you add new stop logic for other subsystems (e.g., stepper, servo), ensure it does not interfere with table or other outputs.
+    #
+    # E-Stop (stop_all_outputs) is the only method that stops all outputs for safety.
+    # -----------------------------------
+    
+    def stop_table(self):
+        logging.info("OutputController.stop_table called")
+        """Stop all table movement (for momentary button release or safety)"""
+        with self.lock:
+            self.set_table_forward(False)
+            self.set_table_backward(False)
+            self.table_moving_forward = False
+            self.table_moving_backward = False
+            logging.info("Table movement stopped (stop_table called)")
+
+    def stop_all_outputs(self, servo=None):
+        logging.info("OutputController.stop_all_outputs called")
+        """Emergency stop: move servo to A, then turn off all outputs (fan, lights, table)"""
+        with self.lock:
+            if servo is not None:
+                try:
+                    servo.move_to_a()
+                    logging.info("Servo moved to position A for E-Stop")
+                except Exception as e:
+                    logging.error(f"Error moving servo to position A during E-Stop: {e}")
+            self.set_fan(False)
+            self.set_red_lights(False)
+            self.stop_table()
+            logging.info("All outputs stopped (emergency stop)")
+    
     def get_status(self):
+        logging.info("OutputController.get_status called")
         """Get the current status of outputs"""
         with self.lock:
             # Return in the format expected by app.py
@@ -261,10 +308,12 @@ class OutputController:
                 "table_at_back_limit": self.table_at_back_limit,
                 "fan_time_remaining": 0,  # Placeholder value
                 "red_lights_time_remaining": 0,  # Placeholder value
-                "simulation_mode": self.simulation_mode
+                "simulation_mode": self.simulation_mode,
+                "table_moving": self.table_moving_forward or self.table_moving_backward
             }
     
     def cleanup(self):
+        logging.info("OutputController.cleanup called")
         """Clean up GPIO pins"""
         # Stop all outputs for safety
         self.set_fan(False)
@@ -281,3 +330,21 @@ class OutputController:
         if not self.simulation_mode and self.gpio:
             self.gpio.cleanup()
             logging.info("Output controller GPIO cleaned up")
+    
+    def move_table_forward(self):
+        logging.info("move_table_forward called")
+        try:
+            self.set_table_forward(True)
+            logging.info("move_table_forward: set_table_forward(True) called successfully")
+        except Exception as e:
+            logging.error(f"move_table_forward: Exception: {e}")
+            raise
+
+    def move_table_backward(self):
+        logging.info("move_table_backward called")
+        try:
+            self.set_table_backward(True)
+            logging.info("move_table_backward: set_table_backward(True) called successfully")
+        except Exception as e:
+            logging.error(f"move_table_backward: Exception: {e}")
+            raise

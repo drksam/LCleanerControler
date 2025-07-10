@@ -1,0 +1,64 @@
+# LCleaner Controller Project - TODO (Updated 2025-07-09)
+
+## HIGH PRIORITY
+- [x] Deploy to Raspberry Pi and test hardware detection (system currently in simulation mode on Windows)
+- [x] Verify actual GPIO connections on physical hardware and update all config files for consistency (machine_config.json, Default pinout.txt, config.py)
+- [x] Fix any remaining GPIO control fallback issues (ensure hardware mode works, no silent simulation fallback)
+- [x] Remove the servo invert feature completely and repurpose its input as FIRE FIBER (GPIO 12) (DONE)
+    - [x] Map FIRE (GPIO 22) and FIRE FIBER (GPIO 12) to momentary UI buttons and remote hardware buttons (DONE)
+    - [x] Ensure backend and UI logic for FIRE/FIBER matches requirements (momentary/toggle, stop, visual feedback) (DONE)
+- [ ] E-Stop: Ensure servo is set to position A before turning off other outputs (backend and UI)
+
+## SERVO & FIRE/FIBER CONTROLS
+- [ ] Operation page: Review and finalize 4-button logic for servo (Momentary Fire, Momentary Fiber, Toggle Fire, Toggle Fiber)
+    - [ ] Momentary Fire: A→B, hold, on release B→A
+    - [ ] Momentary Fiber: A→B, hold, on release B→A
+    - [ ] Toggle Fire: A→B, on press again B→A
+    - [ ] Toggle Fiber: A→B, on press again B→A
+    - [ ] Toggle buttons should visually indicate active state
+    - [ ] Stop should move servo to A from any position
+- [ ] Trigger Servo page: Motion Controls and Direct Angle Control should hold position (currently returns to previous)
+- [x] Servo angle range should be 0–180 (not -90 to 90) (DONE)
+- [x] Remove invert toggle and logic from Trigger Servo page and JS (DONE)
+
+## TABLE, STEPPER, TEMPERATURE
+- [x] Table control: Backend GPIO not working—investigate/fix (2025-07-09: methods fixed, logging improved, wrapper tested OK)
+- [ ] Stepper: Does not move, freezes app; compare with working gpioesp/test_stepper_sweep.py and fix
+- [ ] Temperature sensors: Not reading hardware, still in simulation—fix (2025-07-09: hardware mode confirmed, wrapper works, main app logic next)
+
+## UI & BUILD ERRORS
+- [ ] Fix build errors on settings, pinout, RFID, and login pages (see logs.txt)
+
+## GENERAL SYSTEM
+- [x] Pin assignments consistent across all files (DONE)
+- [x] Default pinout.txt restored and verified (DONE)
+- [x] machine_config.json updated to match pinout (DONE)
+- [x] config.py defaults corrected (DONE)
+- [x] output_control_gpiod.py defaults fixed (DONE)
+- [x] input_control_gpiod.py defaults fixed (DONE)
+- [x] README.md restored and updated (DONE)
+- [x] Diagnostic tools created (diagnostic_hardware.py, analyze_pins.py) (DONE)
+- [x] Deployment scripts ready (deploy_to_pi.ps1, deploy_to_pi.sh) (DONE)
+- [x] Minimal GPIO wrapper test script created and passed on hardware (2025-07-09)
+
+## MEDIUM PRIORITY
+- [ ] Improve error handling and logging for hardware failures (clear error messages, no silent fallback)
+- [ ] Verify database schema and Shop Suite integration
+- [ ] Update documentation for v2.0.2
+
+## LOW PRIORITY
+- [ ] Add automated testing for simulation mode
+- [ ] Optimize GPIO polling and response times
+
+---
+
+# Notes
+- All completed items are marked [x] and left for historical reference.
+- Duplicates and obsolete items have been removed or merged.
+- FIRE/FIBER logic and E-Stop sequence are now clearly specified.
+- See logs.txt for details on any build errors.
+- See diagnostic_hardware.py and analyze_pins.py for hardware troubleshooting.
+- 2025-07-09: Hardware GPIO wrapper and table backend confirmed working; next focus is on main app threading/logic for stepper and temperature.
+
+# End of TODO (2025-07-09)
+

@@ -291,6 +291,7 @@ class StepperWrapper:
             logging.info(f"StepperWrapper initialized in simulation mode (reason: simulation_mode={simulation_mode}, GPIOCTRL_AVAILABLE={GPIOCTRL_AVAILABLE})")
     
     def enable(self):
+        logging.info("StepperWrapper.enable called")
         """Enable the stepper motor."""
         with self.lock:
             if self.simulation_mode:
@@ -313,6 +314,7 @@ class StepperWrapper:
             return False
 
     def disable(self):
+        logging.info("StepperWrapper.disable called")
         """Disable the stepper motor."""
         with self.lock:
             if self.simulation_mode:
@@ -337,6 +339,7 @@ class StepperWrapper:
             return False
     
     def move_steps(self, steps, direction, wait=False):
+        logging.info(f"StepperWrapper.move_steps called: steps={steps}, direction={direction}, wait={wait}, enabled={self._enabled}, sim={self.simulation_mode}")
         """
         Move the stepper a specified number of steps in the given direction.
         
@@ -365,6 +368,7 @@ class StepperWrapper:
                 return False
             
             if self.simulation_mode:
+                logging.info(f"Sim mode: moving {steps} steps {'forward' if direction==1 else 'backward'} from {self._position}")
                 # Update position in simulation mode
                 step_change = steps * (1 if direction == 1 else -1)
                 new_position = self._position + step_change
@@ -382,11 +386,12 @@ class StepperWrapper:
                 move_time = steps / self._speed  # Simple estimation
                 
                 def simulate_move():
+                    logging.debug(f"Sim move: sleeping {move_time}s for {steps} steps")
                     time.sleep(move_time)
                     with self.lock:
                         self._position = new_position
                         self._moving = False
-                    logging.debug(f"Simulation: Stepper moved to position {new_position}")
+                    logging.info(f"Sim move complete: new position {new_position}")
                 
                 if wait:
                     simulate_move()
@@ -397,6 +402,7 @@ class StepperWrapper:
             
             if self._controller:
                 try:
+                    logging.info(f"HW move: {steps} steps {'forward' if direction==1 else 'backward'} from {self._position} to {new_position} (adj={adjusted_steps}) speed={self._speed}")
                     # Calculate actual steps to move based on limits
                     step_change = steps * (1 if direction == 1 else -1)
                     new_position = self._position + step_change
@@ -421,6 +427,7 @@ class StepperWrapper:
                     
                     def move_and_update():
                         try:
+                            logging.info(f"Calling GPIOController.move_stepper(id={self._stepper_id}, steps={adjusted_steps}, direction={direction}, speed={self._speed}, wait=True)")
                             self._controller.move_stepper(
                                 id=self._stepper_id,
                                 steps=adjusted_steps,
@@ -434,7 +441,7 @@ class StepperWrapper:
                                 self._position = new_position
                                 self._moving = False
                                 
-                            logging.debug(f"Stepper moved to position {new_position}")
+                            logging.info(f"HW move complete: new position {new_position}")
                         except Exception as e:
                             logging.error(f"Error during stepper movement: {e}")
                             with self.lock:
@@ -454,6 +461,7 @@ class StepperWrapper:
             return False
     
     def stop(self):
+        logging.info("StepperWrapper.stop called")
         """Stop any ongoing movement."""
         with self.lock:
             if self.simulation_mode:
@@ -490,16 +498,19 @@ class StepperWrapper:
             return False
     
     def set_speed(self, speed):
+        logging.info(f"StepperWrapper.set_speed called: speed={speed}")
         """Set the stepper speed."""
         self._speed = speed
         logging.debug(f"Stepper speed set to {speed}")
         return True
     
     def get_position(self):
+        logging.info(f"StepperWrapper.get_position called, returning {self._position}")
         """Get the current position."""
         return self._position
     
     def set_position(self, position):
+        logging.info(f"StepperWrapper.set_position called: position={position}")
         """
         Set the current position (without moving) for tracking purposes.
         
@@ -511,10 +522,12 @@ class StepperWrapper:
             return True
     
     def is_moving(self):
+        logging.info(f"StepperWrapper.is_moving called, returning {self._moving}")
         """Check if the stepper is currently moving."""
         return self._moving
     
     def update_limit_states(self):
+        logging.info("StepperWrapper.update_limit_states called")
         """Update the state of limit switches from the controller feedback.
         
         Returns:
@@ -554,21 +567,25 @@ class StepperWrapper:
         }
     
     def get_limit_a_state(self):
+        logging.info(f"StepperWrapper.get_limit_a_state called, returning {self._limit_a_triggered}")
         """Get the current state of the minimum limit switch."""
         self.update_limit_states()
         return self._limit_a_triggered
         
     def get_limit_b_state(self):
+        logging.info(f"StepperWrapper.get_limit_b_state called, returning {self._limit_b_triggered}")
         """Get the current state of the maximum limit switch."""
         self.update_limit_states()
         return self._limit_b_triggered
         
     def get_home_state(self):
+        logging.info(f"StepperWrapper.get_home_state called, returning {self._home_triggered}")
         """Get the current state of the home switch."""
         self.update_limit_states()
         return self._home_triggered
 
     def close(self):
+        logging.info("StepperWrapper.close called")
         """Clean up resources."""
         self.stop()
         self.disable()
@@ -611,6 +628,7 @@ class LocalGPIOWrapper:
         return self._chip_instances[self._chip_name]
 
     def setup_output(self, pin, initial_value=0):
+        logging.info(f"LocalGPIOWrapper.setup_output called: pin={pin}, initial_value={initial_value}")
         """
         Set up a GPIO pin as an output.
         """
@@ -637,6 +655,7 @@ class LocalGPIOWrapper:
             return False
 
     def setup_input(self, pin, pull_up=False):
+        logging.info(f"LocalGPIOWrapper.setup_input called: pin={pin}, pull_up={pull_up}")
         """
         Set up a GPIO pin as an input.
         """
@@ -665,10 +684,11 @@ class LocalGPIOWrapper:
             logging.info(f"Successfully set up GPIO pin {pin} as input (pull_up={pull_up})")
             return True
         except Exception as e:
-            logging.error(f"Failed to set up GPIO pin {pin}: {e}")
+            logging.error(f"Failed to set up GPIO pin {pin} as input: {e}")
             return False
     
     def write(self, pin, value):
+        logging.info(f"LocalGPIOWrapper.write called: pin={pin}, value={value}")
         """
         Write a value to a GPIO pin.
         
@@ -695,6 +715,7 @@ class LocalGPIOWrapper:
         return False
     
     def read(self, pin):
+        logging.debug(f"LocalGPIOWrapper.read called: pin={pin}")
         """
         Read a value from a GPIO pin.
         
@@ -723,6 +744,7 @@ class LocalGPIOWrapper:
         return None
     
     def cleanup(self, pin=None):
+        logging.info(f"LocalGPIOWrapper.cleanup called: pin={pin}")
         """
         Clean up GPIO resources.
         

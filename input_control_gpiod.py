@@ -36,17 +36,17 @@ class InputController:
         
         logging.info(f"InputController __init__: simulation_mode={self.simulation_mode}, operation_mode={operation_mode}")
         
-        # GPIO pin assignments
+        # GPIO pin assignments from config (with correct defaults matching Default pinout.txt)
         self.in_button_pin = config.get('in_button_pin', 5)
-        self.out_button_pin = config.get('out_button_pin', 6)
-        self.fire_button_pin = config.get('fire_button_pin', 13)
-        self.servo_invert_switch_pin = config.get('servo_invert_switch_pin', 19)
+        self.out_button_pin = config.get('out_button_pin', 25)
+        self.fire_button_pin = config.get('fire_button_pin', 22)
+        self.fiber_button_pin = config.get('fiber_button_pin', 12)  # Repurposed from invert
         
         # Input state tracking
         self.in_button_pressed = False
         self.out_button_pressed = False
         self.fire_button_pressed = False
-        self.servo_inverted = False
+        self.fiber_button_pressed = False  # New state for fiber
         
         # Multi-press handling
         self.in_button_press_count = 0
@@ -59,6 +59,7 @@ class InputController:
         self.in_button_press_start_time = 0
         self.out_button_press_start_time = 0
         self.fire_button_press_start_time = 0
+        self.fiber_button_press_start_time = 0  # New for fiber
         self.button_long_press_threshold = 1000  # ms
         
         # Callbacks
@@ -84,7 +85,7 @@ class InputController:
                 self.gpio.setup_input(self.in_button_pin, pull_up=True)
                 self.gpio.setup_input(self.out_button_pin, pull_up=True)
                 self.gpio.setup_input(self.fire_button_pin, pull_up=True)
-                self.gpio.setup_input(self.servo_invert_switch_pin, pull_up=True)
+                self.gpio.setup_input(self.fiber_button_pin, pull_up=True)  # New for fiber
                 
                 # Start a monitoring thread for inputs
                 self.setup_event_handlers()
@@ -97,6 +98,7 @@ class InputController:
                 logging.info("Falling back to simulation mode for input controller")
     
     def setup_event_handlers(self):
+        logging.info("InputController.setup_event_handlers called")
         """Set up button event handlers"""
         if self.simulation_mode:
             return
@@ -108,6 +110,7 @@ class InputController:
         self.monitor_thread.start()
     
     def _on_in_button_pressed(self):
+        logging.info("InputController._on_in_button_pressed called")
         """Handle in button press event"""
         with self.lock:
             self.in_button_pressed = True
@@ -128,6 +131,7 @@ class InputController:
                 logging.debug("IN button pressed - jogging stepper in")
     
     def _on_in_button_released(self):
+        logging.info("InputController._on_in_button_released called")
         """Handle in button release event"""
         with self.lock:
             if not self.in_button_pressed:
@@ -158,6 +162,7 @@ class InputController:
                 self.stepper_handler("stop")
     
     def _on_out_button_pressed(self):
+        logging.info("InputController._on_out_button_pressed called")
         """Handle out button press event"""
         with self.lock:
             self.out_button_pressed = True
@@ -178,6 +183,7 @@ class InputController:
                 logging.debug("OUT button pressed - jogging stepper out")
     
     def _on_out_button_released(self):
+        logging.info("InputController._on_out_button_released called")
         """Handle out button release event"""
         with self.lock:
             if not self.out_button_pressed:
@@ -208,6 +214,7 @@ class InputController:
                 self.stepper_handler("stop")
     
     def _on_fire_button_pressed(self):
+        logging.info("InputController._on_fire_button_pressed called")
         """Handle fire button press event"""
         with self.lock:
             self.fire_button_pressed = True
@@ -219,6 +226,7 @@ class InputController:
                 logging.debug("FIRE button pressed - firing laser")
     
     def _on_fire_button_released(self):
+        logging.info("InputController._on_fire_button_released called")
         """Handle fire button release event"""
         with self.lock:
             if not self.fire_button_pressed:
@@ -241,32 +249,34 @@ class InputController:
                 else:
                     logging.debug("FIRE button released - stopping fire")
     
-    def _on_servo_invert_enabled(self):
-        """Handle servo invert switch enabled"""
+    def _on_fiber_button_pressed(self):
+        logging.info("InputController._on_fiber_button_pressed called")
+        """Handle fiber button press event"""
         with self.lock:
-            self.servo_inverted = True
-            
-            # Update servo configuration
+            self.fiber_button_pressed = True
+            self.fiber_button_press_start_time = int(time.time() * 1000)
             if self.servo_handler:
-                self.servo_handler("set_inverted", inverted=True)
-                logging.debug("Servo invert switch enabled")
-    
-    def _on_servo_invert_disabled(self):
-        """Handle servo invert switch disabled"""
+                self.servo_handler("fiber_fire")
+                logging.debug("FIBER button pressed - firing fiber")
+
+    def _on_fiber_button_released(self):
+        logging.info("InputController._on_fiber_button_released called")
+        """Handle fiber button release event"""
         with self.lock:
-            self.servo_inverted = False
-            
-            # Update servo configuration
+            if not self.fiber_button_pressed:
+                return
+            self.fiber_button_pressed = False
             if self.servo_handler:
-                self.servo_handler("set_inverted", inverted=False)
-                logging.debug("Servo invert switch disabled")
+                self.servo_handler("stop_fiber")
+                logging.debug("FIBER button released - stopping fiber")
     
     def _button_monitor(self):
+        logging.info("InputController._button_monitor called")
         """Monitor button states for multi-press and held actions"""
         previous_in_button = False
         previous_out_button = False
         previous_fire_button = False
-        previous_servo_invert = False
+        previous_fiber_button = False
         
         while self.monitor_thread_running:
             try:
@@ -274,7 +284,7 @@ class InputController:
                 in_button = not bool(self.gpio.read(self.in_button_pin))
                 out_button = not bool(self.gpio.read(self.out_button_pin))
                 fire_button = not bool(self.gpio.read(self.fire_button_pin))
-                servo_invert = not bool(self.gpio.read(self.servo_invert_switch_pin))
+                fiber_button = not bool(self.gpio.read(self.fiber_button_pin))
                 
                 # Detect edge changes
                 if in_button != previous_in_button:
@@ -298,12 +308,12 @@ class InputController:
                         self._on_fire_button_released()
                     previous_fire_button = fire_button
                 
-                if servo_invert != previous_servo_invert:
-                    if servo_invert:
-                        self._on_servo_invert_enabled()
+                if fiber_button != previous_fiber_button:
+                    if fiber_button:
+                        self._on_fiber_button_pressed()
                     else:
-                        self._on_servo_invert_disabled()
-                    previous_servo_invert = servo_invert
+                        self._on_fiber_button_released()
+                    previous_fiber_button = fiber_button
             except Exception as e:
                 logging.error(f"Error monitoring buttons: {e}")
             
@@ -311,6 +321,7 @@ class InputController:
             time.sleep(0.02)
     
     def cleanup(self):
+        logging.info("InputController.cleanup called")
         """Clean up resources"""
         # Stop the monitor thread
         self.monitor_thread_running = False
