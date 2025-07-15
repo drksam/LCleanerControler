@@ -31,35 +31,41 @@ gpio_module = import_gpio_wrapper()
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s')
 
-# Get pin lists from config
+# Get pin lists from config using get_gpio_config() and gpio_pin_types
 OUTPUT_PINS = []
 INPUT_PINS = []
-
-# Try to get pin lists from config.py (adapt as needed for your config structure)
+gpio_config = None
+gpio_pin_types = None
 try:
-    if hasattr(config, 'OUTPUT_PINS'):
-        OUTPUT_PINS = list(config.OUTPUT_PINS)
-    if hasattr(config, 'INPUT_PINS'):
-        INPUT_PINS = list(config.INPUT_PINS)
-    # Fallback: try to collect pins from known config attributes
-    if not OUTPUT_PINS:
-        OUTPUT_PINS = [
-            getattr(config, k) for k in dir(config)
-            if k.startswith('OUT_') or k.startswith('OUTPUT_')
-            and isinstance(getattr(config, k), int)
-        ]
-    if not INPUT_PINS:
-        INPUT_PINS = [
-            getattr(config, k) for k in dir(config)
-            if k.startswith('IN_') or k.startswith('INPUT_')
-            and isinstance(getattr(config, k), int)
-        ]
+    if hasattr(config, 'get_gpio_config'):
+        gpio_config = config.get_gpio_config()
+        print(f"gpio_config: {gpio_config}")
+        logging.info(f"gpio_config: {gpio_config}")
+        # Try to get pin types from config (from machine_config.json)
+        if hasattr(config, 'config') and 'gpio_pin_types' in config.config:
+            gpio_pin_types = config.config['gpio_pin_types']
+            print(f"gpio_pin_types: {gpio_pin_types}")
+            logging.info(f"gpio_pin_types: {gpio_pin_types}")
+            for pin_name, pin_type in gpio_pin_types.items():
+                if pin_name in gpio_config:
+                    if pin_type == 'OUT':
+                        OUTPUT_PINS.append(gpio_config[pin_name])
+                    elif pin_type == 'IN':
+                        INPUT_PINS.append(gpio_config[pin_name])
+        else:
+            print("gpio_pin_types not found in config.config!")
+            logging.error("gpio_pin_types not found in config.config!")
+    else:
+        print("config.get_gpio_config() not found!")
+        logging.error("config.get_gpio_config() not found!")
 except Exception as e:
-    logging.error(f"Error extracting pin lists from config: {e}")
+    logging.error(f"Error extracting pin lists from get_gpio_config and gpio_pin_types: {e}")
+    print(f"Error extracting pin lists from get_gpio_config and gpio_pin_types: {e}")
     exit(1)
-
-logging.info(f"Output pins: {OUTPUT_PINS}")
-logging.info(f"Input pins: {INPUT_PINS}")
+print(f"Detected OUTPUT_PINS: {OUTPUT_PINS}")
+print(f"Detected INPUT_PINS: {INPUT_PINS}")
+logging.info(f"Detected OUTPUT_PINS: {OUTPUT_PINS}")
+logging.info(f"Detected INPUT_PINS: {INPUT_PINS}")
 
 # Initialize GPIO wrapper
 try:
@@ -73,9 +79,9 @@ for pin in OUTPUT_PINS:
     try:
         logging.info(f"Testing OUTPUT pin {pin}: ON for 2s, then OFF.")
         gpio.setup_output(pin)
-        gpio.write_output(pin, 1)
+        gpio.write(pin, 1)
         time.sleep(2)
-        gpio.write_output(pin, 0)
+        gpio.write(pin, 0)
         time.sleep(0.5)
     except Exception as e:
         logging.error(f"Error testing output pin {pin}: {e}")
@@ -84,11 +90,11 @@ for pin in OUTPUT_PINS:
 for pin in INPUT_PINS:
     try:
         gpio.setup_input(pin)
-        initial = gpio.read_input(pin)
+        initial = gpio.read(pin)
         logging.info(f"Testing INPUT pin {pin}: waiting for state change (current state: {initial})...")
         print(f"Press/release button on INPUT pin {pin} to continue...")
         while True:
-            val = gpio.read_input(pin)
+            val = gpio.read(pin)
             if val != initial:
                 logging.info(f"Detected state change on INPUT pin {pin} (from {initial} to {val})")
                 break

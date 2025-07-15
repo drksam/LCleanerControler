@@ -9,7 +9,9 @@
             <div class="col-12">
                 <div class="card bg-dark">
                     <div class="card-body py-2">
-                        <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex justify-content-between align-items-ce    <script src="{{ url_for('static', filename='js/auto_cycle.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/table_control.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/operation.js') }}"></script>er">
                             <div>
                                 <strong><i class="fas fa-thermometer-half me-2"></i>Temperature:</strong>
                             </div>
@@ -179,6 +181,20 @@
                                 <div class="card h-100">
                                     <div class="card-header bg-info text-white">Table Control</div>
                                     <div class="card-body text-center">
+                                        <!-- Auto Cycle Controls -->
+                                        <div class="form-check form-switch mb-3">
+                                            <input class="form-check-input" type="checkbox" id="auto-cycle-enable-switch">
+                                            <label class="form-check-label" for="auto-cycle-enable-switch">
+                                                <strong>Auto Cycle Mode</strong>
+                                            </label>
+                                        </div>
+                                        <div id="auto-cycle-status" class="mb-3" style="display: none;">
+                                            <div class="progress mb-2" style="height: 8px;">
+                                                <div id="auto-cycle-progress" class="progress-bar bg-info" role="progressbar" style="width: 0%"></div>
+                                            </div>
+                                            <small class="text-muted">Cycles: <span id="auto-cycle-count">0</span></small>
+                                        </div>
+                                        
                                         <div class="d-grid gap-2 mb-3">
                                             <button id="run-table-button" class="btn btn-primary btn-lg">
                                                 <i class="fas fa-play-circle me-2"></i> RUN TABLE
@@ -306,6 +322,7 @@
                                     <div class="btn-group mt-2" role="group" aria-label="Fan Controls">
                                         <button id="fan-on-btn" class="btn btn-success btn-sm">ON</button>
                                         <button id="fan-off-btn" class="btn btn-danger btn-sm">OFF</button>
+                                        <button id="fan-auto-btn" class="btn btn-info btn-sm">AUTO</button>
                                     </div>
                                 </div>
                             </div>
@@ -319,6 +336,7 @@
                                     <div class="btn-group mt-2" role="group" aria-label="Lights Controls">
                                         <button id="lights-on-btn" class="btn btn-success btn-sm">ON</button>
                                         <button id="lights-off-btn" class="btn btn-danger btn-sm">OFF</button>
+                                        <button id="lights-auto-btn" class="btn btn-info btn-sm">AUTO</button>
                                     </div>
                                 </div>
                             </div>
@@ -361,13 +379,6 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="row text-center mt-4">
-                            <div class="col-12">
-                                <button id="estop-btn" class="btn btn-lg btn-danger w-50">
-                                    <i class="fas fa-exclamation-triangle me-2"></i> EMERGENCY STOP
-                                </button>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -379,6 +390,8 @@
 {% endblock %}
 
 {% block scripts %}
+    <!-- Utility.js must be loaded first for all other scripts to work -->
+    <!-- <script src="{{ url_for('static', filename='js/utility.js') }}"></script> -->
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script src="{{ url_for('static', filename='js/table_control.js') }}"></script>
     <script src="{{ url_for('static', filename='js/temperature.js') }}"></script>

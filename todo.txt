@@ -23,6 +23,8 @@
 
 ## TABLE, STEPPER, TEMPERATURE
 - [x] Table control: Backend GPIO not working—investigate/fix (2025-07-09: methods fixed, logging improved, wrapper tested OK)
+- [x] Table control: Flask routes fixed to handle state parameter for hold-to-move behavior (2025-07-10)
+- [x] Table control: Added missing /table/status route for frontend status monitoring (2025-07-10)
 - [ ] Stepper: Does not move, freezes app; compare with working gpioesp/test_stepper_sweep.py and fix
 - [ ] Temperature sensors: Not reading hardware, still in simulation—fix (2025-07-09: hardware mode confirmed, wrapper works, main app logic next)
 

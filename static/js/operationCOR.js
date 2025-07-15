@@ -14,7 +14,32 @@ document.addEventListener('DOMContentLoaded', function() {
         // This should never happen with our current implementation, but just in case
         // the base template changes, we'll add a console-only fallback
         window.addLogMessage = function(message, isError = false, logType = 'info') {
-            console.log(`Log message (${logType}): ${message}`);
+            if (isError) {
+                console.error(`[${logType.toUpperCase()}] ${message}`);
+            } else {
+                console.log(`[${logType.toUpperCase()}] ${message}`);
+            }
+        };
+    } else {
+        console.log('window.addLogMessage function is available');
+    }
+            if (btn) {
+                btn.classList.remove('active');
+                console.log(`Removed active class from light button: ${btn.id}`);
+            }
+        });
+        
+        if (activeMode === 'on' && lightOnBtn) {
+            lightOnBtn.classList.add('active');
+            console.log('Added active class to light ON button');
+        } else if (activeMode === 'off' && lightOffBtn) {
+            lightOffBtn.classList.add('active');
+            console.log('Added active class to light OFF button');
+        } else if (activeMode === 'auto' && lightAutoBtn) {
+            lightAutoBtn.classList.add('active');
+            console.log('Added active class to light AUTO button');
+        }
+    }       console.log(`Log message (${logType}): ${message}`);
         };
     } else {
         // Log that we're using the main logging function
@@ -26,11 +51,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
     /**
      * Makes a standardized AJAX request with consistent error handling
-     * Use the global makeRequest function from utility.js
+     * @param {string} url - URL to make the request to
+     * @param {string} [method='GET'] - HTTP method to use
+     * @param {Object} [data=null] - Data to send with the request
+     * @param {Function} [logFunction=console.log] - Logging function
+     * @param {Function} [onSuccess=null] - Function to call on success
+     * @param {Function} [onError=null] - Function to call on error
+     * @param {Function} [onFinally=null] - Function to call regardless of success/failure
      */
-    const makeRequest = window.makeRequest || function(url, method = 'GET', data = null, logFunction = console.log, onSuccess = null, onError = null, onFinally = null) {
-        console.log(`[OPERATION.JS FALLBACK] makeRequest called:`, { url, method, data });
-        
+    const makeRequest = ShopUtils.makeRequest || function(url, method = 'GET', data = null, logFunction = console.log, onSuccess = null, onError = null, onFinally = null) {
         const options = {
             method: method,
             headers: {
@@ -44,27 +73,23 @@ document.addEventListener('DOMContentLoaded', function() {
         
         return fetch(url, options)
             .then(response => {
-                console.log(`[OPERATION.JS FALLBACK] Response:`, { status: response.status, ok: response.ok });
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status}`);
                 }
                 return response.json();
             })
             .then(data => {
-                console.log(`[OPERATION.JS FALLBACK] Response data:`, data);
                 if (typeof onSuccess === 'function') {
                     onSuccess(data);
                 }
                 return data;
             })
             .catch(error => {
-                console.error(`[OPERATION.JS FALLBACK] Request failed:`, error);
                 if (typeof logFunction === 'function') {
                     logFunction(`Error: ${error.message}`, true);
                 } else {
-                    window.addLogMessage(`Error: ${error.message}`, true);
+                    console.error(`Error: ${error.message}`);
                 }
-                
                 if (typeof onError === 'function') {
                     onError(error);
                 }
@@ -82,14 +107,9 @@ document.addEventListener('DOMContentLoaded', function() {
      * @param {boolean} disabled - Whether to disable the button
      */
     const setButtonState = ShopUtils.setButtonsState || function(enabled, ...buttons) {
-        console.log(`setButtonState called: enabled=${enabled}, button count=${buttons.length}`);
-        buttons.forEach((button, index) => {
+        buttons.forEach(button => {
             if (button) {
-                const wasDisabled = button.disabled;
                 button.disabled = !enabled;
-                console.log(`Button ${index} (${button.id || 'no-id'}): disabled ${wasDisabled} -> ${button.disabled}`);
-            } else {
-                console.warn(`Button ${index} is null or undefined`);
             }
         });
     };
@@ -110,9 +130,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Table control buttons
     const runTableButton = document.getElementById('run-table-button');
     const stopTableButton = document.getElementById('stop-table-button');
-    
-    // Auto-cycle switch
-    const autoCycleEnableSwitch = document.getElementById('auto-cycle-enable-switch');
     
     // Status indicators
     const firingStatus = document.getElementById('firing-status');
@@ -202,7 +219,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 '/fire',
                 'POST',
                 { mode: 'momentary' },
-                window.addLogMessage,
                 function(data) {
                     if (data.status === 'success') {
                         window.addLogMessage('Firing initiated', false, 'success');
@@ -237,7 +253,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 '/fire',
                 'POST',
                 { mode: 'toggle' },
-                window.addLogMessage,
                 function(data) {
                     if (data.status === 'success') {
                         window.addLogMessage('Firing (toggle mode) initiated', false, 'success');
@@ -300,7 +315,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 '/fire_fiber',
                 'POST',
                 { mode: 'momentary' },
-                window.addLogMessage,
                 function(data) {
                     if (data.status === 'success') {
                         window.addLogMessage('Fiber sequence started', false, 'success');
@@ -572,115 +586,88 @@ document.addEventListener('DOMContentLoaded', function() {
         setButtonState(false, stopTableButton);
     }
     
-    // Run Table button  
+    // Run Table button - now uses shared auto cycle system
     if (runTableButton) {
         runTableButton.addEventListener('click', function() {
-            window.addLogMessage('Starting auto-cycle table sequence...', false, 'action');
-            
-            // Check if button is disabled (should not execute if disabled)
-            if (runTableButton.disabled) {
-                console.log('Run table button is disabled - ignoring click');
-                return;
-            }
-            
-            disableRunTableButton();
-            
-            // Use AutoCycleManager if available
             if (window.AutoCycleManager) {
-                // Check if auto-cycle is enabled before starting
-                if (window.AutoCycleManager.isEnabled()) {
-                    try {
-                        // Start the auto-cycle (don't change enabled state)
-                        window.AutoCycleManager.start();
-                        window.addLogMessage('Auto-cycle started successfully', false, 'success');
-                    } catch (error) {
-                        console.error('Error starting auto-cycle:', error);
-                        window.addLogMessage('Error starting auto-cycle: ' + error.message, true);
-                        enableRunTableButton();
-                    }
-                } else {
-                    // Auto-cycle not enabled - inform user
-                    window.addLogMessage('Auto-cycle is not enabled. Please enable auto-cycle first.', true);
-                    enableRunTableButton();
-                }
+                window.AutoCycleManager.start();
             } else {
-                // Fallback to manual forward movement if AutoCycleManager not available
-                console.warn('AutoCycleManager not available - using manual forward movement');
-                makeRequest(
-                    '/table/forward',
-                    'POST',
-                    { state: true },
-                    window.addLogMessage,
-                    function(data) {
-                        if (data.status !== 'success') {
-                            window.addLogMessage(`Error starting table: ${data.message || 'Unknown error'}`, true);
-                            enableRunTableButton();
-                        }
-                    },
-                    function(error) {
-                        console.error('Error starting table movement:', error);
-                        enableRunTableButton();
-                    }
-                );
+                console.error('AutoCycleManager not available');
+                window.addLogMessage('Auto cycle system not available', true);
             }
         });
     }
     
-    // Stop Table button
+    // Stop Table button - now uses shared auto cycle system
     if (stopTableButton) {
         stopTableButton.addEventListener('click', function() {
-            console.log('Stop Table button clicked (operation page)');
-            
-            // Check if button is disabled (should not execute if disabled)
-            if (stopTableButton.disabled) {
-                console.log('Stop table button is disabled - ignoring click');
-                return;
-            }
-            
-            window.addLogMessage('Stopping table and auto-cycle...', false, 'action');
-            
-            // Stop auto cycle if running
             if (window.AutoCycleManager) {
-                try {
-                    // Only stop the cycle, don't disable the auto-cycle feature
-                    window.AutoCycleManager.stop();
-                    
-                    // DO NOT disable auto-cycle or change switch state
-                    // The switch should remain in its current state for future starts
-                    
-                    console.log('AutoCycleManager stopped successfully (auto-cycle still enabled)');
-                } catch (error) {
-                    console.error('Error stopping AutoCycleManager:', error);
-                }
+                window.AutoCycleManager.stop();
+            } else {
+                console.error('AutoCycleManager not available');
             }
-            
-            // Stop all table movement (same as table_control.js)
-            makeRequest('/table/forward', 'POST', { state: false }, window.addLogMessage, 
-                function(data) {
-                    console.log('Table forward movement stopped');
-                }, 
-                function(error) {
-                    console.error('Error stopping table forward movement:', error);
-                }
-            );
-            makeRequest('/table/backward', 'POST', { state: false }, window.addLogMessage, 
-                function(data) {
-                    console.log('Table backward movement stopped');
-                }, 
-                function(error) {
-                    console.error('Error stopping table backward movement:', error);
-                }
-            );
-            
-            window.addLogMessage('Table and auto-cycle stopped', false, 'success');
-            enableRunTableButton();
         });
     }
     
-    // Helper to update fan/lights state display with mode support
-    function updateFanStateDisplay(state, mode = 'manual') {
-        console.log(`updateFanStateDisplay called with state: ${state}, mode: ${mode}`);
+    // Configure the auto cycle manager for the operation page
+    if (window.AutoCycleManager) {
+        window.AutoCycleManager.configure({
+            moveForward: function() {
+                return new Promise((resolve, reject) => {
+                    makeRequest('/table/forward', 'POST', { state: true }, function(data) {
+                        if (data && data.status === 'success') {
+                            resolve();
+                        } else {
+                            reject(new Error('Failed to start forward movement'));
+                        }
+                    });
+                });
+            },
+            moveBackward: function() {
+                return new Promise((resolve, reject) => {
+                    makeRequest('/table/backward', 'POST', { state: true }, function(data) {
+                        if (data && data.status === 'success') {
+                            resolve();
+                        } else {
+                            reject(new Error('Failed to start backward movement'));
+                        }
+                    });
+                });
+            },
+            stopMovement: function() {
+                return new Promise((resolve) => {
+                    makeRequest('/table/forward', 'POST', { state: false });
+                    makeRequest('/table/backward', 'POST', { state: false });
+                    resolve();
+                });
+            },
+            onStart: function() {
+                window.addLogMessage('Starting table auto cycle...', false, 'action');
+                disableRunTableButton();
+            },
+            onStop: function(cycleCount) {
+                window.addLogMessage(`Table auto cycle stopped. Completed ${cycleCount} cycles.`, false, 'success');
+                enableRunTableButton();
+            },
+            onError: function(error) {
+                window.addLogMessage('Table auto cycle error: ' + error.message, true);
+                enableRunTableButton();
+            }
+        });
         
+        // Set up state change callback to update button states
+        window.AutoCycleManager.onStateChange = function() {
+            const state = window.AutoCycleManager.getState();
+            if (state.running) {
+                disableRunTableButton();
+            } else {
+                enableRunTableButton();
+            }
+        };
+    }
+    
+    // Helper to update fan/lights state display
+    function updateFanStateDisplay(state, mode = 'manual') {
         if (fanStateDisplay) {
             let displayText = '';
             let badgeClass = 'badge ';
@@ -706,8 +693,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function updateLightsStateDisplay(state, mode = 'manual') {
-        console.log(`updateLightsStateDisplay called with state: ${state}, mode: ${mode}`);
-        
         if (lightsStateDisplay) {
             let displayText = '';
             let badgeClass = 'badge ';
@@ -726,165 +711,15 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Update button states based on mode and state
         if (mode === 'auto') {
-            updateLightButtonStates('auto');
+            updateLightsButtonStates('auto');
         } else {
-            updateLightButtonStates(state ? 'on' : 'off');
+            updateLightsButtonStates(state ? 'on' : 'off');
         }
     }
-
-    // Fan ON/OFF/AUTO
-    if (fanOnBtn) {
-        console.log('Adding click listener to Fan ON button');
-        fanOnBtn.addEventListener('click', function() {
-            console.log('Fan ON button clicked!');
-            window.addLogMessage('Fan ON button clicked', false, 'debug');
-            
-            makeRequest('/fan/set', 'POST', { state: true, mode: 'manual' }, window.addLogMessage, function(data) {
-                console.log('Fan ON response:', data);
-                updateFanStateDisplay(data.fan_state !== undefined ? data.fan_state : true, 'manual');
-                window.addLogMessage('Fan turned ON (manual)', false, 'action');
-            }, function(error) {
-                console.error('Fan ON request failed:', error);
-            });
-        });
-    } else {
-        console.error('Fan ON button not found - cannot add click listener');
-    }
-    if (fanOffBtn) {
-        console.log('Adding click listener to Fan OFF button');
-        fanOffBtn.addEventListener('click', function() {
-            console.log('Fan OFF button clicked!');
-            window.addLogMessage('Fan OFF button clicked', false, 'debug');
-            
-            makeRequest('/fan/set', 'POST', { state: false, mode: 'manual' }, window.addLogMessage, function(data) {
-                console.log('Fan OFF response:', data);
-                updateFanStateDisplay(data.fan_state !== undefined ? data.fan_state : false, 'manual');
-                window.addLogMessage('Fan turned OFF (manual)', false, 'action');
-            }, function(error) {
-                console.error('Fan OFF request failed:', error);
-            });
-        });
-    } else {
-        console.error('Fan OFF button not found - cannot add click listener');
-    }
-    if (fanAutoBtn) {
-        console.log('Adding click listener to Fan AUTO button');
-        fanAutoBtn.addEventListener('click', function() {
-            console.log('Fan AUTO button clicked!');
-            window.addLogMessage('Fan AUTO button clicked', false, 'debug');
-            
-            makeRequest('/fan/set', 'POST', { mode: 'auto' }, window.addLogMessage, 
-                function(data) {
-                    console.log('Fan AUTO response:', data);
-                    updateFanStateDisplay(data.fan_state || false, 'auto');
-                    window.addLogMessage('Fan set to AUTO mode', false, 'action');
-                }, 
-                function(error) {
-                    console.error('Fan AUTO request failed:', error);
-                }
-            );
-        });
-    } else {
-        console.error('Fan AUTO button not found - cannot add click listener');
-    }
-
-    // Lights ON/OFF/AUTO
-    if (lightsOnBtn) {
-        console.log('Adding click listener to Lights ON button');
-        lightsOnBtn.addEventListener('click', function() {
-            console.log('Lights ON button clicked!');
-            window.addLogMessage('Lights ON button clicked', false, 'debug');
-            
-            makeRequest('/lights/set', 'POST', { state: true, mode: 'manual' }, window.addLogMessage, function(data) {
-                console.log('Lights ON response:', data);
-                updateLightsStateDisplay(data.lights_state !== undefined ? data.lights_state : true, 'manual');
-                window.addLogMessage('Red lights turned ON (manual)', false, 'action');
-            }, function(error) {
-                console.error('Lights ON request failed:', error);
-            });
-        });
-    } else {
-        console.error('Lights ON button not found - cannot add click listener');
-    }
-    if (lightsOffBtn) {
-        console.log('Adding click listener to Lights OFF button');
-        lightsOffBtn.addEventListener('click', function() {
-            console.log('Lights OFF button clicked!');
-            window.addLogMessage('Lights OFF button clicked', false, 'debug');
-            
-            makeRequest('/lights/set', 'POST', { state: false, mode: 'manual' }, window.addLogMessage, function(data) {
-                console.log('Lights OFF response:', data);
-                updateLightsStateDisplay(data.lights_state !== undefined ? data.lights_state : false, 'manual');
-                window.addLogMessage('Red lights turned OFF (manual)', false, 'action');
-            }, function(error) {
-                console.error('Lights OFF request failed:', error);
-            });
-        });
-    } else {
-        console.error('Lights OFF button not found - cannot add click listener');
-    }
-    if (lightsAutoBtn) {
-        console.log('Adding click listener to Lights AUTO button');
-        lightsAutoBtn.addEventListener('click', function() {
-            console.log('Lights AUTO button clicked!');
-            window.addLogMessage('Lights AUTO button clicked', false, 'debug');
-            
-            makeRequest('/lights/set', 'POST', { mode: 'auto' }, window.addLogMessage, 
-                function(data) {
-                    console.log('Lights AUTO response:', data);
-                    updateLightsStateDisplay(data.lights_state || false, 'auto');
-                    window.addLogMessage('Red lights set to AUTO mode', false, 'action');
-                }, 
-                function(error) {
-                    console.error('Lights AUTO request failed:', error);
-                }
-            );
-        });
-    } else {
-        console.error('Lights AUTO button not found - cannot add click listener');
-    }
-
-    // E-Stop button
-    if (estopBtn) {
-        estopBtn.addEventListener('click', function() {
-            if (confirm('Are you sure you want to EMERGENCY STOP all outputs?')) {
-                makeRequest('/estop', 'POST', null, window.addLogMessage, 
-                    function(data) {
-                        window.addLogMessage('EMERGENCY STOP triggered! All outputs stopped.', false, 'danger');
-                    }
-                );
-            }
-        });
-    }
-
-    // Auto-cycle enable switch
-    if (autoCycleEnableSwitch) {
-        console.log('Adding change listener to auto-cycle enable switch (operation page)');
-        autoCycleEnableSwitch.addEventListener('change', function() {
-            console.log('Auto-cycle enable switch changed to:', this.checked);
-            
-            if (window.AutoCycleManager) {
-                try {
-                    window.AutoCycleManager.setEnabled(this.checked);
-                    window.addLogMessage(`Auto cycle ${this.checked ? 'enabled' : 'disabled'}`, false, 'info');
-                    console.log('AutoCycleManager state updated to:', this.checked);
-                } catch (error) {
-                    console.error('Error updating AutoCycleManager state:', error);
-                    window.addLogMessage('Error updating auto-cycle state: ' + error.message, true);
-                }
-            } else {
-                console.warn('AutoCycleManager not available');
-                window.addLogMessage('Auto-cycle manager not available', true);
-            }
-        });
-    } else {
-        console.warn('Auto-cycle enable switch not found (operation page)');
-    }
-
-    // Tri-state button management functions
+    
     function updateFanButtonStates(activeMode) {
         console.log(`updateFanButtonStates called with activeMode: ${activeMode}`);
-        console.log('Fan buttons found:', { fanOnBtn: !!fanOnBtn, fanOffBtn: !!fanOffBtn, fanAutoBtn: !!fanAutoBtn });
+        console.log('Fan buttons:', { fanOnBtn, fanOffBtn, fanAutoBtn });
         
         [fanOnBtn, fanOffBtn, fanAutoBtn].forEach(btn => {
             if (btn) {
@@ -903,123 +738,150 @@ document.addEventListener('DOMContentLoaded', function() {
             fanAutoBtn.classList.add('active');
             console.log('Added active class to fan AUTO button');
         }
-        
-        // Force a visual update by triggering a reflow
-        if (fanOnBtn) fanOnBtn.offsetHeight;
-        if (fanOffBtn) fanOffBtn.offsetHeight;
-        if (fanAutoBtn) fanAutoBtn.offsetHeight;
     }
-
-    function updateLightButtonStates(activeMode) {
-        console.log(`updateLightButtonStates called with activeMode: ${activeMode}`);
-        console.log('Light buttons found:', { lightsOnBtn: !!lightsOnBtn, lightsOffBtn: !!lightsOffBtn, lightsAutoBtn: !!lightsAutoBtn });
-        
+    
+    function updateLightsButtonStates(activeMode) {
         [lightsOnBtn, lightsOffBtn, lightsAutoBtn].forEach(btn => {
-            if (btn) {
-                btn.classList.remove('active');
-                console.log(`Removed active class from light button: ${btn.id}`);
-            }
+            if (btn) btn.classList.remove('active');
         });
         
         if (activeMode === 'on' && lightsOnBtn) {
             lightsOnBtn.classList.add('active');
-            console.log('Added active class to light ON button');
         } else if (activeMode === 'off' && lightsOffBtn) {
             lightsOffBtn.classList.add('active');
-            console.log('Added active class to light OFF button');
         } else if (activeMode === 'auto' && lightsAutoBtn) {
             lightsAutoBtn.classList.add('active');
-            console.log('Added active class to light AUTO button');
         }
-        
-        // Force a visual update by triggering a reflow
-        if (lightsOnBtn) lightsOnBtn.offsetHeight;
-        if (lightsOffBtn) lightsOffBtn.offsetHeight;
-        if (lightsAutoBtn) lightsAutoBtn.offsetHeight;
     }
-    
+
+    // Fan ON/OFF/AUTO
+    if (fanOnBtn) {
+        console.log('Adding click listener to Fan ON button');
+        fanOnBtn.addEventListener('click', function() {
+            console.log('Fan ON button clicked');
+            window.addLogMessage('Fan ON button clicked', false, 'debug');
+            
+            makeRequest('/fan/set', 'POST', { state: true, mode: 'manual' }, window.addLogMessage, function(data) {
+                console.log('Fan ON response received:', data);
+                updateFanStateDisplay(data.fan_state !== undefined ? data.fan_state : true, 'manual');
+                window.addLogMessage('Fan turned ON (manual)', false, 'action');
+            });
+        });
+    } else {
+        console.error('Fan ON button not found - cannot add click listener');
+    }
+    if (fanOffBtn) {
+        console.log('Adding click listener to Fan OFF button');
+        fanOffBtn.addEventListener('click', function() {
+            console.log('Fan OFF button clicked');
+            window.addLogMessage('Fan OFF button clicked', false, 'debug');
+            
+            makeRequest('/fan/set', 'POST', { state: false, mode: 'manual' }, window.addLogMessage, function(data) {
+                console.log('Fan OFF response received:', data);
+                updateFanStateDisplay(data.fan_state !== undefined ? data.fan_state : false, 'manual');
+                window.addLogMessage('Fan turned OFF (manual)', false, 'action');
+            });
+        });
+    } else {
+        console.error('Fan OFF button not found - cannot add click listener');
+    }
+    if (fanAutoBtn) {
+        fanAutoBtn.addEventListener('click', function() {
+            console.log('Fan AUTO button clicked');
+            window.addLogMessage('Fan AUTO button clicked', false, 'debug');
+            
+            makeRequest('/fan/set', 'POST', { mode: 'auto' }, window.addLogMessage, function(data) {
+                console.log('Fan AUTO response received:', data);
+                updateFanStateDisplay(data.fan_state || false, 'auto');
+                window.addLogMessage('Fan set to AUTO mode', false, 'action');
+            }, function(error) {
+                console.error('Fan AUTO request failed:', error);
+                window.addLogMessage('Fan AUTO request failed: ' + error, false, 'error');
+            });
+        });
+    }
+
+    // Lights ON/OFF/AUTO
+    if (lightsOnBtn) {
+        lightsOnBtn.addEventListener('click', function() {
+            console.log('Lights ON button clicked');
+            window.addLogMessage('Lights ON button clicked', false, 'debug');
+            
+            makeRequest('/lights/set', 'POST', { state: true, mode: 'manual' }, window.addLogMessage, function(data) {
+                console.log('Lights ON response received:', data);
+                updateLightsStateDisplay(data.lights_state !== undefined ? data.lights_state : true, 'manual');
+                window.addLogMessage('Red lights turned ON (manual)', false, 'action');
+            });
+        });
+    }
+    if (lightsOffBtn) {
+        lightsOffBtn.addEventListener('click', function() {
+            console.log('Lights OFF button clicked');
+            window.addLogMessage('Lights OFF button clicked', false, 'debug');
+            
+            makeRequest('/lights/set', 'POST', { state: false, mode: 'manual' }, window.addLogMessage, function(data) {
+                console.log('Lights OFF response received:', data);
+                updateLightsStateDisplay(data.lights_state !== undefined ? data.lights_state : false, 'manual');
+                window.addLogMessage('Red lights turned OFF (manual)', false, 'action');
+            });
+        });
+    }
+    if (lightsAutoBtn) {
+        lightsAutoBtn.addEventListener('click', function() {
+            console.log('Lights AUTO button clicked');
+            window.addLogMessage('Lights AUTO button clicked', false, 'debug');
+            makeRequest('/lights/set', 'POST', { mode: 'auto' }, window.addLogMessage, function(data) {
+                console.log('Lights AUTO response:', data);
+                updateLightsStateDisplay(data.lights_state || false, 'auto');
+                window.addLogMessage('Red lights set to AUTO mode', false, 'action');
+            }, function(error) {
+                console.error('Lights AUTO request failed:', error);
+                window.addLogMessage('Lights AUTO request failed: ' + error, false, 'error');
+            });
+        });
+    }
+
     // Status polling to keep UI in sync
     function pollFanLightsStatus() {
         // Poll fan status
-        makeRequest('/fan/status', 'GET', null, window.addLogMessage, 
-            function(data) {
-                if (data && typeof data.fan_state !== 'undefined') {
-                    console.log('Fan status poll response:', data);
-                    updateFanStateDisplay(data.fan_state, data.fan_mode || 'manual');
+        fetch('/fan/status')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    updateFanStateDisplay(data.fan_state || false, data.fan_mode || 'manual');
                 }
-            }, 
-            function(error) {
-                console.error('Failed to poll fan status:', error);
-            }
-        );
+            })
+            .catch(error => {
+                console.error('Error polling fan status:', error);
+            });
         
-        // Poll lights status  
-        makeRequest('/lights/status', 'GET', null, window.addLogMessage, 
-            function(data) {
-                if (data && typeof data.lights_state !== 'undefined') {
-                    console.log('Lights status poll response:', data);
-                    updateLightsStateDisplay(data.lights_state, data.lights_mode || 'manual');
+        // Poll lights status
+        fetch('/lights/status')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    updateLightsStateDisplay(data.lights_state || false, data.lights_mode || 'manual');
                 }
-            }, 
-            function(error) {
-                console.error('Failed to poll lights status:', error);
-            }
-        );
+            })
+            .catch(error => {
+                console.error('Error polling lights status:', error);
+            });
     }
-    
-    // Function to sync UI with current system state
-    function syncUIWithSystemState() {
-        console.log('Syncing UI with current system state...');
-        
-        // Sync auto-cycle switch if available
-        if (window.AutoCycleManager) {
-            const autoCycleSwitch = document.getElementById('auto-cycle-enable-switch');
-            if (autoCycleSwitch) {
-                const currentState = window.AutoCycleManager.isEnabled();
-                autoCycleSwitch.checked = currentState;
-                console.log('Auto-cycle switch synced to:', currentState);
-                
-                // Force visual update by triggering change event
-                setTimeout(() => {
-                    autoCycleSwitch.dispatchEvent(new Event('change'));
-                }, 100);
-                
-                // Also try to get state from server to ensure consistency
-                makeRequest('/table/status', 'GET', null, window.addLogMessage, 
-                    function(data) {
-                        if (data && typeof data.auto_cycle_enabled !== 'undefined') {
-                            const serverState = data.auto_cycle_enabled;
-                            console.log('Server auto-cycle state:', serverState);
-                            
-                            // Update both switch and manager
-                            autoCycleSwitch.checked = serverState;
-                            window.AutoCycleManager.setEnabled(serverState);
-                            
-                            // Force visual update again
-                            setTimeout(() => {
-                                autoCycleSwitch.dispatchEvent(new Event('change'));
-                            }, 100);
-                            
-                            console.log('Auto cycle switch and manager synced with server state:', serverState);
-                        }
-                    },
-                    function(error) {
-                        console.warn('Could not fetch auto-cycle state from server:', error);
-                    }
-                );
-            }
-        }
-        
-        // Trigger initial status polls
-        pollFanLightsStatus();
-    }
-    
-    // Call sync function after a short delay to ensure all scripts are loaded
-    setTimeout(syncUIWithSystemState, 200);
-    
-    // Initial status poll (immediate)
-    setTimeout(pollFanLightsStatus, 100);
     
     // Start status polling every 2 seconds
     setInterval(pollFanLightsStatus, 2000);
+    
+    // Initial status poll
+    pollFanLightsStatus();
+
+    // E-Stop button
+    if (estopBtn) {
+        estopBtn.addEventListener('click', function() {
+            if (confirm('Are you sure you want to EMERGENCY STOP all outputs?')) {
+                makeRequest('/estop', 'POST', null, window.addLogMessage, function(data) {
+                    window.addLogMessage('EMERGENCY STOP triggered! All outputs stopped.', false, 'danger');
+                });
+            }
+        });
+    }
 });

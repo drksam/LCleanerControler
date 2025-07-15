@@ -9,7 +9,7 @@
  * Current operation mode of the system
  * @type {string}
  */
-let currentOperationMode = 'unknown';
+window.currentOperationMode = window.currentOperationMode || 'unknown';
 
 /**
  * Initialize the utility library by fetching the current operation mode from the server
@@ -140,6 +140,8 @@ function handleSimulationResponse(data, actionName, addLogMessage, addSimulation
  * @returns {Promise} The fetch promise
  */
 function makeRequest(url, method = 'GET', data = null, logFunction = console.log, onSuccess = null, onError = null, onFinally = null) {
+    console.log(`[UTILITY.JS] makeRequest called:`, { url, method, data, logFunction: typeof logFunction, onSuccess: typeof onSuccess, onError: typeof onError });
+    
     const options = {
         method: method,
         headers: {
@@ -151,23 +153,30 @@ function makeRequest(url, method = 'GET', data = null, logFunction = console.log
         options.body = JSON.stringify(data);
     }
     
+    console.log(`[UTILITY.JS] Fetch options:`, options);
+    
     return fetch(url, options)
         .then(response => {
+            console.log(`[UTILITY.JS] Response received:`, { status: response.status, ok: response.ok });
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
             }
             return response.json();
         })
         .then(data => {
+            console.log(`[UTILITY.JS] Response data:`, data);
             if (typeof onSuccess === 'function') {
+                console.log(`[UTILITY.JS] Calling onSuccess callback`);
                 onSuccess(data);
             }
             return data;
         })
         .catch(error => {
+            console.error(`[UTILITY.JS] Request failed:`, error);
             handleError(error, logFunction, null);
             
             if (typeof onError === 'function') {
+                console.log(`[UTILITY.JS] Calling onError callback`);
                 onError(error);
             }
             
@@ -175,6 +184,7 @@ function makeRequest(url, method = 'GET', data = null, logFunction = console.log
         })
         .finally(() => {
             if (typeof onFinally === 'function') {
+                console.log(`[UTILITY.JS] Calling onFinally callback`);
                 onFinally();
             }
         });
@@ -243,7 +253,7 @@ function clearSimulationWarnings() {
 /**
  * Global state for temperature monitoring
  */
-const temperatureState = {
+window.temperatureState = window.temperatureState || {
     lastHighTempAlert: 0,      // Timestamp to prevent log spam
     lastTemperatureData: null, // Cache temperature data to prevent flickering
     lastTempLog: 0,            // Timestamp for regular temperature logs

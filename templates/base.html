@@ -28,6 +28,7 @@
         }
         
         .main-content {
+            margin-left: 90px; /* Increased margin to prevent overlap */
             flex: 1;
             padding-bottom: 20px; /* Add padding at bottom for better spacing */
         }
@@ -107,6 +108,79 @@
             color: white;
         }
 
+        /* Fixed Emergency Stop Button */
+        .fixed-estop-btn {
+            position: fixed;
+            left: 0;
+            top: 70px; /* Below navbar */
+            bottom: 0;
+            width: 85px; /* Increased width to prevent text cutoff */
+            background-color: #dc3545; /* Bootstrap danger red */
+            color: white;
+            border: none;
+            border-radius: 0 15px 15px 0; /* Rounded on right side only */
+            font-weight: bold;
+            font-size: 14px;
+            z-index: 1050;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px 8px; /* Reduced horizontal padding to fit text better */
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .fixed-estop-btn:hover {
+            background-color: #b02a37; /* Darker red on hover */
+            width: 90px;
+            box-shadow: 2px 0 15px rgba(0, 0, 0, 0.5);
+        }
+        
+        .fixed-estop-btn:active {
+            background-color: #8b1e2b; /* Even darker red when pressed */
+            transform: scale(0.98);
+        }
+        
+        .fixed-estop-btn i {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .estop-text {
+            line-height: 1.1; /* Tighter line height */
+            text-align: center;
+            font-size: 11px; /* Slightly smaller font */
+            font-weight: bold;
+            word-break: break-word; /* Allow text to wrap if needed */
+        }
+        
+        /* Responsive adjustments for smaller screens */
+        @media (max-width: 768px) {
+            .fixed-estop-btn {
+                width: 65px; /* Increased for mobile */
+                font-size: 12px;
+            }
+            
+            .fixed-estop-btn i {
+                font-size: 20px;
+                margin-bottom: 8px;
+            }
+            
+            .estop-text {
+                font-size: 9px;
+            }
+            
+            .main-content {
+                margin-left: 70px; /* Increased margin for mobile */
+            }
+            
+            .fixed-estop-btn:hover {
+                width: 70px;
+            }
+        }
+
         /* Log system styling */
         .log-pagination {
             display: flex;
@@ -154,7 +228,13 @@
     {% block additional_styles %}{% endblock %}
     
     <!-- Base JS -->
-    <script src="{{ url_for('static', filename='js/utility.js') }}"></script>
+    <!-- <script src="{{ url_for('static', filename='js/utility.js') }}"></script> -->
+    
+    <!-- Auto Cycle Management -->
+    <script src="{{ url_for('static', filename='js/auto_cycle.js') }}"></script>
+    
+    <!-- Table Auto Cycle Management (DISABLED - conflicts with new auto_cycle.js) -->
+    <!-- <script src="{{ url_for('static', filename='js/table_auto_cycle.js') }}"></script> -->
     
     <!-- Mobile-specific JavaScript -->
     <script src="{{ url_for('static', filename='js/mobile.js') }}"></script>
@@ -254,6 +334,12 @@
     <div id="access-badge" class="access-badge">
         <i class="fas fa-check-circle me-1"></i> <span id="access-badge-text">Access Granted</span>
     </div>
+
+    <!-- Fixed Emergency Stop Button -->
+    <button id="estop-btn" class="fixed-estop-btn">
+        <i class="fas fa-exclamation-triangle"></i>
+        <div class="estop-text">EMERGENCY<br>STOP</div>
+    </button>
 
     <!-- Main Content Area -->
     <div class="container-fluid main-content py-4">

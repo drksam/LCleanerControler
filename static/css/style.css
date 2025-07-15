@@ -43,6 +43,119 @@
     box-shadow: none;
 }
 
+/* Brighter active button colors for dark background */
+.btn-primary:active,
+.btn-primary.active {
+    background-color: #3bf74e !important;
+    border-color: #3bf74e !important;
+    color: #000 !important;
+    box-shadow: 0 0 10px #3bf74e;
+}
+
+.btn-success:active,
+.btn-success.active {
+    background-color: #3bf74e !important;
+    border-color: #3bf74e !important;
+    color: #000 !important;
+    box-shadow: 0 0 10px #3bf74e;
+}
+
+.btn-danger:active,
+.btn-danger.active {
+    background-color: #ff4757 !important;
+    border-color: #ff4757 !important;
+    color: #fff !important;
+    box-shadow: 0 0 10px #ff4757;
+}
+
+/* Specific styles for table control buttons */
+#run-table-button.active {
+    background-color: #3bf74e !important;
+    border-color: #3bf74e !important;
+    color: #000 !important;
+    animation: pulse-green 2s infinite;
+}
+
+#stop-table-button.active {
+    background-color: #ff4757 !important;
+    border-color: #ff4757 !important;
+    color: #fff !important;
+    animation: pulse-red 2s infinite;
+}
+
+/* Pulsing animations */
+@keyframes pulse-green {
+    0% {
+        box-shadow: 0 0 0 0 rgba(59, 247, 78, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(59, 247, 78, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(59, 247, 78, 0);
+    }
+}
+
+@keyframes pulse-red {
+    0% {
+        box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(255, 71, 87, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 71, 87, 0);
+    }
+}
+
+.btn-warning:active,
+.btn-warning.active {
+    background-color: #ffa502 !important;
+    border-color: #ffa502 !important;
+    color: #000 !important;
+}
+
+.btn-info:active,
+.btn-info.active {
+    background-color: #3742fa !important;
+    border-color: #3742fa !important;
+    color: #fff !important;
+}
+
+.btn-secondary:active,
+.btn-secondary.active {
+    background-color: #a4b0be !important;
+    border-color: #a4b0be !important;
+    color: #000 !important;
+}
+
+/* Special styling for running/active state buttons */
+.btn-running {
+    background-color: #3bf74e !important;
+    border-color: #32e246 !important;
+    color: #000 !important;
+    animation: pulse 2s infinite;
+}
+
+#run-table-button.active {
+    background-color: #3bf74e !important;
+    border-color: #3bf74e !important;
+    color: #000 !important;
+    animation: pulse 1.5s infinite;
+}
+
+#stop-table-button.active {
+    background-color: #ff4757 !important;
+    border-color: #ff4757 !important;
+    color: #fff !important;
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(59, 247, 78, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(59, 247, 78, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(59, 247, 78, 0); }
+}
+
 /* Switch toggle styling */
 .form-switch .form-check-input {
     width: 3em;

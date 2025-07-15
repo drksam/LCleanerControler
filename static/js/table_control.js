@@ -73,7 +73,7 @@ document.addEventListener('DOMContentLoaded', function() {
      * @param {Function} [errorCallback=null] - Function to call on error
      * @param {Function} [finallyCallback=null] - Function to call regardless of success/failure
      */
-    const makeRequest = ShopUtils.makeRequest || function(url, method, data, successCallback, errorCallback, finallyCallback) {
+    const makeRequest = window.makeRequest || function(url, method = 'GET', data = null, logFunction = addLogMessage, onSuccess = null, onError = null, onFinally = null) {
         const options = {
             method: method,
             headers: {
@@ -85,23 +85,31 @@ document.addEventListener('DOMContentLoaded', function() {
             options.body = JSON.stringify(data);
         }
         
-        fetch(url, options)
-            .then(response => response.json())
+        return fetch(url, options)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
-                if (typeof successCallback === 'function') {
-                    successCallback(data);
+                if (typeof onSuccess === 'function') {
+                    onSuccess(data);
                 }
                 return data;
             })
             .catch(error => {
-                addLogMessage(`Error: ${error.message}`, true);
-                if (typeof errorCallback === 'function') {
-                    errorCallback(error);
+                console.error(`[TABLE_CONTROL.JS] Request failed:`, error);
+                if (typeof logFunction === 'function') {
+                    logFunction(`Error: ${error.message}`, true);
+                }
+                if (typeof onError === 'function') {
+                    onError(error);
                 }
             })
             .finally(() => {
-                if (typeof finallyCallback === 'function') {
-                    finallyCallback();
+                if (typeof onFinally === 'function') {
+                    onFinally();
                 }
             });
     };
@@ -145,6 +153,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const tableForwardBtn = document.getElementById('table-forward-button');
     const tableBackwardBtn = document.getElementById('table-backward-button');
     const tableStopBtn = document.getElementById('stop-table-button');
+    const tableRunBtn = document.getElementById('run-table-button'); // For table page start button
     
     // Table status elements
     const tableStatusMsg = document.getElementById('table-movement-status');
@@ -173,6 +182,7 @@ document.addEventListener('DOMContentLoaded', function() {
             '/table/forward',
             'POST',
             { state: true },
+            addLogMessage,
             function(data) {
                 if (data.status === 'success') {
                     // Use handleSimulationResponse utility but don't log success messages
@@ -181,6 +191,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else {
                     addLogMessage(`Error moving table forward: ${data.message}`, true);
                 }
+            },
+            function(error) {
+                console.error('Forward movement request failed:', error);
             }
         );
     }
@@ -197,6 +210,7 @@ document.addEventListener('DOMContentLoaded', function() {
             '/table/backward',
             'POST',
             { state: true },
+            addLogMessage,
             function(data) {
                 if (data.status === 'success') {
                     // Use handleSimulationResponse utility but don't log success messages
@@ -205,6 +219,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else {
                     addLogMessage(`Error moving table backward: ${data.message}`, true);
                 }
+            },
+            function(error) {
+                console.error('Backward movement request failed:', error);
             }
         );
     }
@@ -221,6 +238,7 @@ document.addEventListener('DOMContentLoaded', function() {
             '/table/forward',
             'POST',
             { state: false },
+            addLogMessage,
             function(data) {
                 // Check for simulation when stopping forward movement
                 handleSimulationResponse(data, 'Table forward stop', false);
@@ -230,19 +248,25 @@ document.addEventListener('DOMContentLoaded', function() {
                     '/table/backward',
                     'POST',
                     { state: false },
+                    addLogMessage,
                     function(data) {
                         // Check for simulation when stopping backward movement
                         handleSimulationResponse(data, 'Table backward stop', false);
                         addLogMessage('Table stopped', false, 'success');
+                    },
+                    function(error) {
+                        console.error('Failed to stop backward movement:', error);
                     }
                 );
             },
             function(error) {
+                console.error('Failed to stop forward movement:', error);
                 // Still try to stop the backward movement even if forward fails
                 makeRequest(
                     '/table/backward',
                     'POST',
                     { state: false },
+                    addLogMessage,
                     function(data) {
                         addLogMessage('Table stopped', false, 'success');
                     },
@@ -304,12 +328,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Stop button
-    if (tableStopBtn) {
-        tableStopBtn.addEventListener('click', function() {
-            stopTable();
-        });
-    }
+    // Stop button - handled in auto cycle initialization
     
     /**
      * Updates the table status UI with current position data
@@ -320,6 +339,7 @@ document.addEventListener('DOMContentLoaded', function() {
             '/table/status',
             'GET',
             null,
+            null, // No logging for status updates to avoid spam
             function(data) {
                 // Reset error count on success
                 tableStatusErrorCount = 0;
@@ -411,9 +431,146 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // Auto cycle elements
+    const autoCycleEnableSwitch = document.getElementById('auto-cycle-enable-switch');
+    
+    // Get the global auto cycle manager
+    const autoCycleManager = window.AutoCycleManager;
+    
+    /**
+     * Initialize auto cycle functionality using shared manager
+     */
+    function initAutoCycle() {
+        if (!autoCycleManager) {
+            console.warn('AutoCycleManager not available - auto cycle features disabled');
+            return;
+        }
+        
+        // Configure the auto cycle manager with table movement functions
+        autoCycleManager.setForwardFunction(() => {
+            makeRequest('/table/forward', 'POST', { state: true }, addLogMessage, null, function(error) {
+                console.error('Auto cycle forward failed:', error);
+            });
+        });
+        
+        autoCycleManager.setBackwardFunction(() => {
+            makeRequest('/table/backward', 'POST', { state: true }, addLogMessage, null, function(error) {
+                console.error('Auto cycle backward failed:', error);
+            });
+        });
+        
+        autoCycleManager.setStopFunction(() => {
+            stopTable();
+        });
+        
+        // Initialize enable switch state
+        if (autoCycleEnableSwitch) {
+            // Get current state from manager and sync switch
+            const managerState = autoCycleManager.isEnabled();
+            autoCycleEnableSwitch.checked = managerState;
+            console.log('Auto cycle enable switch synced with manager state:', managerState);
+            
+            // Also try to get state from server to ensure consistency
+            setTimeout(() => {
+                makeRequest('/table/status', 'GET', null, addLogMessage, 
+                    function(data) {
+                        if (data && typeof data.auto_cycle_enabled !== 'undefined') {
+                            const serverState = data.auto_cycle_enabled;
+                            console.log('Server auto-cycle state:', serverState);
+                            
+                            // Update both switch and manager
+                            autoCycleEnableSwitch.checked = serverState;
+                            autoCycleManager.setEnabled(serverState);
+                            
+                            console.log('Auto cycle switch and manager synced with server state:', serverState);
+                        }
+                    },
+                    function(error) {
+                        console.warn('Could not fetch auto-cycle state from server:', error);
+                    }
+                );
+            }, 500); // Small delay to ensure other scripts are loaded
+            
+            // Add change listener
+            autoCycleEnableSwitch.addEventListener('change', function() {
+                console.log('Auto cycle enable switch changed to:', this.checked);
+                autoCycleManager.setEnabled(this.checked);
+                addLogMessage(`Auto cycle ${this.checked ? 'enabled' : 'disabled'}`, false, 'info');
+            });
+        } else {
+            console.warn('Auto cycle enable switch not found');
+        }
+        
+        console.log('Auto cycle initialization complete');
+    }
+    
+    // Initialize table button handlers (independent of AutoCycleManager)
+    function initTableButtons() {
+        console.log('Initializing table page button handlers...');
+        
+        // Run Table button handler - starts auto cycle if enabled
+        if (tableRunBtn) {
+            console.log('Adding click listener to table run button');
+            tableRunBtn.addEventListener('click', function() {
+                console.log('Table run button clicked');
+                
+                if (autoCycleManager && autoCycleManager.isEnabled()) {
+                    try {
+                        console.log('Starting auto-cycle from table page');
+                        autoCycleManager.start();
+                        addLogMessage('Auto-cycle started from table page', false, 'success');
+                    } catch (error) {
+                        console.error('Error starting auto-cycle:', error);
+                        addLogMessage('Error starting auto-cycle: ' + error.message, true);
+                    }
+                } else if (autoCycleManager) {
+                    console.log('Auto-cycle not enabled, performing manual forward movement');
+                    addLogMessage('Auto-cycle not enabled. Using manual forward movement.', false, 'warning');
+                    moveTableForward();
+                } else {
+                    console.log('AutoCycleManager not available, performing manual forward movement');
+                    addLogMessage('Auto-cycle manager not available. Using manual forward movement.', false, 'warning');
+                    moveTableForward();
+                }
+            });
+        } else {
+            console.warn('Table run button not found');
+        }
+        
+        // Stop Table button handler - handles both auto cycle and manual stop
+        if (tableStopBtn) {
+            console.log('Adding click listener to table stop button');
+            tableStopBtn.addEventListener('click', function() {
+                console.log('Stop Table button clicked on table page');
+                
+                if (autoCycleManager) {
+                    try {
+                        autoCycleManager.stop();
+                        console.log('Auto-cycle stopped successfully');
+                    } catch (error) {
+                        console.error('Error stopping auto-cycle:', error);
+                    }
+                }
+                
+                stopTable(); // Also stop any manual movement
+                addLogMessage('Table movement stopped', false, 'info');
+            });
+        } else {
+            console.warn('Stop Table button not found');
+        }
+        
+        console.log('Table button handlers initialized');
+    }
+    
     // Initial table status update
     if (tableStatusMsg || tableFrontLimitIndicator || tableBackLimitIndicator) {
         updateTableStatus();
         setInterval(updateTableStatus, 2000);
     }
+    
+    // Initialize table buttons (always)
+    initTableButtons();
+    
+    // Initialize auto cycle functionality
+    initAutoCycle();
 });

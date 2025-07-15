@@ -51,15 +51,15 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-3">
-                    <button id="table-forward-button" class="btn btn-success btn-lg" data-bs-toggle="tooltip" title="Move table away from the cleaning head">
+                    <button id="table-forward-button" class="btn btn-success btn-lg" data-bs-toggle="tooltip" title="Hold to move table away from cleaning head (momentary)">
                         <i class="fas fa-arrow-right me-2"></i> Move Forward
                     </button>
-                    <button id="table-backward-button" class="btn btn-danger btn-lg" data-bs-toggle="tooltip" title="Move table toward the cleaning head">
+                    <button id="table-backward-button" class="btn btn-danger btn-lg" data-bs-toggle="tooltip" title="Hold to move table toward cleaning head (momentary)">
                         <i class="fas fa-arrow-left me-2"></i> Move Backward
                     </button>
-                    <button id="stop-table-button" class="btn btn-secondary btn-lg" data-bs-toggle="tooltip" title="Immediately stop table movement">
-                        <i class="fas fa-stop-circle me-2"></i> Stop Table
-                    </button>
+                </div>
+                <div class="mt-3">
+                    <small class="text-muted"><i class="fas fa-info-circle me-1"></i> Manual buttons are momentary - hold to move, release to stop</small>
                 </div>
             </div>
         </div>
@@ -76,8 +76,17 @@
                     <p class="mb-4">Table will automatically cycle between front and back limit switches</p>
                     
                     <div class="form-check form-switch d-flex justify-content-center mb-4">
-                        <input class="form-check-input me-2" type="checkbox" id="run-table-switch" style="transform: scale(1.5);" data-bs-toggle="tooltip" title="Toggle automatic table cycling on/off">
-                        <label class="form-check-label" for="run-table-switch">Run Table</label>
+                        <input class="form-check-input me-2" type="checkbox" id="auto-cycle-enable-switch" style="transform: scale(1.5);" data-bs-toggle="tooltip" title="Enable/disable automatic table cycling">
+                        <label class="form-check-label" for="auto-cycle-enable-switch">Enable Auto Cycle</label>
+                    </div>
+                    
+                    <div class="d-grid gap-3 mb-4">
+                        <button id="run-table-button" class="btn btn-success btn-lg" data-bs-toggle="tooltip" title="Start automatic table cycling">
+                            <i class="fas fa-play me-2"></i> Run Table
+                        </button>
+                        <button id="stop-table-button" class="btn btn-danger btn-lg" data-bs-toggle="tooltip" title="Stop automatic table cycling">
+                            <i class="fas fa-stop me-2"></i> Stop Table
+                        </button>
                     </div>
                     
                     <div class="progress mb-2" data-bs-toggle="tooltip" title="Cycle progress visualization">

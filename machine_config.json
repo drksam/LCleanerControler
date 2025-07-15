@@ -1,6 +1,6 @@
 {
   "system": {
-    "operation_mode": "simulation",
+    "operation_mode": "hardware",
     "debug_level": "info",
     "bypass_safety": false,
     "use_gpioctrl": true
@@ -73,5 +73,17 @@
     "session_hours": 8,
     "access_control_enabled": true,
     "offline_mode": true
-  }
+  },
+  "gpio_pin_types": {
+    "button_in_pin": "IN",
+    "button_out_pin": "IN",
+    "fire_button_pin": "IN",
+    "fan_pin": "OUT",
+    "fiber_button_pin": "IN",
+    "red_lights_pin": "OUT",
+    "table_forward_pin": "OUT",
+    "table_backward_pin": "OUT",
+    "table_front_switch_pin": "IN",
+    "table_back_switch_pin": "IN"
+ }
 }

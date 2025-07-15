@@ -49,6 +49,10 @@ class OutputController:
         self.table_at_front_limit = False
         self.table_at_back_limit = False
         
+        # Mode tracking - manual or auto
+        self.fan_mode = 'auto'  # Default to auto mode
+        self.lights_mode = 'auto'  # Default to auto mode
+        
         # Timing configuration
         self.fan_auto_on_duration = config.get('fan_auto_on_duration', 3000)  # ms
         self.fan_auto_off_timeout = config.get('fan_auto_off_timeout', 5000)  # ms
@@ -158,6 +162,30 @@ class OutputController:
                 except Exception as e:
                     logging.error(f"Error setting red lights state: {e}")
     
+    def set_fan_mode(self, mode):
+        """Set the fan control mode (manual or auto)"""
+        logging.info(f"OutputController.set_fan_mode called: mode={mode}")
+        with self.lock:
+            self.fan_mode = mode
+            if mode == 'manual':
+                # In manual mode, stop any automatic behavior
+                logging.debug("Fan set to manual mode")
+            else:
+                # In auto mode, the update loop will handle fan control
+                logging.debug("Fan set to auto mode")
+    
+    def set_lights_mode(self, mode):
+        """Set the lights control mode (manual or auto)"""
+        logging.info(f"OutputController.set_lights_mode called: mode={mode}")
+        with self.lock:
+            self.lights_mode = mode
+            if mode == 'manual':
+                # In manual mode, stop any automatic behavior
+                logging.debug("Lights set to manual mode")
+            else:
+                # In auto mode, the update loop will handle lights control
+                logging.debug("Lights set to auto mode")
+    
     def set_table_forward(self, state):
         logging.info(f"OutputController.set_table_forward called: state={state}")
         """
@@ -235,25 +263,27 @@ class OutputController:
         with self.lock:
             current_time = int(time.time() * 1000)  # Current time in ms
             
-            # Fan auto control based on timing
-            if servo_position != normal_position:
-                # Servo is in "fire" position, ensure fan is on and update trigger time
-                self.fan_last_trigger_time = current_time
-                if not self.fan_on:
-                    self.set_fan(True)
-            elif self.fan_on and (current_time - self.fan_last_trigger_time > self.fan_auto_off_timeout):
-                # Auto-off timeout expired, turn fan off
-                self.set_fan(False)
+            # Fan auto control based on timing (only when in auto mode)
+            if self.fan_mode == "auto":
+                if servo_position != normal_position:
+                    # Servo is in "fire" position, ensure fan is on and update trigger time
+                    self.fan_last_trigger_time = current_time
+                    if not self.fan_on:
+                        self.set_fan(True)
+                elif self.fan_on and (current_time - self.fan_last_trigger_time > self.fan_auto_off_timeout):
+                    # Auto-off timeout expired, turn fan off
+                    self.set_fan(False)
             
-            # Red lights auto control based on timing
-            if servo_position != normal_position:
-                # Servo is in "fire" position, ensure red lights are on
-                self.red_lights_last_trigger_time = current_time
-                if not self.red_lights_on:
-                    self.set_red_lights(True)
-            elif self.red_lights_on and (current_time - self.red_lights_last_trigger_time > self.red_lights_auto_on_duration):
-                # Auto-off timeout expired, turn red lights off
-                self.set_red_lights(False)
+            # Red lights auto control based on timing (only when in auto mode)
+            if self.lights_mode == "auto":
+                if servo_position != normal_position:
+                    # Servo is in "fire" position, ensure red lights are on
+                    self.red_lights_last_trigger_time = current_time
+                    if not self.red_lights_on:
+                        self.set_red_lights(True)
+                elif self.red_lights_on and (current_time - self.red_lights_last_trigger_time > self.red_lights_auto_on_duration):
+                    # Auto-off timeout expired, turn red lights off
+                    self.set_red_lights(False)
     
     # --- Subsystem Independence ---
     # Table, stepper, and servo controls are independent.

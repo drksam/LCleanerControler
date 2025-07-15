@@ -347,6 +347,17 @@ def init_controllers(app=None):
     except Exception as e:
         inputs_initialized = False
         logging.error(f"Failed to initialize InputController: {e}")
+
+    # Initialize temperature controller
+    try:
+        from config import get_temperature_config
+        temp_config = get_temperature_config()
+        temp_controller = TemperatureController(temp_config=temp_config)
+        temp_initialized = True
+        logging.info("TemperatureController initialized successfully")
+    except Exception as e:
+        temp_initialized = False
+        logging.error(f"Failed to initialize TemperatureController: {e}")
     # --- End hardware controller initialization ---
 
 # --- Add background thread for automatic fan/lights update logic ---
@@ -1024,11 +1035,13 @@ def index_move():
 @main_bp.route('/fan/status', methods=['GET'])
 def get_fan_status():
     """Get the current fan status"""
+    global outputs_initialized, output_controller
     if not outputs_initialized or output_controller is None:
         # In development mode, simulate fan status
         return jsonify({
             "status": "success", 
             "fan_state": False,
+            "fan_mode": "manual",
             "simulated": True
         })
     
@@ -1040,10 +1053,16 @@ def get_fan_status():
         # Safely access the attributes directly to avoid lock issues
         if hasattr(output_controller, 'fan_on'):
             fan_state = output_controller.fan_on
+        
+        # Get current fan mode
+        fan_mode = "manual"  # default
+        if hasattr(output_controller, 'fan_mode'):
+            fan_mode = output_controller.fan_mode
             
         return jsonify({
             "status": "success",
             "fan_state": fan_state,
+            "fan_mode": fan_mode,
             "time_remaining": time_remaining
         })
     except Exception as e:
@@ -1052,37 +1071,66 @@ def get_fan_status():
 
 @main_bp.route('/fan/set', methods=['POST'])
 def set_fan():
-    """Set the fan state manually"""
+    """Set the fan state and mode (manual/auto)"""
+    global outputs_initialized, output_controller
+    logger.info(f"Fan set endpoint called with data: {request.json}")
+    
     if not outputs_initialized or output_controller is None:
         # In development mode, simulate fan control
         state = request.json.get('state', False)
+        mode = request.json.get('mode', 'manual')
+        logger.info(f"Simulated fan control: state={state}, mode={mode}")
         return jsonify({
             "status": "success", 
             "fan_state": state,
+            "fan_mode": mode,
             "simulated": True
         })
     
     try:
-        state = request.json.get('state', False)
-        output_controller.set_fan(state)
+        state = request.json.get('state')
+        mode = request.json.get('mode', 'manual')
+        
+        logger.info(f"Setting fan - state: {state}, mode: {mode}")
+        
+        if mode == 'auto':
+            # Set fan to auto mode
+            if hasattr(output_controller, 'set_fan_mode'):
+                output_controller.set_fan_mode('auto')
+                logger.info("Fan mode set to auto")
+            current_state = output_controller.fan_on
+        else:
+            # Manual mode - set specific state
+            if hasattr(output_controller, 'set_fan_mode'):
+                output_controller.set_fan_mode('manual')
+                logger.info("Fan mode set to manual")
+            if state is not None:
+                output_controller.set_fan(state)
+                logger.info(f"Fan state set to {state}")
+                current_state = state
+            else:
+                current_state = output_controller.fan_on
         
         return jsonify({
             "status": "success",
-            "fan_state": state
+            "fan_state": current_state,
+            "fan_mode": mode
         })
     except Exception as e:
-        logger.error(f"Error setting fan state: {e}")
+        logger.error(f"Error setting fan state/mode: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 # Red lights control routes
 @main_bp.route('/lights/status', methods=['GET'])
 def get_lights_status():
     """Get the current red lights status"""
+    global outputs_initialized, output_controller
     if not outputs_initialized or output_controller is None:
         # In development mode, simulate lights status
         return jsonify({
             "status": "success", 
             "lights_state": False,
+            "lights_mode": "manual",
             "simulated": True
         })
     
@@ -1094,10 +1142,16 @@ def get_lights_status():
         # Safely access the attributes directly to avoid lock issues
         if hasattr(output_controller, 'red_lights_on'):
             lights_state = output_controller.red_lights_on
+        
+        # Get current lights mode
+        lights_mode = "manual"  # default
+        if hasattr(output_controller, 'lights_mode'):
+            lights_mode = output_controller.lights_mode
             
         return jsonify({
             "status": "success",
             "lights_state": lights_state,
+            "lights_mode": lights_mode,
             "time_remaining": time_remaining
         })
     except Exception as e:
@@ -1106,19 +1160,54 @@ def get_lights_status():
 
 @main_bp.route('/lights/set', methods=['POST'])
 def set_lights():
-    """Set the red lights state manually"""
+    """Set the red lights state and mode (manual/auto)"""
+    global outputs_initialized, output_controller
+    logger.info(f"Lights set endpoint called with data: {request.json}")
+    
     if not outputs_initialized or output_controller is None:
         # In development mode, simulate lights control
         state = request.json.get('state', False)
+        mode = request.json.get('mode', 'manual')
+        logger.info(f"Simulated lights control: state={state}, mode={mode}")
         return jsonify({
             "status": "success", 
             "lights_state": state,
+            "lights_mode": mode,
             "simulated": True
         })
     
     try:
-        state = request.json.get('state', False)
-        output_controller.set_red_lights(state)
+        state = request.json.get('state')
+        mode = request.json.get('mode', 'manual')
+        
+        logger.info(f"Setting lights - state: {state}, mode: {mode}")
+        
+        if mode == 'auto':
+            # Set lights to auto mode
+            if hasattr(output_controller, 'set_lights_mode'):
+                output_controller.set_lights_mode('auto')
+                logger.info("Lights mode set to auto")
+            current_state = output_controller.red_lights_on
+        else:
+            # Manual mode - set specific state
+            if hasattr(output_controller, 'set_lights_mode'):
+                output_controller.set_lights_mode('manual')
+                logger.info("Lights mode set to manual")
+            if state is not None:
+                output_controller.set_red_lights(state)
+                logger.info(f"Lights state set to {state}")
+                current_state = state
+            else:
+                current_state = output_controller.red_lights_on
+        
+        return jsonify({
+            "status": "success",
+            "lights_state": current_state,
+            "lights_mode": mode
+        })
+    except Exception as e:
+        logger.error(f"Error setting lights state/mode: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
         
         return jsonify({
             "status": "success",
@@ -1448,38 +1537,68 @@ def servo_sequence():
 # Table control routes
 @main_bp.route('/table/forward', methods=['POST'])
 def table_forward():
-    """Move the table forward"""
+    """Move the table forward or stop forward movement"""
     if not outputs_initialized or output_controller is None:
         return jsonify({
             "status": "error",
             "message": "Output controller not initialized"
         }), 500
     try:
-        output_controller.move_table_forward()
+        # Get state from request data (true = start, false = stop)
+        data = request.get_json() or {}
+        state = data.get('state', True)  # Default to True for backwards compatibility
+        
+        output_controller.set_table_forward(state)
+        action = "moving forward" if state else "stopped forward"
         return jsonify({
             "status": "success",
-            "message": "Table moving forward"
+            "message": f"Table {action}"
         })
     except Exception as e:
-        logger.error(f"Error moving table forward: {e}")
+        logger.error(f"Error controlling table forward: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @main_bp.route('/table/backward', methods=['POST'])
 def table_backward():
-    """Move the table backward"""
+    """Move the table backward or stop backward movement"""
     if not outputs_initialized or output_controller is None:
         return jsonify({
             "status": "error",
             "message": "Output controller not initialized"
         }), 500
     try:
-        output_controller.move_table_backward()
+        # Get state from request data (true = start, false = stop)
+        data = request.get_json() or {}
+        state = data.get('state', True)  # Default to True for backwards compatibility
+        
+        output_controller.set_table_backward(state)
+        action = "moving backward" if state else "stopped backward"
         return jsonify({
             "status": "success",
-            "message": "Table moving backward"
+            "message": f"Table {action}"
         })
     except Exception as e:
         logger.error(f"Error moving table backward: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@main_bp.route('/table/status', methods=['GET'])
+def table_status():
+    """Get the current table status"""
+    if not outputs_initialized or output_controller is None:
+        return jsonify({
+            "status": "error",
+            "message": "Output controller not initialized"
+        }), 500
+    try:
+        return jsonify({
+            "status": "success",
+            "table_moving_forward": output_controller.table_moving_forward,
+            "table_moving_backward": output_controller.table_moving_backward,
+            "table_at_front_limit": output_controller.table_at_front_limit,
+            "table_at_back_limit": output_controller.table_at_back_limit
+        })
+    except Exception as e:
+        logger.error(f"Error getting table status: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 # Temperature monitoring routes

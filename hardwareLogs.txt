@@ -1,79 +1,434 @@
-(venv) laser@raspberrypi:~/LCleanerController $ python3 test_gpio_wrapper.py
-Starting minimal LocalGPIOWrapper test...
-2025-07-09 16:31:24,741 INFO LocalGPIOWrapper initialized with chip_name=gpiochip0, simulation_mode=False
-Setting up output pin 26...
-2025-07-09 16:31:24,741 INFO LocalGPIOWrapper.setup_output called: pin=26, initial_value=0
-2025-07-09 16:31:24,742 INFO Setting up GPIO pin 26 (offset 26) as output on chip gpiochip0
-2025-07-09 16:31:24,742 INFO Creating new gpiod Chip instance for gpiochip0
-2025-07-09 16:31:24,742 INFO Successfully set up GPIO pin 26 as output (initial value 0)
-Setting pin 26 HIGH
-2025-07-09 16:31:24,742 INFO LocalGPIOWrapper.write called: pin=26, value=1
-2025-07-09 16:31:24,742 DEBUG Set GPIO pin 26 to 1
-Setting pin 26 LOW
-2025-07-09 16:31:25,242 INFO LocalGPIOWrapper.write called: pin=26, value=0
-2025-07-09 16:31:25,242 DEBUG Set GPIO pin 26 to 0
-Setting pin 26 HIGH
-2025-07-09 16:31:25,743 INFO LocalGPIOWrapper.write called: pin=26, value=1
-2025-07-09 16:31:25,743 DEBUG Set GPIO pin 26 to 1
-Setting pin 26 LOW
-2025-07-09 16:31:26,243 INFO LocalGPIOWrapper.write called: pin=26, value=0
-2025-07-09 16:31:26,243 DEBUG Set GPIO pin 26 to 0
-Setting pin 26 HIGH
-2025-07-09 16:31:26,743 INFO LocalGPIOWrapper.write called: pin=26, value=1
-2025-07-09 16:31:26,743 DEBUG Set GPIO pin 26 to 1
-Setting pin 26 LOW
-2025-07-09 16:31:27,243 INFO LocalGPIOWrapper.write called: pin=26, value=0
-2025-07-09 16:31:27,243 DEBUG Set GPIO pin 26 to 0
-Setting pin 26 HIGH
-2025-07-09 16:31:27,743 INFO LocalGPIOWrapper.write called: pin=26, value=1
-2025-07-09 16:31:27,744 DEBUG Set GPIO pin 26 to 1
-Setting pin 26 LOW
-2025-07-09 16:31:28,244 INFO LocalGPIOWrapper.write called: pin=26, value=0
-2025-07-09 16:31:28,244 DEBUG Set GPIO pin 26 to 0
-Setting pin 26 HIGH
-2025-07-09 16:31:28,744 INFO LocalGPIOWrapper.write called: pin=26, value=1
-2025-07-09 16:31:28,744 DEBUG Set GPIO pin 26 to 1
-Setting pin 26 LOW
-2025-07-09 16:31:29,245 INFO LocalGPIOWrapper.write called: pin=26, value=0
-2025-07-09 16:31:29,245 DEBUG Set GPIO pin 26 to 0
-Setting up input pin 12...
-2025-07-09 16:31:29,745 INFO LocalGPIOWrapper.setup_input called: pin=12, pull_up=True
-2025-07-09 16:31:29,745 INFO Setting up GPIO pin 12 (offset 12) as input on chip gpiochip0
-2025-07-09 16:31:29,745 DEBUG Using cached gpiod Chip instance for gpiochip0
-2025-07-09 16:31:29,745 INFO Successfully set up GPIO pin 12 as input (pull_up=True)
-2025-07-09 16:31:29,745 DEBUG LocalGPIOWrapper.read called: pin=12
-2025-07-09 16:31:29,745 DEBUG Read GPIO pin 12 as 1
-Read pin 12: 1
-2025-07-09 16:31:29,945 DEBUG LocalGPIOWrapper.read called: pin=12
-2025-07-09 16:31:29,946 DEBUG Read GPIO pin 12 as 1
-Read pin 12: 1
-2025-07-09 16:31:30,146 DEBUG LocalGPIOWrapper.read called: pin=12
-2025-07-09 16:31:30,146 DEBUG Read GPIO pin 12 as 1
-Read pin 12: 1
-2025-07-09 16:31:30,346 DEBUG LocalGPIOWrapper.read called: pin=12
-2025-07-09 16:31:30,346 DEBUG Read GPIO pin 12 as 1
-Read pin 12: 1
-2025-07-09 16:31:30,547 DEBUG LocalGPIOWrapper.read called: pin=12
-2025-07-09 16:31:30,547 DEBUG Read GPIO pin 12 as 1
-Read pin 12: 1
-2025-07-09 16:31:30,747 DEBUG LocalGPIOWrapper.read called: pin=12
-2025-07-09 16:31:30,747 DEBUG Read GPIO pin 12 as 1
-Read pin 12: 1
-2025-07-09 16:31:30,947 DEBUG LocalGPIOWrapper.read called: pin=12
-2025-07-09 16:31:30,947 DEBUG Read GPIO pin 12 as 1
-Read pin 12: 1
-2025-07-09 16:31:31,147 DEBUG LocalGPIOWrapper.read called: pin=12
-2025-07-09 16:31:31,148 DEBUG Read GPIO pin 12 as 0
-Read pin 12: 0
-2025-07-09 16:31:31,348 DEBUG LocalGPIOWrapper.read called: pin=12
-2025-07-09 16:31:31,348 DEBUG Read GPIO pin 12 as 0
-Read pin 12: 0
-2025-07-09 16:31:31,548 DEBUG LocalGPIOWrapper.read called: pin=12
-2025-07-09 16:31:31,548 DEBUG Read GPIO pin 12 as 0
-Read pin 12: 0
-Cleaning up pins...
-2025-07-09 16:31:31,749 INFO LocalGPIOWrapper.cleanup called: pin=26
-2025-07-09 16:31:31,749 DEBUG Released GPIO pin 26
-2025-07-09 16:31:31,749 INFO LocalGPIOWrapper.cleanup called: pin=12
-2025-07-09 16:31:31,749 DEBUG Released GPIO pin 12
-Test complete.
+oduction WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://10.4.2.33:5000
+2025-07-14 19:05:23,264 - werkzeug - INFO - Press CTRL+C to quit
+2025-07-14 19:05:23,370 - webhook_handler - WARNING - Webhook delivery failed with status 404: Not Found
+2025-07-14 19:05:23,375 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:23] "GET /api/rfid/status HTTP/1.1" 200 -
+Error in _listen: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+2025-07-14 19:05:29,411 - root - INFO - OutputController.set_table_forward called: state=True
+2025-07-14 19:05:29,411 - root - INFO - LocalGPIOWrapper.write called: pin=13, value=1
+2025-07-14 19:05:29,411 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:29] "POST /table/forward HTTP/1.1" 200 -
+2025-07-14 19:05:29,444 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:29] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:29,578 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:29] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:29,712 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:29] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:29,843 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:29] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:29,983 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:29] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:30,121 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:30] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:30,268 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:30] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:30,411 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:30] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:30,551 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:30] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:30,684 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:30] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:30,815 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:30] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:30,948 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:30] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:31,086 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:31] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:31,216 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:31] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:31,371 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:31] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:31,515 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:31] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:31,650 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:31] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:31,783 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:31] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:31,918 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:31] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:32,053 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:32] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:32,185 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:32] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:32,338 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:32] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:32,465 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:32] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:32,599 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:32] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:32,729 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:32] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:32,862 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:32] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:32,998 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:32] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:33,137 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:33] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:33,272 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:33] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:33,419 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:33] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:33,560 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:33] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:33,699 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:33] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:33,846 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:33] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:33,982 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:33] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:34,112 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:34] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:34,249 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:34] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:34,376 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:34] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:34,513 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:34] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:34,650 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:34] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:34,778 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:34] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:34,915 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:34] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:35,049 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:35] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:35,177 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:35] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:35,311 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:35] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:35,446 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:35] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:35,589 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:35] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:35,724 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:35] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:35,858 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:35] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:35,987 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:35] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:36,124 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:36] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:36,268 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:36] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:36,410 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:36] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:36,546 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:36] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:36,698 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:36] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:36,825 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:36] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:36,964 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:36] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:37,092 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:37] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:37,231 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:37] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:37,366 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:37] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:37,500 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:37] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:37,648 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:37] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:37,794 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:37] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:37,951 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:37] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:38,085 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:38] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:38,137 - root - INFO - Table reached front limit switch
+2025-07-14 19:05:38,137 - root - INFO - OutputController.set_table_forward called: state=False
+2025-07-14 19:05:38,137 - root - INFO - LocalGPIOWrapper.write called: pin=13, value=0
+2025-07-14 19:05:38,238 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:38] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:38,263 - root - INFO - OutputController.set_table_forward called: state=False
+2025-07-14 19:05:38,263 - root - INFO - LocalGPIOWrapper.write called: pin=13, value=0
+2025-07-14 19:05:38,264 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:38] "POST /table/forward HTTP/1.1" 200 -
+2025-07-14 19:05:39,299 - root - INFO - OutputController.set_table_backward called: state=True
+2025-07-14 19:05:39,300 - root - INFO - LocalGPIOWrapper.write called: pin=6, value=1
+2025-07-14 19:05:39,300 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:39] "POST /table/backward HTTP/1.1" 200 -
+2025-07-14 19:05:39,329 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:39] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:39,466 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:39] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:39,597 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:39] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:39,741 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:39] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:39,875 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:39] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:40,018 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:40] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:40,156 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:40] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:40,294 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:40] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:40,428 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:40] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:40,566 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:40] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:40,700 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:40] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:40,830 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:40] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:40,966 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:40] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:41,114 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:41] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:41,253 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:41] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:41,394 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:41] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:41,528 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:41] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:41,668 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:41] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:41,799 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:41] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:41,953 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:41] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:42,079 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:42] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:42,217 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:42] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:42,357 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:42] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:42,494 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:42] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:42,627 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:42] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:42,765 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:42] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:42,897 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:42] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:43,036 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:43] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:43,167 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:43] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:43,305 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:43] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:43,445 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:43] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:43,580 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:43] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:43,710 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:43] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:43,749 - root - INFO - Table reached back limit switch
+2025-07-14 19:05:43,749 - root - INFO - OutputController.set_table_backward called: state=False
+2025-07-14 19:05:43,749 - root - INFO - LocalGPIOWrapper.write called: pin=6, value=0
+2025-07-14 19:05:43,848 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:43] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:43,881 - root - INFO - OutputController.set_table_backward called: state=False
+2025-07-14 19:05:43,881 - root - INFO - LocalGPIOWrapper.write called: pin=6, value=0
+2025-07-14 19:05:43,885 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:43] "POST /table/backward HTTP/1.1" 200 -
+2025-07-14 19:05:44,926 - root - INFO - OutputController.set_table_forward called: state=True
+2025-07-14 19:05:44,926 - root - INFO - LocalGPIOWrapper.write called: pin=13, value=1
+2025-07-14 19:05:44,926 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:44] "POST /table/forward HTTP/1.1" 200 -
+2025-07-14 19:05:44,945 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:44] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:45,083 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:45] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:45,223 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:45] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:45,358 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:45] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:45,493 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:45] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:45,627 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:45] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:45,774 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:45] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:45,925 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:45] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:46,066 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:46] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:46,198 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:46] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:46,343 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:46] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:46,472 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:46] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:46,615 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:46] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:46,744 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:46] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:46,880 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:46] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:47,012 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:47] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:47,151 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:47] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:47,278 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:47] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:47,426 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:47] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:47,563 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:47] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:47,692 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:47] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:47,826 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:47] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:47,967 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:47] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:48,090 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:48] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:48,225 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:48] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:48,357 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:48] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:48,483 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:48] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:48,614 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:48] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:48,744 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:48] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:48,874 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:48] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:48,958 - root - INFO - Table reached front limit switch
+2025-07-14 19:05:48,958 - root - INFO - OutputController.set_table_forward called: state=False
+2025-07-14 19:05:48,959 - root - INFO - LocalGPIOWrapper.write called: pin=13, value=0
+2025-07-14 19:05:49,009 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:49] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:49,033 - root - INFO - OutputController.set_table_forward called: state=False
+2025-07-14 19:05:49,033 - root - INFO - LocalGPIOWrapper.write called: pin=13, value=0
+2025-07-14 19:05:49,033 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:49] "POST /table/forward HTTP/1.1" 200 -
+2025-07-14 19:05:50,077 - root - INFO - OutputController.set_table_backward called: state=True
+2025-07-14 19:05:50,077 - root - INFO - LocalGPIOWrapper.write called: pin=6, value=1
+2025-07-14 19:05:50,077 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:50] "POST /table/backward HTTP/1.1" 200 -
+2025-07-14 19:05:50,102 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:50] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:50,237 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:50] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:50,374 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:50] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:50,523 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:50] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:50,660 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:50] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:50,797 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:50] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:50,927 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:50] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:51,061 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:51] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:51,203 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:51] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:51,347 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:51] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:51,473 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:51] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:51,605 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:51] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:51,749 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:51] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:51,881 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:51] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:52,015 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:52] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:52,149 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:52] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:52,283 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:52] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:52,415 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:52] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:52,551 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:52] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:52,698 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:52] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:52,843 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:52] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:52,859 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:52] "GET /api/rfid/status HTTP/1.1" 200 -
+2025-07-14 19:05:52,994 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:52] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:53,136 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:53] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:53,272 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:53] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:53,412 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:53] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:53,544 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:53] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:53,675 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:53] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:53,827 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:53] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:53,968 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:53] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:54,096 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:54] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:54,237 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:54] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:54,381 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:54] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:54,531 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:54] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:54,670 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:54] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:54,814 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:54] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:54,949 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:54] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:55,074 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:55] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:55,213 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:55] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:55,347 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:55] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:55,470 - root - INFO - Table reached back limit switch
+2025-07-14 19:05:55,470 - root - INFO - OutputController.set_table_backward called: state=False
+2025-07-14 19:05:55,470 - root - INFO - LocalGPIOWrapper.write called: pin=6, value=0
+2025-07-14 19:05:55,477 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:55] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:55,499 - root - INFO - OutputController.set_table_backward called: state=False
+2025-07-14 19:05:55,500 - root - INFO - LocalGPIOWrapper.write called: pin=6, value=0
+2025-07-14 19:05:55,500 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:55] "POST /table/backward HTTP/1.1" 200 -
+2025-07-14 19:05:56,526 - root - INFO - OutputController.set_table_forward called: state=True
+2025-07-14 19:05:56,526 - root - INFO - LocalGPIOWrapper.write called: pin=13, value=1
+2025-07-14 19:05:56,526 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:56] "POST /table/forward HTTP/1.1" 200 -
+2025-07-14 19:05:56,561 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:56] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:56,693 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:56] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:56,826 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:56] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:56,966 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:56] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:57,097 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:57] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:57,231 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:57] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:57,367 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:57] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:57,514 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:57] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:57,650 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:57] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:57,783 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:57] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:57,918 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:57] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:58,064 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:58] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:58,214 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:58] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:58,348 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:58] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:58,493 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:58] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:58,628 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:58] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:58,763 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:58] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:58,896 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:58] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:59,034 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:59] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:59,164 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:59] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:59,304 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:59] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:59,439 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:59] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:59,564 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:59] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:59,698 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:59] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:59,832 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:59] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:05:59,967 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:05:59] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:00,094 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:00] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:00,229 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:00] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:00,372 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:00] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:00,509 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:00] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:00,645 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:00] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:00,778 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:00] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:00,913 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:00] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:01,047 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:01] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:01,182 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:01] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:01,310 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:01] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:01,446 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:01] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:01,845 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:01] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:01,978 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:01] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:02,112 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:02] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:02,249 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:02] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:02,385 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:02] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:02,519 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:02] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:02,638 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:02] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:02,769 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:02] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:02,896 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:02] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:03,030 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:03] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:03,155 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:03] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:03,297 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:03] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:03,431 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:03] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:03,565 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:03] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:03,691 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:03] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:03,837 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:03] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:03,967 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:03] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:04,092 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:04] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:04,228 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:04] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:04,362 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:04] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:04,498 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:04] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:04,634 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:04] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:04,784 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:04] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:04,907 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:04] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:05,042 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:05] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:05,191 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:05] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:05,324 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:05] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:05,459 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:05] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:05,601 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:05] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:05,730 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:05] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:05,866 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:05] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:06,008 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:06] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:06,154 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:06] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:06,310 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:06] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:06,510 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:06] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:06,649 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:06] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:06,783 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:06] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:06,908 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:06] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:07,044 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:07] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:07,179 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:07] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:07,334 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:07] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:07,461 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:07] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:07,599 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:07] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:07,733 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:07] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:07,877 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:07] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:08,015 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:08] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:08,148 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:08] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:08,295 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:08] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:08,431 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:08] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:08,574 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:08] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:08,713 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:08] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:08,853 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:08] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:08,989 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:08] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:09,117 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:09] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:09,246 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:09] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:09,384 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:09] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:09,519 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:09] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:09,663 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:09] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:09,900 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:09] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:10,025 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:10] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:10,161 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:10] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:10,295 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:10] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:10,426 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:10] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:10,562 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:10] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:10,700 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:10] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:10,824 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:10] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:10,968 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:10] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:11,136 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:11] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:11,262 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:11] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:11,299 - root - INFO - Table reached front limit switch
+2025-07-14 19:06:11,300 - root - INFO - OutputController.set_table_forward called: state=False
+2025-07-14 19:06:11,300 - root - INFO - LocalGPIOWrapper.write called: pin=13, value=0
+2025-07-14 19:06:11,398 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:11] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:11,418 - root - INFO - OutputController.set_table_forward called: state=False
+2025-07-14 19:06:11,419 - root - INFO - LocalGPIOWrapper.write called: pin=13, value=0
+2025-07-14 19:06:11,419 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:11] "POST /table/forward HTTP/1.1" 200 -
+2025-07-14 19:06:17,508 - root - INFO - OutputController.set_table_backward called: state=True
+2025-07-14 19:06:17,509 - root - INFO - LocalGPIOWrapper.write called: pin=6, value=1
+2025-07-14 19:06:17,509 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:17] "POST /table/backward HTTP/1.1" 200 -
+2025-07-14 19:06:17,531 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:17] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:17,674 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:17] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:17,831 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:17] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:17,980 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:17] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:18,104 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:18] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:18,249 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:18] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:18,395 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:18] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:18,531 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:18] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:18,661 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:18] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:18,942 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:18] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:19,082 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:19] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:19,214 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:19] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:19,344 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:19] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:19,478 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:19] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:19,608 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:19] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:19,746 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:19] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:19,879 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:19] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:20,081 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:20] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:20,207 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:20] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:20,347 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:20] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:20,480 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:20] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:20,609 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:20] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:20,747 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:20] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:20,873 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:20] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:21,016 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:21] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:21,149 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:21] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:21,275 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:21] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:21,420 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:21] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:21,565 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:21] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:21,702 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:21] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:21,828 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:21] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:21,965 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:21] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:22,096 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:22] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:22,226 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:22] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:22,367 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:22] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:22,494 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:22] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:22,646 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:22] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:22,779 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:22] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:22,859 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:22] "GET /api/rfid/status HTTP/1.1" 200 -
+2025-07-14 19:06:22,904 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:22] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:23,031 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:23] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:23,165 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:23] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:23,298 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:23] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:23,433 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:23] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:23,565 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:23] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:23,719 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:23] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:23,841 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:23] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:23,984 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:23] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:24,113 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:24] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:24,245 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:24] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:24,381 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:24] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:24,519 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:24] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:24,643 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:24] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:24,779 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:24] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:24,911 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:24] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:25,053 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:25] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:25,217 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:25] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:25,351 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:25] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:25,489 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:25] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:25,627 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:25] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:25,770 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:25] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:25,911 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:25] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:26,046 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:26] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:26,183 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:26] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:26,315 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:26] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:26,550 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:26] "GET /table/status HTTP/1.1" 200 -
+2025-07-14 19:06:26,675 - root - INFO - OutputController.set_table_forward called: state=False
+2025-07-14 19:06:26,676 - root - INFO - LocalGPIOWrapper.write called: pin=13, value=0
+2025-07-14 19:06:26,676 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:26] "POST /table/forward HTTP/1.1" 200 -
+2025-07-14 19:06:26,678 - root - INFO - OutputController.set_table_forward called: state=False
+2025-07-14 19:06:26,679 - root - INFO - LocalGPIOWrapper.write called: pin=13, value=0
+2025-07-14 19:06:26,679 - root - INFO - OutputController.set_table_backward called: state=False
+2025-07-14 19:06:26,679 - root - INFO - OutputController.set_table_backward called: state=False
+2025-07-14 19:06:26,680 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:26] "POST /table/forward HTTP/1.1" 200 -
+2025-07-14 19:06:26,680 - root - INFO - LocalGPIOWrapper.write called: pin=6, value=0
+2025-07-14 19:06:26,681 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:26] "POST /table/backward HTTP/1.1" 200 -
+2025-07-14 19:06:26,681 - root - INFO - LocalGPIOWrapper.write called: pin=6, value=0
+2025-07-14 19:06:26,681 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:26] "POST /table/backward HTTP/1.1" 200 -
+2025-07-14 19:06:30,189 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:30] "GET / HTTP/1.1" 200 -
+2025-07-14 19:06:30,238 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:30] "GET /static/js/auto_cycle.js HTTP/1.1" 304 -
+2025-07-14 19:06:30,239 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:30] "GET /static/css/style.css HTTP/1.1" 304 -
+2025-07-14 19:06:30,240 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:30] "GET /static/js/mobile.js HTTP/1.1" 304 -
+2025-07-14 19:06:30,242 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:30] "GET /static/js/main.js HTTP/1.1" 304 -
+2025-07-14 19:06:30,242 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:30] "GET /static/css/mobile.css HTTP/1.1" 304 -
+2025-07-14 19:06:30,243 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:30] "GET /static/js/utility.js HTTP/1.1" 304 -
+2025-07-14 19:06:30,356 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:30] "GET /static/js/temperature.js HTTP/1.1" 304 -
+2025-07-14 19:06:30,357 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:30] "GET /static/js/operation.js HTTP/1.1" 304 -
+2025-07-14 19:06:30,357 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:30] "GET /static/js/table_control.js HTTP/1.1" 304 -
+2025-07-14 19:06:30,453 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:30] "GET /api/system/mode HTTP/1.1" 200 -
+2025-07-14 19:06:30,463 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:30] "GET /api/rfid/status HTTP/1.1" 200 -
+2025-07-14 19:06:30,465 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:30] "GET /temperature/status HTTP/1.1" 200 -
+2025-07-14 19:06:35,894 - root - INFO - OutputController.set_table_forward called: state=True
+2025-07-14 19:06:35,894 - root - INFO - LocalGPIOWrapper.write called: pin=13, value=1
+2025-07-14 19:06:35,894 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:35] "POST /table/forward HTTP/1.1" 200 -
+2025-07-14 19:06:39,082 - root - INFO - OutputController.set_table_backward called: state=True
+2025-07-14 19:06:39,082 - root - INFO - OutputController.set_table_forward called: state=False
+2025-07-14 19:06:40,396 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:40] "GET /temperature/status HTTP/1.1" 200 -
+2025-07-14 19:06:45,947 - root - INFO - OutputController.set_table_forward called: state=True
+2025-07-14 19:06:50,385 - werkzeug - INFO - 10.4.2.23 - - [14/Jul/2025 19:06:50] "GET /temperature/status HTTP/1.1" 200 -
+^C✓ Cleaned up temporary database: /tmp/lcleaner_test.db
