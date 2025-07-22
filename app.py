@@ -467,11 +467,14 @@ def cleaning_head():
 @main_bp.route('/trigger_servo')
 def trigger_servo():
     """Render the trigger servo setup page"""
+    timing_config = config.get_timing_config()
     return render_template('trigger_servo.html', 
                            servo_initialized=servo_initialized,
                            servo_position_a=servo_position_a,
                            servo_position_b=servo_position_b,
                            servo_inverted=servo_inverted,
+                           fan_off_delay=timing_config.get('fan_off_delay', 600000),
+                           red_lights_off_delay=timing_config.get('red_lights_off_delay', 60000),
                            page="trigger_servo")
 
 @main_bp.route('/table')
@@ -585,18 +588,77 @@ def jog():
         
         # Use GPIOController jog implementation
         direction_int = 1 if direction == 'forward' else 0
-        result = stepper.jog(direction_int, steps)
-        if result:
-            current_position = stepper.get_position()
-        else:
-            return jsonify({"status": "error", "message": "Jog operation failed"}), 500
         
-        return jsonify({
-            "status": "success", 
-            "position": current_position
-        })
+        # Start jog operation asynchronously - don't wait for completion
+        result = stepper.jog(direction_int, steps)
+        
+        # Return immediately with current position (before movement)
+        current_position = stepper.get_position()
+        
+        if result:
+            return jsonify({
+                "status": "success", 
+                "position": current_position,
+                "message": f"Jog {'forward' if direction_int == 1 else 'backward'} {steps} steps started"
+            })
+        else:
+            return jsonify({"status": "error", "message": "Jog operation failed to start"}), 500
+        
     except Exception as e:
         logger.error(f"Error in jog operation: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@main_bp.route('/jog_continuous', methods=['POST'])
+def jog_continuous():
+    """Continuous jog for hold-to-jog functionality - optimized for rapid calls"""
+    global current_position
+    
+    if not motor_initialized or stepper is None:
+        # In development mode, simulate motor movement without actual hardware
+        try:
+            direction = request.json.get('direction')
+            steps = int(request.json.get('steps', 10))
+            
+            if direction == 'forward':
+                # Simulate movement
+                current_position += steps
+            elif direction == 'backward':
+                # Simulate movement
+                current_position -= steps
+            else:
+                return jsonify({"status": "error", "message": "Invalid direction"}), 400
+            
+            return jsonify({
+                "status": "success", 
+                "position": current_position,
+                "simulated": True
+            })
+        except Exception as e:
+            logger.error(f"Error in continuous jog simulation: {e}")
+            return jsonify({"status": "error", "message": str(e)}), 500
+    
+    try:
+        direction = request.json.get('direction')
+        steps = int(request.json.get('steps', 10))
+        
+        # Use GPIOController jog implementation with async movement
+        direction_int = 1 if direction == 'forward' else 0
+        
+        # Start jog operation asynchronously for continuous movement
+        result = stepper.jog(direction_int, steps)
+        
+        if result:
+            # Get updated position after jog command
+            current_position = stepper.get_position()
+            return jsonify({
+                "status": "success", 
+                "position": current_position
+            })
+        else:
+            return jsonify({"status": "error", "message": "Continuous jog failed"}), 500
+        
+    except Exception as e:
+        logger.error(f"Error in continuous jog operation: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 # Stop the motor immediately
@@ -837,6 +899,195 @@ def set_servo_position_b():
         logger.error(f"Error setting servo position B: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
+@main_bp.route('/settings/fan_off_delay', methods=['POST'])
+def set_fan_off_delay():
+    """Set the fan auto-off delay time"""
+    try:
+        data = request.get_json()
+        delay_seconds = data.get('delay_seconds')
+        
+        if delay_seconds is None:
+            return jsonify({"status": "error", "message": "delay_seconds is required"}), 400
+        
+        # Convert seconds to milliseconds and validate range
+        delay_ms = int(delay_seconds) * 1000
+        if delay_ms < 10000 or delay_ms > 1800000:  # 10 seconds to 30 minutes
+            return jsonify({"status": "error", "message": "Delay must be between 10 and 1800 seconds"}), 400
+        
+        # Update the configuration
+        config.update_config('timing', 'fan_off_delay', delay_ms)
+        
+        # Update the output controller if available
+        if output_controller:
+            # Reload the timing config in the output controller
+            output_controller.update_timing_config()
+            logger.info(f"Updated output controller timing config with fan_off_delay {delay_ms}ms")
+        
+        logger.info(f"Fan off delay updated to {delay_seconds} seconds ({delay_ms}ms)")
+        return jsonify({
+            "status": "success", 
+            "delay_seconds": delay_seconds,
+            "delay_ms": delay_ms
+        })
+    except Exception as e:
+        logger.error(f"Error setting fan off delay: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@main_bp.route('/settings/red_lights_off_delay', methods=['POST'])
+def set_red_lights_off_delay():
+    """Set the red lights auto-off delay time"""
+    try:
+        data = request.get_json()
+        delay_seconds = data.get('delay_seconds')
+        
+        if delay_seconds is None:
+            return jsonify({"status": "error", "message": "delay_seconds is required"}), 400
+        
+        # Convert seconds to milliseconds and validate range
+        delay_ms = int(delay_seconds) * 1000
+        if delay_ms < 5000 or delay_ms > 300000:  # 5 seconds to 5 minutes
+            return jsonify({"status": "error", "message": "Delay must be between 5 and 300 seconds"}), 400
+        
+        # Update the configuration
+        config.update_config('timing', 'red_lights_off_delay', delay_ms)
+        
+        # Update the output controller if available
+        if output_controller:
+            # Reload the timing config in the output controller
+            output_controller.update_timing_config()
+            logger.info(f"Updated output controller timing config with red_lights_off_delay {delay_ms}ms")
+        
+        logger.info(f"Red lights off delay updated to {delay_seconds} seconds ({delay_ms}ms)")
+        return jsonify({
+            "status": "success", 
+            "delay_seconds": delay_seconds,
+            "delay_ms": delay_ms
+        })
+    except Exception as e:
+        logger.error(f"Error setting red lights off delay: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@main_bp.route('/servo/move_to_a', methods=['POST'])
+def servo_move_to_a():
+    """Move servo to position A"""
+    try:
+        if servo_initialized and servo is not None:
+            result_angle = servo.move_to_a()
+            logger.info(f"Moved to position A ({servo_position_a} degrees)")
+            return jsonify({
+                "status": "success",
+                "angle": servo_position_a
+            })
+        else:
+            logger.debug(f"Simulated servo move to position A ({servo_position_a} degrees)")
+            return jsonify({
+                "status": "success",
+                "angle": servo_position_a,
+                "simulated": True
+            })
+    except Exception as e:
+        logger.error(f"Error moving servo to position A: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@main_bp.route('/servo/move_to_b', methods=['POST'])
+def servo_move_to_b():
+    """Move servo to position B"""
+    try:
+        if servo_initialized and servo is not None:
+            result_angle = servo.move_to_b()
+            logger.info(f"Moved to position B ({servo_position_b} degrees)")
+            return jsonify({
+                "status": "success",
+                "angle": result_angle
+            })
+        else:
+            logger.debug(f"Simulated servo move to position B ({servo_position_b} degrees)")
+            return jsonify({
+                "status": "success",
+                "angle": servo_position_b,
+                "simulated": True
+            })
+    except Exception as e:
+        logger.error(f"Error moving servo to position B: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@main_bp.route('/servo/move_to_angle', methods=['POST'])
+def servo_move_to_angle():
+    """Move servo to a specific angle"""
+    try:
+        data = request.get_json()
+        angle = data.get('angle')
+        
+        if angle is None:
+            return jsonify({"status": "error", "message": "angle is required"}), 400
+        
+        # Validate angle range
+        angle = int(angle)
+        if angle < 0 or angle > 180:
+            return jsonify({"status": "error", "message": "Angle must be between 0 and 180 degrees"}), 400
+        
+        if servo_initialized and servo is not None:
+            result_angle = servo.move_to_angle(angle)
+            logger.info(f"Moved to angle {angle} degrees")
+            return jsonify({
+                "status": "success",
+                "angle": result_angle
+            })
+        else:
+            logger.debug(f"Simulated servo move to angle {angle} degrees")
+            return jsonify({
+                "status": "success",
+                "angle": angle,
+                "simulated": True
+            })
+    except Exception as e:
+        logger.error(f"Error moving servo to angle: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@main_bp.route('/servo/detach', methods=['POST'])
+def servo_detach():
+    """Detach servo to prevent jitter"""
+    try:
+        if servo_initialized and servo is not None:
+            servo.detach()
+            logger.info("Servo detached")
+            return jsonify({
+                "status": "success",
+                "message": "Servo detached"
+            })
+        else:
+            logger.debug("Simulated servo detach")
+            return jsonify({
+                "status": "success",
+                "message": "Servo detached (simulated)",
+                "simulated": True
+            })
+    except Exception as e:
+        logger.error(f"Error detaching servo: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@main_bp.route('/servo/reattach', methods=['POST'])
+def servo_reattach():
+    """Reattach servo for control"""
+    try:
+        if servo_initialized and servo is not None:
+            servo.reattach()
+            logger.info("Servo reattached")
+            return jsonify({
+                "status": "success",
+                "message": "Servo reattached"
+            })
+        else:
+            logger.debug("Simulated servo reattach")
+            return jsonify({
+                "status": "success",
+                "message": "Servo reattached (simulated)",
+                "simulated": True
+            })
+    except Exception as e:
+        logger.error(f"Error reattaching servo: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @main_bp.route('/fire', methods=['POST'])
 def fire():
     """Fire action - move servo to B position with optional mode (toggle or momentary)"""
@@ -869,30 +1120,42 @@ def fire():
             logger.info("Attempting to reattach servo before firing")
             servo.reattach()
         
-        # The mode could be used to implement different behavior in the servo control
-        # For example, toggle mode might save state in the servo control module
-        # For now, we're just passing through to the standard fire() method
-        success = servo.fire()
-        
-        if success:
-            # Add event to statistics if in toggle mode
-            if mode == 'toggle':
-                # For toggle mode, we count this as a proper fire event for statistics
+        # Use appropriate method based on mode
+        if mode == 'toggle':
+            result = servo.fire_toggle()
+            if result.get("status") == "error":
+                return jsonify(result), 500
+            
+            # Count laser fire event for statistics
+            if result.get("status") == "active":
                 config.increment_laser_counter()
-                # Start a timer or update the stats appropriately
             
             return jsonify({
-                "status": "success", 
-                "position": "B",
+                "status": "success",
+                "position": result.get("position", "B"),
                 "angle": servo_position_b,
                 "mode": mode,
-                "message": f"Firing initiated ({mode} mode)"
+                "toggle_state": result.get("status"),
+                "message": f"Fire toggle {result.get('status')}"
             })
         else:
-            return jsonify({
-                "status": "error", 
-                "message": "Failed to initiate firing - servo may not be initialized"
-            }), 500
+            # Momentary mode - fire and hold until stop_firing is called
+            success = servo.fire_momentary()
+            
+            if success:
+                config.increment_laser_counter()
+                return jsonify({
+                    "status": "success", 
+                    "position": "B",
+                    "angle": servo_position_b,
+                    "mode": mode,
+                    "message": "Momentary firing initiated (hold until release)"
+                })
+            else:
+                return jsonify({
+                    "status": "error", 
+                    "message": "Failed to initiate momentary firing"
+                }), 500
     except Exception as e:
         logger.error(f"Error in fire action: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -907,27 +1170,97 @@ def fire_fiber():
     mode = data.get('mode', 'momentary')
     try:
         if mode == 'momentary':
-            servo.fiber_fire()
-            return jsonify({"status": "success", "mode": "momentary"})
+            success = servo.fiber_fire_momentary()
+            if success:
+                return jsonify({
+                    "status": "success", 
+                    "mode": "momentary",
+                    "sequence": "A→B→A→B (holding)",
+                    "message": "Fiber firing sequence initiated (hold until release)"
+                })
+            else:
+                return jsonify({
+                    "status": "error", 
+                    "message": "Failed to start fiber firing sequence"
+                }), 500
         elif mode == 'toggle':
-            servo.fiber_fire_toggle()
-            return jsonify({"status": "success", "mode": "toggle"})
+            result = servo.fiber_fire_toggle()
+            if result.get("status") == "error":
+                return jsonify(result), 500
+            
+            return jsonify({
+                "status": "success", 
+                "mode": "toggle",
+                "toggle_state": result.get("status"),
+                "sequence": result.get("sequence", "unknown"),
+                "message": f"Fiber toggle {result.get('status')}"
+            })
         else:
             return jsonify({"status": "error", "message": "Invalid mode"}), 400
     except Exception as e:
         logger.error(f"Error in fire_fiber: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@main_bp.route('/stop_fiber', methods=['POST'])
-def stop_fiber():
-    """Stop the fiber firing sequence"""
+@main_bp.route('/stop_firing', methods=['POST'])
+def stop_firing():
+    """Stop any firing operation - moves servo back to position A"""
     if not servo_initialized or servo is None:
         return jsonify({"status": "error", "message": "Servo not initialized", "simulated": True}), 500
     try:
-        servo.stop_fiber()
-        return jsonify({"status": "success"})
+        success = servo.stop_firing()
+        if success:
+            return jsonify({
+                "status": "success",
+                "position": "A", 
+                "angle": servo_position_a,
+                "message": "Firing stopped - servo returned to position A"
+            })
+        else:
+            return jsonify({
+                "status": "error", 
+                "message": "Failed to stop firing"
+            }), 500
+    except Exception as e:
+        logger.error(f"Error in stop_firing: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@main_bp.route('/stop_fiber', methods=['POST'])
+def stop_fiber():
+    """Stop the fiber firing sequence - same as stop_firing"""
+    if not servo_initialized or servo is None:
+        return jsonify({"status": "error", "message": "Servo not initialized", "simulated": True}), 500
+    try:
+        success = servo.stop_firing()  # Use the general stop method
+        if success:
+            return jsonify({
+                "status": "success",
+                "position": "A",
+                "angle": servo_position_a, 
+                "message": "Fiber firing stopped - servo returned to position A"
+            })
+        else:
+            return jsonify({
+                "status": "error",
+                "message": "Failed to stop fiber firing"
+            }), 500
     except Exception as e:
         logger.error(f"Error in stop_fiber: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@main_bp.route('/servo_status', methods=['GET'])
+def servo_status():
+    """Get current servo toggle states and firing status"""
+    if not servo_initialized or servo is None:
+        return jsonify({"status": "error", "message": "Servo not initialized", "simulated": True}), 500
+    try:
+        states = servo.get_toggle_states()
+        return jsonify({
+            "status": "success",
+            "toggle_states": states,
+            "current_position": "B" if states.get("is_firing") else "A"
+        })
+    except Exception as e:
+        logger.error(f"Error getting servo status: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 # Error handlers
@@ -1014,9 +1347,9 @@ def index_move():
             return jsonify({"status": "error", "message": str(e)}), 500
     
     try:
-        # Use GPIOController move_index implementation
-        direction_int = 1 if direction == 'forward' else 0
-        result = stepper.move_index()
+        # Use GPIOController move_index implementation with direction
+        direction_int = 1 if direction == 'forward' else -1
+        result = stepper.move_index(direction_int)
         if result:
             current_position = stepper.get_position()
             logger.info(f"Index moved {direction} to position {current_position}")
@@ -1538,7 +1871,9 @@ def servo_sequence():
 @main_bp.route('/table/forward', methods=['POST'])
 def table_forward():
     """Move the table forward or stop forward movement"""
+    logger.info("table_forward route called")
     if not outputs_initialized or output_controller is None:
+        logger.error("table_forward: Output controller not initialized")
         return jsonify({
             "status": "error",
             "message": "Output controller not initialized"
@@ -1547,13 +1882,17 @@ def table_forward():
         # Get state from request data (true = start, false = stop)
         data = request.get_json() or {}
         state = data.get('state', True)  # Default to True for backwards compatibility
+        logger.info(f"table_forward: calling output_controller.set_table_forward({state})")
         
         output_controller.set_table_forward(state)
+        logger.info(f"table_forward: set_table_forward completed successfully")
         action = "moving forward" if state else "stopped forward"
-        return jsonify({
+        response = jsonify({
             "status": "success",
             "message": f"Table {action}"
         })
+        logger.info(f"table_forward: returning response")
+        return response
     except Exception as e:
         logger.error(f"Error controlling table forward: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -1694,8 +2033,8 @@ def temperature_status():
             return jsonify({"status": "error", "message": str(e)}), 500
     
     try:
-        # Get temperature status from controller
-        status = temp_controller.get_status()
+        # Get temperature status from controller (without forcing update)
+        status = temp_controller.get_status_cached()
         
         # Add status field for consistency
         status["status"] = "success"

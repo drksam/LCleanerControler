@@ -152,8 +152,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Table control buttons
     const tableForwardBtn = document.getElementById('table-forward-button');
     const tableBackwardBtn = document.getElementById('table-backward-button');
-    const tableStopBtn = document.getElementById('stop-table-button');
-    const tableRunBtn = document.getElementById('run-table-button'); // For table page start button
+    
+    // Cycle settings elements
+    const cycleSpeedSlider = document.getElementById('cycle-speed');
+    const cycleSpeedValue = document.getElementById('cycle-speed-value');
+    const cycleDelaySlider = document.getElementById('cycle-delay');
+    const cycleDelayValue = document.getElementById('cycle-delay-value');
     
     // Table status elements
     const tableStatusMsg = document.getElementById('table-movement-status');
@@ -226,10 +230,23 @@ document.addEventListener('DOMContentLoaded', function() {
         );
     }
     
+    // Debounce mechanism to prevent rapid stop table calls
+    let lastStopTime = 0;
+    const STOP_DEBOUNCE_MS = 250; // Minimum time between stop calls
+
     /**
      * Stop the table movement in both directions
      */
     function stopTable() {
+        const now = Date.now();
+        
+        // Debounce rapid stop calls to prevent servo interference
+        if (now - lastStopTime < STOP_DEBOUNCE_MS) {
+            console.log('Table stop debounced - too soon after last stop');
+            return;
+        }
+        
+        lastStopTime = now;
         addLogMessage('Stopping table...', false, 'action');
         clearSimulationWarnings();
         
@@ -278,58 +295,113 @@ document.addEventListener('DOMContentLoaded', function() {
         );
     }
     
+    /**
+     * Update table cycle progress and count
+     */
+    function updateTableCycleStatus(cycleCount = 0, progress = 0) {
+        if (cycleCountDisplay) {
+            cycleCountDisplay.textContent = `${cycleCount} cycles completed`;
+        }
+        
+        if (tableCycleProgress) {
+            tableCycleProgress.style.width = progress + '%';
+        }
+    }
+      // Track active table button interactions
+    let tableButtonPressed = false;
+    let activeTableButton = null;
+
     // Forward button
     if (tableForwardBtn) {
         tableForwardBtn.addEventListener('mousedown', function() {
+            tableButtonPressed = true;
+            activeTableButton = 'forward';
             moveTableForward(false);
         });
         
         tableForwardBtn.addEventListener('mouseup', function() {
-            stopTable();
+            if (tableButtonPressed && activeTableButton === 'forward') {
+                stopTable();
+            }
+            tableButtonPressed = false;
+            activeTableButton = null;
         });
         
         tableForwardBtn.addEventListener('mouseleave', function() {
-            stopTable();
+            if (tableButtonPressed && activeTableButton === 'forward') {
+                stopTable();
+            }
+            tableButtonPressed = false;
+            activeTableButton = null;
         });
         
         // Touch support
         tableForwardBtn.addEventListener('touchstart', function(e) {
             e.preventDefault(); // Prevent scrolling
+            tableButtonPressed = true;
+            activeTableButton = 'forward';
             moveTableForward(true);
         });
         
         tableForwardBtn.addEventListener('touchend', function() {
-            stopTable();
+            if (tableButtonPressed && activeTableButton === 'forward') {
+                stopTable();
+            }
+            tableButtonPressed = false;
+            activeTableButton = null;
         });
     }
-    
+
     // Backward button
     if (tableBackwardBtn) {
         tableBackwardBtn.addEventListener('mousedown', function() {
+            tableButtonPressed = true;
+            activeTableButton = 'backward';
             moveTableBackward(false);
         });
         
         tableBackwardBtn.addEventListener('mouseup', function() {
-            stopTable();
+            if (tableButtonPressed && activeTableButton === 'backward') {
+                stopTable();
+            }
+            tableButtonPressed = false;
+            activeTableButton = null;
         });
         
         tableBackwardBtn.addEventListener('mouseleave', function() {
-            stopTable();
+            if (tableButtonPressed && activeTableButton === 'backward') {
+                stopTable();
+            }
+            tableButtonPressed = false;
+            activeTableButton = null;
         });
         
         // Touch support
         tableBackwardBtn.addEventListener('touchstart', function(e) {
             e.preventDefault(); // Prevent scrolling
+            tableButtonPressed = true;
+            activeTableButton = 'backward';
             moveTableBackward(true);
         });
         
         tableBackwardBtn.addEventListener('touchend', function() {
-            stopTable();
+            if (tableButtonPressed && activeTableButton === 'backward') {
+                stopTable();
+            }
+            tableButtonPressed = false;
+            activeTableButton = null;
         });
     }
     
     // Stop button - handled in auto cycle initialization
     
+    // Global function to reset table button states (called from other modules)
+    window.resetTableButtonStates = function() {
+        tableButtonPressed = false;
+        activeTableButton = null;
+        console.log('Table button states reset');
+    };
+
     /**
      * Updates the table status UI with current position data
      * Polls the server to get status of table position, direction, and limit switches
@@ -431,135 +503,51 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Auto cycle elements
-    const autoCycleEnableSwitch = document.getElementById('auto-cycle-enable-switch');
+    // Visual indicators for table page
+    const tableCycleProgress = document.getElementById('table-cycle-progress');
+    const cycleCountDisplay = document.getElementById('cycle-count');
     
-    // Get the global auto cycle manager
-    const autoCycleManager = window.AutoCycleManager;
-    
-    /**
-     * Initialize auto cycle functionality using shared manager
-     */
-    function initAutoCycle() {
-        if (!autoCycleManager) {
-            console.warn('AutoCycleManager not available - auto cycle features disabled');
-            return;
-        }
+    // Initialize slider handlers for cycle settings
+    function initSliders() {
+        console.log('Initializing table page slider handlers...');
         
-        // Configure the auto cycle manager with table movement functions
-        autoCycleManager.setForwardFunction(() => {
-            makeRequest('/table/forward', 'POST', { state: true }, addLogMessage, null, function(error) {
-                console.error('Auto cycle forward failed:', error);
+        // Speed slider handler
+        if (cycleSpeedSlider && cycleSpeedValue) {
+            console.log('Adding input listener to cycle speed slider');
+            cycleSpeedSlider.addEventListener('input', function() {
+                const value = this.value;
+                cycleSpeedValue.textContent = value + '%';
+                console.log('Cycle speed changed to:', value + '%');
+                
+                // TODO: Later we can send this value to the server or AutoCycleManager
+                addLogMessage(`Cycle speed set to ${value}%`, false, 'info');
             });
-        });
-        
-        autoCycleManager.setBackwardFunction(() => {
-            makeRequest('/table/backward', 'POST', { state: true }, addLogMessage, null, function(error) {
-                console.error('Auto cycle backward failed:', error);
-            });
-        });
-        
-        autoCycleManager.setStopFunction(() => {
-            stopTable();
-        });
-        
-        // Initialize enable switch state
-        if (autoCycleEnableSwitch) {
-            // Get current state from manager and sync switch
-            const managerState = autoCycleManager.isEnabled();
-            autoCycleEnableSwitch.checked = managerState;
-            console.log('Auto cycle enable switch synced with manager state:', managerState);
             
-            // Also try to get state from server to ensure consistency
-            setTimeout(() => {
-                makeRequest('/table/status', 'GET', null, addLogMessage, 
-                    function(data) {
-                        if (data && typeof data.auto_cycle_enabled !== 'undefined') {
-                            const serverState = data.auto_cycle_enabled;
-                            console.log('Server auto-cycle state:', serverState);
-                            
-                            // Update both switch and manager
-                            autoCycleEnableSwitch.checked = serverState;
-                            autoCycleManager.setEnabled(serverState);
-                            
-                            console.log('Auto cycle switch and manager synced with server state:', serverState);
-                        }
-                    },
-                    function(error) {
-                        console.warn('Could not fetch auto-cycle state from server:', error);
-                    }
-                );
-            }, 500); // Small delay to ensure other scripts are loaded
+            // Initialize display
+            cycleSpeedValue.textContent = cycleSpeedSlider.value + '%';
+        } else {
+            console.warn('Cycle speed slider elements not found');
+        }
+        
+        // Delay slider handler (if it exists)
+        if (cycleDelaySlider && cycleDelayValue) {
+            console.log('Adding input listener to cycle delay slider');
+            cycleDelaySlider.addEventListener('input', function() {
+                const value = this.value;
+                cycleDelayValue.textContent = value + 's';
+                console.log('Cycle delay changed to:', value + 's');
+                
+                // TODO: Later we can send this value to the server or AutoCycleManager
+                addLogMessage(`Cycle delay set to ${value}s`, false, 'info');
+            });
             
-            // Add change listener
-            autoCycleEnableSwitch.addEventListener('change', function() {
-                console.log('Auto cycle enable switch changed to:', this.checked);
-                autoCycleManager.setEnabled(this.checked);
-                addLogMessage(`Auto cycle ${this.checked ? 'enabled' : 'disabled'}`, false, 'info');
-            });
+            // Initialize display
+            cycleDelayValue.textContent = cycleDelaySlider.value + 's';
         } else {
-            console.warn('Auto cycle enable switch not found');
+            console.warn('Cycle delay slider elements not found');
         }
         
-        console.log('Auto cycle initialization complete');
-    }
-    
-    // Initialize table button handlers (independent of AutoCycleManager)
-    function initTableButtons() {
-        console.log('Initializing table page button handlers...');
-        
-        // Run Table button handler - starts auto cycle if enabled
-        if (tableRunBtn) {
-            console.log('Adding click listener to table run button');
-            tableRunBtn.addEventListener('click', function() {
-                console.log('Table run button clicked');
-                
-                if (autoCycleManager && autoCycleManager.isEnabled()) {
-                    try {
-                        console.log('Starting auto-cycle from table page');
-                        autoCycleManager.start();
-                        addLogMessage('Auto-cycle started from table page', false, 'success');
-                    } catch (error) {
-                        console.error('Error starting auto-cycle:', error);
-                        addLogMessage('Error starting auto-cycle: ' + error.message, true);
-                    }
-                } else if (autoCycleManager) {
-                    console.log('Auto-cycle not enabled, performing manual forward movement');
-                    addLogMessage('Auto-cycle not enabled. Using manual forward movement.', false, 'warning');
-                    moveTableForward();
-                } else {
-                    console.log('AutoCycleManager not available, performing manual forward movement');
-                    addLogMessage('Auto-cycle manager not available. Using manual forward movement.', false, 'warning');
-                    moveTableForward();
-                }
-            });
-        } else {
-            console.warn('Table run button not found');
-        }
-        
-        // Stop Table button handler - handles both auto cycle and manual stop
-        if (tableStopBtn) {
-            console.log('Adding click listener to table stop button');
-            tableStopBtn.addEventListener('click', function() {
-                console.log('Stop Table button clicked on table page');
-                
-                if (autoCycleManager) {
-                    try {
-                        autoCycleManager.stop();
-                        console.log('Auto-cycle stopped successfully');
-                    } catch (error) {
-                        console.error('Error stopping auto-cycle:', error);
-                    }
-                }
-                
-                stopTable(); // Also stop any manual movement
-                addLogMessage('Table movement stopped', false, 'info');
-            });
-        } else {
-            console.warn('Stop Table button not found');
-        }
-        
-        console.log('Table button handlers initialized');
+        console.log('Slider handlers initialized');
     }
     
     // Initial table status update
@@ -568,9 +556,6 @@ document.addEventListener('DOMContentLoaded', function() {
         setInterval(updateTableStatus, 2000);
     }
     
-    // Initialize table buttons (always)
-    initTableButtons();
-    
-    // Initialize auto cycle functionality
-    initAutoCycle();
+    // Initialize sliders for cycle settings
+    initSliders();
 });

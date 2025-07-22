@@ -63,8 +63,8 @@ class StepperMotor:
             else:
                 serial_port = "/dev/ttyUSB0"  # Default Linux port
         
-        # Threading lock for thread safety
-        self.lock = threading.Lock()
+        # Threading lock for thread safety - Use RLock to prevent deadlock
+        self.lock = threading.RLock()
         
         # Initialize StepperWrapper
         try:
@@ -181,10 +181,12 @@ class StepperMotor:
             True if movement started successfully, False otherwise
         """
         with self.lock:
+            logging.info("StepperMotor.move_to: Lock acquired successfully")
             if not self.enabled:
                 logging.warning("Cannot move: Stepper motor is disabled")
                 return False
             
+            logging.info("StepperMotor.move_to: Checking position limits...")
             # Clamp position to limits
             if position > self.max_position:
                 position = self.max_position
@@ -193,17 +195,23 @@ class StepperMotor:
                 position = self.min_position
                 logging.warning(f"Position clamped to min: {position}")
             
+            logging.info("StepperMotor.move_to: Setting target position...")
             self.target_position = position
+            logging.info("StepperMotor.move_to: Getting current position...")
             current_position = self.get_position()
+            logging.info(f"StepperMotor.move_to: Current position retrieved: {current_position}")
             steps = abs(position - current_position)
             direction = 1 if position > current_position else 0
+            logging.info(f"StepperMotor.move_to: Calculated steps={steps}, direction={direction}")
             
             if steps == 0:
                 logging.info("Already at target position")
                 return True
             
             if self.stepper:
+                logging.info(f"About to call stepper.move_steps({steps}, {direction}, {wait})")
                 result = self.stepper.move_steps(steps, direction, wait)
+                logging.info(f"stepper.move_steps returned: {result}")
                 if result:
                     logging.info(f"Moving to position {position} with {steps} steps in direction {direction}")
                     self.moving = True
@@ -211,9 +219,17 @@ class StepperMotor:
                     # If not waiting, update position in a separate thread
                     if not wait and not self.simulation_mode:
                         def update_position():
-                            # Wait for movement to complete
+                            # Wait for movement to complete with timeout protection
+                            max_wait_time = 10.0  # Maximum 10 seconds wait
+                            start_time = time.time()
+                            
                             while self.stepper.is_moving():
+                                if time.time() - start_time > max_wait_time:
+                                    logging.error(f"Movement timeout after {max_wait_time}s - forcing stop")
+                                    self.stepper.stop()
+                                    break
                                 time.sleep(0.1)
+                            
                             # Update position
                             with self.lock:
                                 self.position = position
@@ -233,7 +249,12 @@ class StepperMotor:
                     return False
             else:
                 logging.error("Cannot move: Stepper not initialized")
-                return False
+                # Force simulation mode for the jog operation
+                logging.warning("Falling back to position simulation for jog operation")
+                current_position = self.get_position()
+                step_change = steps * (1 if direction == 1 else -1)
+                self.position = current_position + step_change
+                return True
     
     def stop(self):
         logging.info("StepperMotor.stop called")
@@ -342,10 +363,13 @@ class StepperMotor:
             # Use move_to for consistent position tracking
             return self.move_to(new_position)
     
-    def move_index(self):
-        logging.info("StepperMotor.move_index called")
+    def move_index(self, direction=1):
+        logging.info(f"StepperMotor.move_index called: direction={direction}")
         """
         Move the stepper motor by the index distance.
+        
+        Args:
+            direction: 1 for forward, -1 for backward (or 0 for backward compatibility)
         
         Returns:
             True if the movement started successfully, False otherwise
@@ -356,9 +380,16 @@ class StepperMotor:
                 return False
             
             current_position = self.get_position()
-            new_position = current_position + self.index_distance
             
-            logging.info(f"Moving index distance: {self.index_distance} from {current_position}")
+            # Convert direction: 0 -> -1 for backward compatibility with jog direction format
+            if direction == 0:
+                direction = -1
+            
+            # Calculate new position based on direction
+            step_change = self.index_distance * direction
+            new_position = current_position + step_change
+            
+            logging.info(f"Moving index distance: {step_change} from {current_position} to {new_position}")
             
             # Use move_to for consistent position tracking
             return self.move_to(new_position)

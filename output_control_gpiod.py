@@ -5,7 +5,7 @@ import time
 import logging
 import os
 import threading
-from config import get_gpio_config, get_system_config
+from config import get_gpio_config, get_system_config, get_timing_config
 from gpio_controller_wrapper import LocalGPIOWrapper
 
 class OutputController:
@@ -53,15 +53,16 @@ class OutputController:
         self.fan_mode = 'auto'  # Default to auto mode
         self.lights_mode = 'auto'  # Default to auto mode
         
-        # Timing configuration
+        # Timing configuration - load from timing config
+        timing_config = get_timing_config()
         self.fan_auto_on_duration = config.get('fan_auto_on_duration', 3000)  # ms
-        self.fan_auto_off_timeout = config.get('fan_auto_off_timeout', 5000)  # ms
+        self.fan_auto_off_timeout = timing_config.get('fan_off_delay', 5000)  # ms
         self.fan_last_trigger_time = 0
-        self.red_lights_auto_on_duration = config.get('red_lights_auto_on_duration', 1000)  # ms
+        self.red_lights_auto_off_timeout = timing_config.get('red_lights_off_delay', 3000)  # ms
         self.red_lights_last_trigger_time = 0
         
-        # For thread safety
-        self.lock = threading.Lock()
+        # For thread safety - using RLock to allow reentrant calls
+        self.lock = threading.RLock()
         self.update_thread = None
         self.update_thread_running = False
         
@@ -193,7 +194,9 @@ class OutputController:
         
         Safety: Won't allow forward movement if front limit switch is activated
         """
+        logging.info(f"set_table_forward: attempting to acquire lock")
         with self.lock:
+            logging.info(f"set_table_forward: lock acquired, checking safety")
             # Safety check - don't allow forward movement if at front limit
             if state and self.table_at_front_limit:
                 logging.warning("Cannot move table forward: front limit switch activated")
@@ -201,17 +204,29 @@ class OutputController:
             
             # Safety check - ensure we don't drive in both directions
             if state and self.table_moving_backward:
-                self.set_table_backward(False)
+                logging.info(f"set_table_forward: stopping backward movement first")
+                # Stop backward movement directly instead of recursive call
+                self.table_moving_backward = False
+                if not self.simulation_mode:
+                    try:
+                        self.gpio.write(self.table_backward_pin, 0)
+                        logging.info(f"set_table_forward: stopped backward movement (pin {self.table_backward_pin} = 0)")
+                    except Exception as e:
+                        logging.error(f"Error stopping backward movement: {e}")
             
+            logging.info(f"set_table_forward: setting state to {state}")
             self.table_moving_forward = bool(state)
             if self.simulation_mode:
                 logging.debug(f"Simulation: Table forward {'on' if self.table_moving_forward else 'off'}")
             else:
                 try:
+                    logging.info(f"set_table_forward: writing GPIO pin {self.table_forward_pin} = {1 if self.table_moving_forward else 0}")
                     self.gpio.write(self.table_forward_pin, 1 if self.table_moving_forward else 0)
+                    logging.info(f"set_table_forward: GPIO write completed successfully")
                     logging.debug(f"Table forward {'on' if self.table_moving_forward else 'off'}")
                 except Exception as e:
                     logging.error(f"Error setting table forward state: {e}")
+        logging.info(f"set_table_forward: lock released, function complete")
     
     def set_table_backward(self, state):
         logging.info(f"OutputController.set_table_backward called: state={state}")
@@ -228,7 +243,15 @@ class OutputController:
             
             # Safety check - ensure we don't drive in both directions
             if state and self.table_moving_forward:
-                self.set_table_forward(False)
+                logging.info(f"set_table_backward: stopping forward movement first")
+                # Stop forward movement directly instead of recursive call
+                self.table_moving_forward = False
+                if not self.simulation_mode:
+                    try:
+                        self.gpio.write(self.table_forward_pin, 0)
+                        logging.info(f"set_table_backward: stopped forward movement (pin {self.table_forward_pin} = 0)")
+                    except Exception as e:
+                        logging.error(f"Error stopping forward movement: {e}")
             
             self.table_moving_backward = bool(state)
             if self.simulation_mode:
@@ -243,14 +266,32 @@ class OutputController:
     def _on_table_front_limit(self):
         """Callback when table reaches front limit switch"""
         logging.info("Table reached front limit switch")
-        # Stop forward movement for safety
-        self.set_table_forward(False)
+        # Stop forward movement for safety - use lock to avoid race conditions
+        with self.lock:
+            if self.table_moving_forward:
+                logging.info("Front limit: stopping forward movement")
+                self.table_moving_forward = False
+                if not self.simulation_mode:
+                    try:
+                        self.gpio.write(self.table_forward_pin, 0)
+                        logging.info(f"Front limit: stopped forward movement (pin {self.table_forward_pin} = 0)")
+                    except Exception as e:
+                        logging.error(f"Error stopping forward movement at front limit: {e}")
     
     def _on_table_back_limit(self):
         """Callback when table reaches back limit switch"""
         logging.info("Table reached back limit switch")
-        # Stop backward movement for safety
-        self.set_table_backward(False)
+        # Stop backward movement for safety - use lock to avoid race conditions
+        with self.lock:
+            if self.table_moving_backward:
+                logging.info("Back limit: stopping backward movement")
+                self.table_moving_backward = False
+                if not self.simulation_mode:
+                    try:
+                        self.gpio.write(self.table_backward_pin, 0)
+                        logging.info(f"Back limit: stopped backward movement (pin {self.table_backward_pin} = 0)")
+                    except Exception as e:
+                        logging.error(f"Error stopping backward movement at back limit: {e}")
     
     def update(self, servo_position, normal_position):
         """
@@ -281,7 +322,7 @@ class OutputController:
                     self.red_lights_last_trigger_time = current_time
                     if not self.red_lights_on:
                         self.set_red_lights(True)
-                elif self.red_lights_on and (current_time - self.red_lights_last_trigger_time > self.red_lights_auto_on_duration):
+                elif self.red_lights_on and (current_time - self.red_lights_last_trigger_time > self.red_lights_auto_off_timeout):
                     # Auto-off timeout expired, turn red lights off
                     self.set_red_lights(False)
     
@@ -378,3 +419,24 @@ class OutputController:
         except Exception as e:
             logging.error(f"move_table_backward: Exception: {e}")
             raise
+
+    def update_timing_config(self):
+        """Reload timing configuration from config file"""
+        try:
+            with self.lock:
+                old_fan_timeout = getattr(self, 'fan_auto_off_timeout', None)
+                old_lights_timeout = getattr(self, 'red_lights_auto_off_timeout', None)
+                
+                self.timing_config = get_timing_config()
+                
+                # Update timeout values from timing config
+                # Convert from seconds to milliseconds for internal use
+                self.fan_auto_off_timeout = self.timing_config.get('fan_off_delay', 5000)  # Already in ms
+                self.red_lights_auto_off_timeout = self.timing_config.get('red_lights_off_delay', 3000)  # Already in ms
+                
+                logging.info(f"Timing configuration updated:")
+                logging.info(f"  Fan delay: {old_fan_timeout}ms -> {self.fan_auto_off_timeout}ms")
+                logging.info(f"  Red lights delay: {old_lights_timeout}ms -> {self.red_lights_auto_off_timeout}ms")
+                logging.info(f"  Full timing config: {self.timing_config}")
+        except Exception as e:
+            logging.error(f"Error updating timing configuration: {e}")

@@ -43,8 +43,12 @@ class ServoController:
         self.fire_start_time = 0
         self.is_firing = False
         
+        # Toggle state tracking
+        self.fire_toggle_active = False
+        self.fiber_toggle_active = False
+        
         # Threading lock for thread safety
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()  # Use reentrant lock to prevent deadlock in toggle functions
         
         # Set simulation mode based on system configuration
         self.simulation_mode = operation_mode == 'simulation'
@@ -369,59 +373,203 @@ class ServoController:
                 self.fire_start_time = 0
                 return False
     
-    def stop_firing(self, auto_detach=False, detach_delay=0):
+    def fire_momentary(self, auto_detach=True, detach_delay=0.5):
         """
-        Stop firing immediately (move to position A with no delay) and update statistics
+        Momentary Fire: A→B, hold, on release B→A
+        This should be called on button press, and stop_firing() on button release
+        """
+        return self.fire(auto_detach=False)  # Don't auto-detach, wait for release
+    
+    def fire_toggle(self):
+        """
+        Toggle Fire: A→B, hold, on press again B→A
+        Toggles between firing and stopped states
         """
         with self.lock:
-            # Always try to stop sequence mode first, even if is_firing is false
+            current_time = int(time.time() * 1000)
+            
+            # Add debouncing - ignore rapid calls within 500ms
+            if hasattr(self, '_last_toggle_time') and (current_time - self._last_toggle_time) < 500:
+                logging.warning(f"fire_toggle() debounced - ignoring rapid call (last call {current_time - self._last_toggle_time}ms ago)")
+                if self.fire_toggle_active:
+                    return {"status": "active", "position": "B"}
+                else:
+                    return {"status": "inactive", "position": "A"}
+            
+            self._last_toggle_time = current_time
+            logging.info(f"fire_toggle() called, current state: fire_toggle_active={self.fire_toggle_active}")
+            
+            if not self.fire_toggle_active:
+                # Start firing
+                logging.info("Starting fire toggle (moving to position B)")
+                if self.fire(auto_detach=False):
+                    self.fire_toggle_active = True
+                    logging.info("Fire toggle activated")
+                    return {"status": "active", "position": "B"}
+                else:
+                    logging.error("Failed to start firing in toggle mode")
+                    return {"status": "error", "message": "Failed to start firing"}
+            else:
+                # Stop firing - use manual stop instead of stop_firing() to avoid resetting toggle states
+                logging.info("Stopping fire toggle (moving to position A)")
+                
+                # Calculate and record firing time
+                if self.is_firing and self.fire_start_time > 0:
+                    end_time = int(time.time() * 1000)
+                    firing_time = end_time - self.fire_start_time
+                    
+                    # Record firing time if it meets threshold
+                    threshold = get_timing_config().get('fire_count_threshold', 100)
+                    if firing_time >= threshold:
+                        increment_laser_counter()
+                        add_laser_fire_time(firing_time)
+                        logging.info(f"Laser fired for {firing_time}ms, counter incremented")
+                
+                # Reset firing state but keep toggle state control local
+                self.is_firing = False
+                self.fire_start_time = 0
+                
+                # Move to position A
+                result = self.move_to_a(auto_detach=True)
+                if result:
+                    self.fire_toggle_active = False
+                    logging.info("Fire toggle deactivated")
+                    return {"status": "inactive", "position": "A"}
+                else:
+                    logging.error("Failed to stop firing in toggle mode")
+                    return {"status": "error", "message": "Failed to stop firing"}
+    
+    def fiber_fire_momentary(self):
+        """
+        Momentary Fiber: A→B, B→A, A→B, hold, on release B→A
+        Sequence: Move to B, return to A, move to B again, then hold until release
+        """
+        with self.lock:
+            if not self.initialized:
+                if not self.reattach():
+                    logging.error("Cannot start fiber fire: servo not initialized")
+                    return False
+            
+            try:
+                # Sequence: A→B→A→B, then hold at B
+                logging.info("Starting fiber fire momentary sequence: A→B→A→B→hold")
+                
+                # Step 1: A→B
+                logging.info("Fiber sequence step 1: Moving to position B")
+                if not self.move_to_b(auto_detach=False):
+                    return False
+                time.sleep(0.3)  # Longer pause for visibility
+                
+                # Step 2: B→A  
+                logging.info("Fiber sequence step 2: Moving to position A")
+                if not self.move_to_a(auto_detach=False):
+                    return False
+                time.sleep(0.3)  # Longer pause for visibility
+                
+                # Step 3: A→B and hold
+                logging.info("Fiber sequence step 3: Moving to position B (final hold)")
+                if not self.move_to_b(auto_detach=False):
+                    return False
+                
+                # Track firing state
+                self.fire_start_time = int(time.time() * 1000)
+                self.is_firing = True
+                
+                logging.info("Fiber fire momentary sequence complete - holding at B")
+                return True
+                
+            except Exception as e:
+                logging.error(f"Error in fiber fire momentary sequence: {e}")
+                return False
+    
+    def fiber_fire_toggle(self):
+        """
+        Toggle Fiber: A→B, B→A, A→B, hold, on press again B→A
+        Same sequence as momentary but toggles on/off with button presses
+        """
+        with self.lock:
+            current_time = int(time.time() * 1000)
+            
+            # Add debouncing - ignore rapid calls within 100ms (shorter for fiber since the sequence has delays)
+            if hasattr(self, '_last_fiber_toggle_time') and (current_time - self._last_fiber_toggle_time) < 100:
+                logging.warning(f"fiber_fire_toggle() debounced - ignoring rapid call (last call {current_time - self._last_fiber_toggle_time}ms ago)")
+                if self.fiber_toggle_active:
+                    return {"status": "active", "position": "B", "sequence": "complete"}
+                else:
+                    return {"status": "inactive", "position": "A", "sequence": "unknown"}
+            
+            self._last_fiber_toggle_time = current_time
+            
+            if not self.fiber_toggle_active:
+                # Start fiber sequence
+                if self.fiber_fire_momentary():
+                    self.fiber_toggle_active = True
+                    self._fiber_toggle_start_time = current_time  # Record when toggle started
+                    logging.info("Fiber toggle activated")
+                    return {"status": "active", "position": "B", "sequence": "complete"}
+                else:
+                    return {"status": "error", "message": "Failed to start fiber sequence"}
+            else:
+                # Ensure minimum hold time before allowing deactivation (prevent immediate toggle off)
+                if hasattr(self, '_fiber_toggle_start_time'):
+                    hold_time = current_time - self._fiber_toggle_start_time
+                    min_hold_time = 1000  # Minimum 1 second hold
+                    if hold_time < min_hold_time:
+                        logging.warning(f"Fiber toggle deactivation ignored - minimum hold time not met (held for {hold_time}ms, required {min_hold_time}ms)")
+                        return {"status": "active", "position": "B", "sequence": "complete"}
+                
+                # Stop firing - use manual stop instead of stop_firing() to avoid resetting other toggle states
+                logging.info("Stopping fiber toggle (moving to position A)")
+                
+                # Calculate and record firing time
+                if self.is_firing and self.fire_start_time > 0:
+                    end_time = int(time.time() * 1000)
+                    firing_time = end_time - self.fire_start_time
+                    
+                    # Record firing time if it meets threshold
+                    threshold = get_timing_config().get('fire_count_threshold', 100)
+                    if firing_time >= threshold:
+                        increment_laser_counter()
+                        add_laser_fire_time(firing_time)
+                        logging.info(f"Laser fired for {firing_time}ms, counter incremented")
+                
+                # Reset firing state but keep toggle state control local
+                self.is_firing = False
+                self.fire_start_time = 0
+                
+                # Move to position A
+                result = self.move_to_a(auto_detach=True)
+                if result:
+                    self.fiber_toggle_active = False
+                    logging.info("Fiber toggle deactivated")
+                    return {"status": "inactive", "position": "A", "sequence": "unknown"}
+                else:
+                    logging.error("Failed to stop fiber firing")
+                    return {"status": "error", "message": "Failed to stop fiber firing"}
+    
+    def stop_all_firing(self):
+        """
+        Emergency stop - move servo to position A from any position
+        This is critical for E-Stop functionality
+        """
+        with self.lock:
+            logging.warning("EMERGENCY STOP - Moving servo to position A")
+            
+            # Reset all toggle states
+            self.fire_toggle_active = False
+            self.fiber_toggle_active = False
+            
+            # Stop any sequence mode
             if hasattr(self, 'sequence_stop_flag'):
                 self.sequence_stop_flag.set()
             
-            if not self.is_firing:
-                return True
-                
-            # Record end time and calculate duration
-            end_time = int(time.time() * 1000)
-            firing_time = end_time - self.fire_start_time
-            
-            # Reset firing state immediately before moving
+            # Reset firing state
             self.is_firing = False
+            self.fire_start_time = 0
             
-            # Move back to position A immediately without detach delay
-            result = True
-            angle = self.position_b if self.inverted else self.position_a
-            
-            if self.simulation_mode:
-                logging.info(f"Simulation: Emergency stop - Moved to position A ({angle} degrees)")
-            else:
-                try:
-                    # Move servo back to position A as fast as possible
-                    if self.initialized:
-                        self.servo.angle = angle
-                        logging.info(f"Emergency stop - Moved to position A ({angle} degrees)")
-                    else:
-                        logging.warning("Emergency stop - Servo not initialized")
-                        result = False
-                except Exception as e:
-                    logging.error(f"Error in emergency stop: {e}")
-                    result = False
-            
-            # If firing exceeded threshold, increment counter and add time
-            if firing_time >= get_timing_config()['laser_fire_threshold']:
-                increment_laser_counter()
-                add_laser_fire_time(firing_time)
-                logging.info(f"Laser fired for {firing_time}ms, counter incremented")
-            else:
-                logging.info(f"Laser fired for {firing_time}ms (below threshold)")
-                
-            # Optionally detach after returning to position A (only in real hardware mode)
-            if result and auto_detach and not self.simulation_mode:
-                time.sleep(detach_delay)
-                self.detach()
-                
-            return result
-                
+            # Move to position A immediately
+            return self.move_to_a(auto_detach=False)
+    
     def get_status(self):
         """Get the current status of the servo"""
         # We only need to read data, so we'll avoid using the lock
@@ -523,3 +671,59 @@ class ServoController:
                 logging.error(f"Error cleaning up servo: {e}")
         else:
             logging.debug("No servo to clean up")
+    
+    def stop_firing(self, reset_toggles=True):
+        """
+        Stop any active firing operation and return servo to position A.
+        This is called by the web API to stop momentary or toggle firing.
+        
+        Args:
+            reset_toggles (bool): Whether to reset toggle states. Set to False when called internally.
+        """
+        with self.lock:
+            logging.info("stop_firing() called")
+            if self.is_firing or self.fire_toggle_active or self.fiber_toggle_active:
+                logging.info(f"Stopping firing: is_firing={self.is_firing}, fire_toggle={self.fire_toggle_active}, fiber_toggle={self.fiber_toggle_active}")
+                
+                # Calculate and record firing time
+                if self.is_firing and self.fire_start_time > 0:
+                    end_time = int(time.time() * 1000)
+                    firing_time = end_time - self.fire_start_time
+                    
+                    # Record firing time if it meets threshold
+                    threshold = get_timing_config().get('fire_count_threshold', 100)
+                    if firing_time >= threshold:
+                        increment_laser_counter()
+                        add_laser_fire_time(firing_time)
+                        logging.info(f"Laser fired for {firing_time}ms, counter incremented")
+                
+                # Reset firing state
+                self.is_firing = False
+                self.fire_start_time = 0
+                
+                # Only reset toggle states if requested (external calls like stop button)
+                if reset_toggles:
+                    self.fire_toggle_active = False
+                    self.fiber_toggle_active = False
+                
+                # Move to position A
+                result = self.move_to_a(auto_detach=True)
+                if result:
+                    logging.info("Firing stopped - servo moved to position A")
+                return result
+            else:
+                # Nothing to stop, but ensure we're at position A
+                logging.info("Nothing to stop, ensuring servo is at position A")
+                return self.move_to_a(auto_detach=True)
+    
+    def get_toggle_states(self):
+        """
+        Get the current toggle states for fire and fiber operations.
+        This is called by the web API to check button states.
+        """
+        return {
+            "fire_toggle_active": self.fire_toggle_active,
+            "fiber_toggle_active": self.fiber_toggle_active,
+            "is_firing": self.is_firing,
+            "sequence_mode": self.sequence_mode
+        }

@@ -284,3 +284,12 @@ class OutputController:
                     logging.info("Output pins cleaned up")
             except Exception as e:
                 logging.error(f"Error during cleanup: {e}")
+    
+    def update_timing_config(self):
+        """Reload timing configuration from config file"""
+        try:
+            with self.lock:
+                self.timing_config = get_timing_config()
+                logging.info("Timing configuration updated successfully")
+        except Exception as e:
+            logging.error(f"Error updating timing configuration: {e}")

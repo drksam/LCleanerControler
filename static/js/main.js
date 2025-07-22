@@ -39,6 +39,48 @@ if (typeof getStepsPerMm !== 'function') {
 window.lastTempLogTime = 0;
 
 document.addEventListener('DOMContentLoaded', function() {
+    /**
+     * Makes a standardized AJAX request with consistent error handling
+     * @param {string} url - URL to make the request to
+     * @param {string} [method='GET'] - HTTP method to use
+     * @param {Object} [data=null] - Data to send with the request
+     * @param {Function} [successCallback=null] - Function to call on success
+     * @param {Function} [errorCallback=null] - Function to call on error
+     * @param {Function} [finallyCallback=null] - Function to call regardless of success/failure
+     */
+    const makeRequest = ShopUtils.makeRequest || function(url, method = 'GET', data = null, successCallback = null, errorCallback = null, finallyCallback = null) {
+        const options = {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        };
+        
+        if (data && (method === 'POST' || method === 'PUT')) {
+            options.body = JSON.stringify(data);
+        }
+        
+        fetch(url, options)
+            .then(response => response.json())
+            .then(data => {
+                if (typeof successCallback === 'function') {
+                    successCallback(data);
+                }
+                return data;
+            })
+            .catch(error => {
+                console.error(`Error making ${method} request to ${url}:`, error);
+                if (typeof errorCallback === 'function') {
+                    errorCallback(error);
+                }
+            })
+            .finally(() => {
+                if (typeof finallyCallback === 'function') {
+                    finallyCallback();
+                }
+            });
+    };
+
     // Temperature Monitor Elements
     const temperatureMonitor = document.getElementById('temperature-monitor');
     const noSensorsWarning = document.getElementById('no-sensors-warning');
@@ -46,8 +88,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Set up temperature monitoring if we're on the main page
     if (temperatureMonitor) {
         updateTemperatureMonitor();
-        // Update temperature every 5 seconds
-        setInterval(updateTemperatureMonitor, 5000);
+        // Update temperature every 15 seconds instead of 5 (reduced polling frequency)
+        setInterval(updateTemperatureMonitor, 15000);
     }
     
     // Stepper Motor Elements
@@ -116,48 +158,6 @@ document.addEventListener('DOMContentLoaded', function() {
         currentPosition = parseInt(positionDisplay.textContent) || 0;
         updatePositionDisplay(currentPosition);
     }
-    
-    /**
-     * Makes a standardized AJAX request with consistent error handling
-     * @param {string} url - URL to make the request to
-     * @param {string} [method='GET'] - HTTP method to use
-     * @param {Object} [data=null] - Data to send with the request
-     * @param {Function} [successCallback=null] - Function to call on success
-     * @param {Function} [errorCallback=null] - Function to call on error
-     * @param {Function} [finallyCallback=null] - Function to call regardless of success/failure
-     */
-    const makeRequest = ShopUtils.makeRequest || function(url, method = 'GET', data = null, successCallback = null, errorCallback = null, finallyCallback = null) {
-        const options = {
-            method: method,
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        };
-        
-        if (data && (method === 'POST' || method === 'PUT')) {
-            options.body = JSON.stringify(data);
-        }
-        
-        fetch(url, options)
-            .then(response => response.json())
-            .then(data => {
-                if (typeof successCallback === 'function') {
-                    successCallback(data);
-                }
-                return data;
-            })
-            .catch(error => {
-                console.error(`Error making ${method} request to ${url}:`, error);
-                if (typeof errorCallback === 'function') {
-                    errorCallback(error);
-                }
-            })
-            .finally(() => {
-                if (typeof finallyCallback === 'function') {
-                    finallyCallback();
-                }
-            });
-    };
     
     /**
      * Update button state during async operation
@@ -323,10 +323,10 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Set up click handlers for move-to-preset buttons
     document.addEventListener('click', function(event) {
-        if (event.target.classList.contains('move-to-preset') || 
-            event.target.parentElement.classList.contains('move-to-preset')) {
+        if ((event.target && event.target.classList && event.target.classList.contains('move-to-preset')) || 
+            (event.target && event.target.parentElement && event.target.parentElement.classList && event.target.parentElement.classList.contains('move-to-preset'))) {
             
-            const button = event.target.classList.contains('move-to-preset') ? 
+            const button = (event.target.classList && event.target.classList.contains('move-to-preset')) ? 
                 event.target : event.target.parentElement;
             
             const position = parseInt(button.dataset.position);
@@ -445,6 +445,7 @@ document.addEventListener('DOMContentLoaded', function() {
             '/temperature/status',
             'GET',
             null,
+            console.log,
             function(data) {
                 // Check if we have sensors data in any format
                 if (data.sensors && Object.keys(data.sensors).length > 0) {
@@ -815,6 +816,7 @@ document.addEventListener('DOMContentLoaded', function() {
             '/fan/status',
             'GET',
             null,
+            console.log,
             function(data) {
                 if (data.status === 'success') {
                     const fanState = data.fan_state;
@@ -864,6 +866,7 @@ document.addEventListener('DOMContentLoaded', function() {
             '/lights/status',
             'GET',
             null,
+            console.log,
             function(data) {
                 if (data.status === 'success') {
                     const lightsState = data.lights_state;
@@ -952,11 +955,11 @@ document.addEventListener('DOMContentLoaded', function() {
         updateFanStatus();
         updateLightsStatus();
         
-        // Periodic update every 3 seconds
+        // Periodic update every 10 seconds (reduced from 3 seconds)
         setInterval(function() {
             updateFanStatus();
             updateLightsStatus();
-        }, 3000);
+        }, 10000);
     }
     
     /**

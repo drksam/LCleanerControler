@@ -449,83 +449,128 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Jog Forward button
+    // Jog Forward button - Enhanced with hold-to-jog functionality
     const jogForwardButton = document.getElementById('jog-forward');
+    let jogForwardInterval = null;
+    let jogForwardHoldStarted = false;
     
     if (jogForwardButton) {
-        jogForwardButton.addEventListener('click', function() {
-            const stepSize = parseInt(document.getElementById('step-size').value || 10);
-            addLogMessage(`Jogging forward by ${stepSize} steps...`, false, 'action');
-            jogForwardButton.disabled = true;
-            clearSimulationWarnings();
-            
-            fetch('/jog', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    direction: 'forward',
-                    steps: stepSize
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    const currentPosition = data.position;
-                    updatePositionDisplay(currentPosition);
-                    
-                    // Handle simulation status based on mode
-                    if (data.simulated) {
-                        // For simulation mode, this is expected
-                        if (currentOperationMode === 'simulation') {
-                            addLogMessage('Jog forward complete! (simulation mode)', false, 'success');
-                        } 
-                        // For prototype mode, this should NEVER happen
-                        else if (currentOperationMode === 'prototype') {
-                            addLogMessage('ERROR: Jog forward simulation in PROTOTYPE MODE. Hardware is required!', true);
-                            addSimulationError('HARDWARE ERROR: Receiving simulated values in PROTOTYPE MODE. Check your hardware connections.');
-                        } 
-                        // For normal mode, it's a warning
-                        else {
-                            addLogMessage('WARNING: Jog forward simulated due to hardware error', false, 'warning');
-                            addSimulationWarning('Hardware error detected - using simulation values');
-                        }
-                    } else {
-                        // Real hardware values - clear any warnings
-                        clearSimulationWarnings();
-                        addLogMessage('Jog forward complete!', false, 'success');
-                    }
-                } else {
-                    addLogMessage('Error: ' + data.message, true);
-                }
-            })
-            .catch(error => {
-                addLogMessage('Error: ' + error.message, true);
-            })
-            .finally(() => {
-                if (jogForwardButton) jogForwardButton.disabled = false;
-            });
+        // Click event for single jog (kept for backward compatibility)
+        jogForwardButton.addEventListener('click', function(e) {
+            // Only process click if it wasn't part of a hold operation
+            if (!jogForwardHoldStarted) {
+                const stepSize = parseInt(document.getElementById('step-size').value || 10);
+                performSingleJog('forward', stepSize, jogForwardButton);
+            }
+        });
+        
+        // Mouse events for hold-to-jog
+        jogForwardButton.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            startJogHold('forward', jogForwardButton);
+        });
+        
+        jogForwardButton.addEventListener('mouseup', function(e) {
+            e.preventDefault();
+            stopJogHold();
+        });
+        
+        jogForwardButton.addEventListener('mouseleave', function(e) {
+            stopJogHold();
+        });
+        
+        // Touch events for mobile hold-to-jog
+        jogForwardButton.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            startJogHold('forward', jogForwardButton);
+        });
+        
+        jogForwardButton.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            stopJogHold();
+        });
+        
+        jogForwardButton.addEventListener('touchcancel', function(e) {
+            stopJogHold();
         });
     }
     
-    // Jog Backward button
-    const jogBackwardButton = document.getElementById('jog-backward');
+    // Helper function for single jog operation
+    function performSingleJog(direction, stepSize, button) {
+        addLogMessage(`Jogging ${direction} by ${stepSize} steps...`, false, 'action');
+        button.disabled = true;
+        clearSimulationWarnings();
+        
+        fetch('/jog', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                direction: direction,
+                steps: stepSize
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const currentPosition = data.position;
+                updatePositionDisplay(currentPosition);
+                
+                // Handle simulation status based on mode
+                if (data.simulated) {
+                    // For simulation mode, this is expected
+                    if (currentOperationMode === 'simulation') {
+                        addLogMessage(`Jog ${direction} complete! (simulation mode)`, false, 'success');
+                    } 
+                    // For prototype mode, this should NEVER happen
+                    else if (currentOperationMode === 'prototype') {
+                        addLogMessage(`ERROR: Jog ${direction} simulation in PROTOTYPE MODE. Hardware is required!`, true);
+                        addSimulationError('HARDWARE ERROR: Receiving simulated values in PROTOTYPE MODE. Check your hardware connections.');
+                    } 
+                    // For normal mode, it's a warning
+                    else {
+                        addLogMessage(`WARNING: Jog ${direction} simulated due to hardware error`, false, 'warning');
+                        addSimulationWarning('Hardware error detected - using simulation values');
+                    }
+                } else {
+                    // Real hardware values - clear any warnings
+                    clearSimulationWarnings();
+                    addLogMessage(`Jog ${direction} complete!`, false, 'success');
+                }
+            } else {
+                addLogMessage('Error: ' + data.message, true);
+            }
+        })
+        .catch(error => {
+            addLogMessage('Error: ' + error.message, true);
+        })
+        .finally(() => {
+            if (button) button.disabled = false;
+        });
+    }
     
-    if (jogBackwardButton) {
-        jogBackwardButton.addEventListener('click', function() {
-            const stepSize = parseInt(document.getElementById('step-size').value || 10);
-            addLogMessage(`Jogging backward by ${stepSize} steps...`, false, 'action');
-            jogBackwardButton.disabled = true;
-            clearSimulationWarnings();
-            
-            fetch('/jog', {
+    // Helper function to start continuous jogging
+    function startJogHold(direction, button) {
+        if (jogForwardInterval) return; // Already jogging
+        
+        jogForwardHoldStarted = true;
+        const stepSize = parseInt(document.getElementById('step-size').value || 10);
+        
+        // Start immediately
+        addLogMessage(`Starting continuous jog ${direction}...`, false, 'action');
+        button.disabled = true;
+        clearSimulationWarnings();
+        
+        // Send continuous jog commands every 200ms
+        jogForwardInterval = setInterval(() => {
+            fetch('/jog_continuous', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    direction: 'backward',
+                    direction: direction,
                     steps: stepSize
                 })
             })
@@ -534,39 +579,141 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.status === 'success') {
                     const currentPosition = data.position;
                     updatePositionDisplay(currentPosition);
-                    
-                    // Handle simulation status based on mode
-                    if (data.simulated) {
-                        // For simulation mode, this is expected
-                        if (currentOperationMode === 'simulation') {
-                            addLogMessage('Jog backward complete! (simulation mode)', false, 'success');
-                        } 
-                        // For prototype mode, this should NEVER happen
-                        else if (currentOperationMode === 'prototype') {
-                            addLogMessage('ERROR: Jog backward simulation in PROTOTYPE MODE. Hardware is required!', true);
-                            addSimulationError('HARDWARE ERROR: Receiving simulated values in PROTOTYPE MODE. Check your hardware connections.');
-                        } 
-                        // For normal mode, it's a warning
-                        else {
-                            addLogMessage('WARNING: Jog backward simulated due to hardware error', false, 'warning');
-                            addSimulationWarning('Hardware error detected - using simulation values');
-                        }
-                    } else {
-                        // Real hardware values - clear any warnings
-                        clearSimulationWarnings();
-                        addLogMessage('Jog backward complete!', false, 'success');
-                    }
-                } else {
-                    addLogMessage('Error: ' + data.message, true);
+                } else if (data.status === 'error') {
+                    addLogMessage('Jog error: ' + data.message, true);
+                    stopJogHold();
                 }
             })
             .catch(error => {
-                addLogMessage('Error: ' + error.message, true);
-            })
-            .finally(() => {
-                if (jogBackwardButton) jogBackwardButton.disabled = false;
+                addLogMessage('Jog error: ' + error.message, true);
+                stopJogHold();
             });
+        }, 200); // 200ms interval for smooth continuous movement
+    }
+    
+    // Helper function to stop continuous jogging
+    function stopJogHold() {
+        if (jogForwardInterval) {
+            clearInterval(jogForwardInterval);
+            jogForwardInterval = null;
+            
+            addLogMessage('Continuous jog stopped', false, 'info');
+            
+            // Re-enable button after a short delay to prevent accidental clicks
+            setTimeout(() => {
+                const jogForwardButton = document.getElementById('jog-forward');
+                const jogBackwardButton = document.getElementById('jog-backward');
+                if (jogForwardButton) jogForwardButton.disabled = false;
+                if (jogBackwardButton) jogBackwardButton.disabled = false;
+                jogForwardHoldStarted = false;
+            }, 100);
+        }
+    }
+    
+    // Jog Backward button - Enhanced with hold-to-jog functionality
+    const jogBackwardButton = document.getElementById('jog-backward');
+    let jogBackwardInterval = null;
+    let jogBackwardHoldStarted = false;
+    
+    if (jogBackwardButton) {
+        // Click event for single jog (kept for backward compatibility)
+        jogBackwardButton.addEventListener('click', function(e) {
+            // Only process click if it wasn't part of a hold operation
+            if (!jogBackwardHoldStarted) {
+                const stepSize = parseInt(document.getElementById('step-size').value || 10);
+                performSingleJog('backward', stepSize, jogBackwardButton);
+            }
         });
+        
+        // Mouse events for hold-to-jog
+        jogBackwardButton.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            startJogHoldBackward('backward', jogBackwardButton);
+        });
+        
+        jogBackwardButton.addEventListener('mouseup', function(e) {
+            e.preventDefault();
+            stopJogHoldBackward();
+        });
+        
+        jogBackwardButton.addEventListener('mouseleave', function(e) {
+            stopJogHoldBackward();
+        });
+        
+        // Touch events for mobile hold-to-jog
+        jogBackwardButton.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            startJogHoldBackward('backward', jogBackwardButton);
+        });
+        
+        jogBackwardButton.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            stopJogHoldBackward();
+        });
+        
+        jogBackwardButton.addEventListener('touchcancel', function(e) {
+            stopJogHoldBackward();
+        });
+    }
+    
+    // Helper function to start continuous jogging backward
+    function startJogHoldBackward(direction, button) {
+        if (jogBackwardInterval) return; // Already jogging
+        
+        jogBackwardHoldStarted = true;
+        const stepSize = parseInt(document.getElementById('step-size').value || 10);
+        
+        // Start immediately
+        addLogMessage(`Starting continuous jog ${direction}...`, false, 'action');
+        button.disabled = true;
+        clearSimulationWarnings();
+        
+        // Send continuous jog commands every 200ms
+        jogBackwardInterval = setInterval(() => {
+            fetch('/jog_continuous', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    direction: direction,
+                    steps: stepSize
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    const currentPosition = data.position;
+                    updatePositionDisplay(currentPosition);
+                } else if (data.status === 'error') {
+                    addLogMessage('Jog error: ' + data.message, true);
+                    stopJogHoldBackward();
+                }
+            })
+            .catch(error => {
+                addLogMessage('Jog error: ' + error.message, true);
+                stopJogHoldBackward();
+            });
+        }, 200); // 200ms interval for smooth continuous movement
+    }
+    
+    // Helper function to stop continuous jogging backward
+    function stopJogHoldBackward() {
+        if (jogBackwardInterval) {
+            clearInterval(jogBackwardInterval);
+            jogBackwardInterval = null;
+            
+            addLogMessage('Continuous jog stopped', false, 'info');
+            
+            // Re-enable button after a short delay to prevent accidental clicks
+            setTimeout(() => {
+                const jogForwardButton = document.getElementById('jog-forward');
+                const jogBackwardButton = document.getElementById('jog-backward');
+                if (jogForwardButton) jogForwardButton.disabled = false;
+                if (jogBackwardButton) jogBackwardButton.disabled = false;
+                jogBackwardHoldStarted = false;
+            }, 100);
+        }
     }
     
     // Absolute Position Move (mm)

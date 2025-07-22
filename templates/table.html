@@ -65,30 +65,14 @@
         </div>
     </div>
     
-    <!-- Table Auto Cycle -->
+    <!-- Table Status and Settings -->
     <div class="col-md-6 mb-4">
         <div class="card">
-            <div class="card-header bg-warning text-dark">
-                <h5 class="card-title mb-0">Auto Cycle</h5>
+            <div class="card-header bg-info text-white">
+                <h5 class="card-title mb-0">Cycle Status</h5>
             </div>
             <div class="card-body">
                 <div class="text-center mb-4">
-                    <p class="mb-4">Table will automatically cycle between front and back limit switches</p>
-                    
-                    <div class="form-check form-switch d-flex justify-content-center mb-4">
-                        <input class="form-check-input me-2" type="checkbox" id="auto-cycle-enable-switch" style="transform: scale(1.5);" data-bs-toggle="tooltip" title="Enable/disable automatic table cycling">
-                        <label class="form-check-label" for="auto-cycle-enable-switch">Enable Auto Cycle</label>
-                    </div>
-                    
-                    <div class="d-grid gap-3 mb-4">
-                        <button id="run-table-button" class="btn btn-success btn-lg" data-bs-toggle="tooltip" title="Start automatic table cycling">
-                            <i class="fas fa-play me-2"></i> Run Table
-                        </button>
-                        <button id="stop-table-button" class="btn btn-danger btn-lg" data-bs-toggle="tooltip" title="Stop automatic table cycling">
-                            <i class="fas fa-stop me-2"></i> Stop Table
-                        </button>
-                    </div>
-                    
                     <div class="progress mb-2" data-bs-toggle="tooltip" title="Cycle progress visualization">
                         <div id="table-cycle-progress" class="progress-bar progress-bar-striped progress-bar-animated bg-info" role="progressbar" style="width: 0%"></div>
                     </div>
@@ -105,6 +89,15 @@
                                 <span>0s</span>
                                 <span id="cycle-delay-value" data-bs-toggle="tooltip" title="Current delay setting">1s</span>
                                 <span>10s</span>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="cycle-speed" class="form-label" data-bs-toggle="tooltip" title="Speed of table movement during cycles">Speed (%):</label>
+                            <input type="range" class="form-range" id="cycle-speed" min="10" max="100" value="50" step="1" data-bs-toggle="tooltip" title="Adjust table movement speed">
+                            <div class="d-flex justify-content-between">
+                                <span>10%</span>
+                                <span id="cycle-speed-value" data-bs-toggle="tooltip" title="Current speed setting">50%</span>
+                                <span>100%</span>
                             </div>
                         </div>
                     </div>
@@ -134,6 +127,22 @@
                 new bootstrap.Tooltip(el);
                 el.classList.add('tooltip-initialized');
             });
+        }
+        
+        // Initialize slider value displays (backup for sliders)
+        const cycleDelaySlider = document.getElementById('cycle-delay');
+        const cycleDelayValue = document.getElementById('cycle-delay-value');
+        const cycleSpeedSlider = document.getElementById('cycle-speed');
+        const cycleSpeedValue = document.getElementById('cycle-speed-value');
+        
+        if (cycleDelaySlider && cycleDelayValue) {
+            // Initialize delay slider display
+            cycleDelayValue.textContent = cycleDelaySlider.value + 's';
+        }
+        
+        if (cycleSpeedSlider && cycleSpeedValue) {
+            // Initialize speed slider display 
+            cycleSpeedValue.textContent = cycleSpeedSlider.value + '%';
         }
         
         // Other event handlers and initialization code

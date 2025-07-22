@@ -3,11 +3,40 @@
  * Handles servo positioning, movement, and firing actions with proper logging
  */
 
+console.log('servo_control.js v2025-07-21-fix loaded'); // Version marker
+
 // Check if we're on a mobile device
 const isServoPanelMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
     || (window.innerWidth <= 768);
 
+console.log('SERVO_CONTROL.JS VERSION 2025-07-21 FINAL FIX'); // CLEAR VERSION MARKER
+
+/**
+ * Set a button's disabled state with visual feedback
+ * @param {HTMLElement} button - The button to modify
+ * @param {boolean} disabled - Whether to disable the button
+ */
+function setButtonState(button, disabled) {
+    if (button) {
+        console.log(`setButtonState called: button=${button.id}, disabled=${disabled}, current disabled=${button.disabled}`);
+        button.disabled = disabled;
+        console.log(`setButtonState result: button=${button.id}, new disabled=${button.disabled}`);
+    } else {
+        console.log('setButtonState called with null/undefined button');
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+    
+    // Ensure addLogMessage function is available
+    if (typeof window.addLogMessage !== 'function') {
+        console.warn('window.addLogMessage not available, creating fallback');
+        window.addLogMessage = function(message, isError = false, logType = 'info') {
+            const prefix = isError ? '[ERROR]' : `[${logType.toUpperCase()}]`;
+            console.log(`${prefix} ${message}`);
+        };
+    }
+    
     // Use the utility library for simulation mode
     const ShopUtils = window.ShopUtils || {};
     let currentOperationMode = 'unknown';
@@ -138,17 +167,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     finallyCallback();
                 }
             });
-    };
-    
-    /**
-     * Set a button's disabled state with visual feedback
-     * @param {HTMLElement} button - The button to modify
-     * @param {boolean} disabled - Whether to disable the button
-     */
-    const setButtonState = ShopUtils.setButtonsState || function(button, disabled) {
-        if (button) {
-            button.disabled = disabled;
-        }
     };
     
     // Enhance servo controls with touch-friendly features if on mobile
@@ -499,7 +517,6 @@ function initServoControls() {
     
     // Firing test buttons
     const fireButtonTest = document.getElementById('fire-button-test');
-    const stopFireButtonTest = document.getElementById('stop-fire-button-test');
     const fireFiberButtonTest = document.getElementById('fire-fiber-button-test');
     
     // Position A slider
@@ -702,109 +719,257 @@ function initServoControls() {
         });
     }
     
-    // Fire test button
-    if (fireButtonTest && stopFireButtonTest) {
-        fireButtonTest.addEventListener('click', function() {
-            addLogMessage('FIRING (TEST) - Moving servo to position B...', false, 'action');
-            clearSimulationWarnings();
+    // Fire test button - simple momentary operation like operations page
+    if (fireButtonTest) {
+        // Use mousedown for immediate response
+        fireButtonTest.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
             
-            // Disable fire button and enable stop button using utility function
-            setButtonState(fireButtonTest, true);
-            setButtonState(stopFireButtonTest, false);
+            console.log('Fire test button mousedown - starting momentary fire');
+            addLogMessage('FIRING (TEST) - Momentary operation...', false, 'action');
             
-            // Use the makeRequest utility
+            fireButtonTest.innerHTML = '<span style="color: yellow;">●</span> FIRING - HOLD BUTTON';
+            
             makeRequest(
                 '/fire',
                 'POST',
-                null,
+                { mode: 'momentary' },
+                console.log,
                 function(data) {
+                    console.log('Fire test success:', data);
                     if (data.status === 'success') {
-                        // Use handleSimulationResponse utility
-                        if (!handleSimulationResponse(data, 'Fire test')) {
-                            // This is a real hardware response
-                            addLogMessage('Firing initiated (Test mode)', false, 'success');
-                        }
+                        addLogMessage('Fire test started - release button to stop', false, 'success');
                     } else {
-                        addLogMessage(`Error initiating firing: ${data.message}`, true);
-                        // Reset button states on error
-                        setButtonState(fireButtonTest, false);
-                        setButtonState(stopFireButtonTest, true);
+                        addLogMessage(`Error with fire test: ${data.message}`, true);
+                        fireButtonTest.innerHTML = '<i class="fas fa-fire-alt"></i> FIRE TEST';
                     }
                 },
                 function(error) {
-                    // Reset button states on error
-                    setButtonState(fireButtonTest, false);
-                    setButtonState(stopFireButtonTest, true);
+                    console.log('Fire test error:', error);
+                    addLogMessage(`Fire test error: ${error.message}`, true);
+                    fireButtonTest.innerHTML = '<i class="fas fa-fire-alt"></i> FIRE TEST';
                 }
             );
         });
-        
-        stopFireButtonTest.addEventListener('click', function() {
-            addLogMessage('STOPPING FIRE (TEST) - Moving servo to position A...', false, 'action');
-            clearSimulationWarnings();
+
+        // Use mouseup for release response
+        fireButtonTest.addEventListener('mouseup', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
             
-            // Disable stop button and enable fire button using utility function
-            setButtonState(stopFireButtonTest, true);
-            setButtonState(fireButtonTest, false);
+            console.log('Fire test button mouseup - stopping');
+            addLogMessage('STOPPING FIRE TEST...', false, 'action');
             
-            // Use the makeRequest utility
             makeRequest(
-                '/stop_fire',
+                '/stop_firing',
                 'POST',
                 null,
+                console.log,
                 function(data) {
+                    console.log('Stop fire test success:', data);
+                    addLogMessage('Fire test stopped', false, 'success');
+                    fireButtonTest.innerHTML = '<i class="fas fa-fire-alt"></i> FIRE TEST';
+                },
+                function(error) {
+                    console.log('Stop fire test error:', error);
+                    addLogMessage('Error stopping fire test', true);
+                    fireButtonTest.innerHTML = '<i class="fas fa-fire-alt"></i> FIRE TEST';
+                }
+            );
+        });
+
+        // Handle mouseleave to ensure stop if user drags off button
+        fireButtonTest.addEventListener('mouseleave', function(e) {
+            console.log('Fire test button mouseleave - triggering mouseup');
+            fireButtonTest.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+        });
+    }
+
+    // Fiber sequence test button - simple momentary operation like operations page
+    if (fireFiberButtonTest) {
+        // Use mousedown for immediate response
+        fireFiberButtonTest.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            console.log('Fiber test button mousedown - starting momentary sequence');
+            addLogMessage('Starting FIBER sequence (TEST) - Momentary operation...', false, 'action');
+            
+            fireFiberButtonTest.innerHTML = '<span style="color: yellow;">●</span> FIBER - HOLD BUTTON';
+            
+            makeRequest(
+                '/fire_fiber',
+                'POST',
+                { mode: 'momentary' },
+                console.log,
+                function(data) {
+                    console.log('Fiber test success:', data);
                     if (data.status === 'success') {
-                        // Use handleSimulationResponse utility
-                        if (!handleSimulationResponse(data, 'Stop fire test')) {
-                            // This is a real hardware response
-                            addLogMessage('Firing stopped (Test mode)', false, 'success');
-                        }
+                        addLogMessage('Fiber sequence started - release button to stop', false, 'success');
                     } else {
-                        addLogMessage(`Error stopping firing: ${data.message}`, true);
-                        // Reset button states on error
-                        setButtonState(stopFireButtonTest, false);
-                        setButtonState(fireButtonTest, true);
+                        addLogMessage(`Error with fiber sequence: ${data.message}`, true);
+                        fireFiberButtonTest.innerHTML = '<i class="fas fa-bolt"></i> FIBER TEST';
                     }
                 },
                 function(error) {
-                    // Reset button states on error
-                    setButtonState(stopFireButtonTest, false);
-                    setButtonState(fireButtonTest, true);
+                    console.log('Fiber test error:', error);
+                    addLogMessage(`Fiber sequence error: ${error.message}`, true);
+                    fireFiberButtonTest.innerHTML = '<i class="fas fa-bolt"></i> FIBER TEST';
+                }
+            );
+        });
+
+        // Use mouseup for release response
+        fireFiberButtonTest.addEventListener('mouseup', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            console.log('Fiber test button mouseup - stopping');
+            addLogMessage('STOPPING FIBER TEST...', false, 'action');
+            
+            makeRequest(
+                '/stop_firing',
+                'POST',
+                null,
+                console.log,
+                function(data) {
+                    console.log('Stop fiber test success:', data);
+                    addLogMessage('Fiber test stopped', false, 'success');
+                    fireFiberButtonTest.innerHTML = '<i class="fas fa-bolt"></i> FIBER TEST';
+                },
+                function(error) {
+                    console.log('Stop fiber test error:', error);
+                    addLogMessage('Error stopping fiber test', true);
+                    fireFiberButtonTest.innerHTML = '<i class="fas fa-bolt"></i> FIBER TEST';
+                }
+            );
+        });
+
+        // Handle mouseleave to ensure stop if user drags off button
+        fireFiberButtonTest.addEventListener('mouseleave', function(e) {
+            console.log('Fiber test button mouseleave - triggering mouseup');
+            fireFiberButtonTest.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+        });
+    }    // Initialize delay setting controls
+    initDelayControls();
+}
+
+/**
+ * Initialize delay setting controls for fan and red lights
+ */
+function initDelayControls() {
+    // Fan off delay slider
+    const fanDelaySlider = document.getElementById('fan-off-delay');
+    const fanDelayValue = document.getElementById('fan-off-delay-value');
+    const saveFanDelayBtn = document.getElementById('save-fan-delay');
+    
+    // Red light off delay slider
+    const redLightDelaySlider = document.getElementById('red-light-off-delay');
+    const redLightDelayValue = document.getElementById('red-light-off-delay-value');
+    const saveRedLightDelayBtn = document.getElementById('save-red-light-delay');
+    
+    // Fan delay slider handler
+    if (fanDelaySlider && fanDelayValue) {
+        fanDelaySlider.addEventListener('input', function() {
+            fanDelayValue.textContent = this.value + 's';
+        });
+    }
+    
+    // Red light delay slider handler
+    if (redLightDelaySlider && redLightDelayValue) {
+        redLightDelaySlider.addEventListener('input', function() {
+            redLightDelayValue.textContent = this.value + 's';
+        });
+    }
+    
+    // Save fan delay button
+    if (saveFanDelayBtn && fanDelaySlider) {
+        saveFanDelayBtn.addEventListener('click', function() {
+            const delaySeconds = parseInt(fanDelaySlider.value);
+            
+            // Disable button and show loading
+            setButtonState(saveFanDelayBtn, true);
+            saveFanDelayBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Saving...';
+            
+            makeRequest(
+                '/settings/fan_off_delay',
+                'POST',
+                { delay_seconds: delaySeconds },
+                function(data) {
+                    if (data.status === 'success') {
+                        addLogMessage(`Fan off delay updated to ${delaySeconds} seconds`, false, 'success');
+                        
+                        // Update button to show success
+                        saveFanDelayBtn.innerHTML = '<i class="fas fa-check me-1"></i> Saved!';
+                        saveFanDelayBtn.classList.remove('btn-outline-primary');
+                        saveFanDelayBtn.classList.add('btn-success');
+                        
+                        // Reset button after 2 seconds
+                        setTimeout(() => {
+                            saveFanDelayBtn.innerHTML = '<i class="fas fa-save me-1"></i> Save Fan Delay';
+                            saveFanDelayBtn.classList.remove('btn-success');
+                            saveFanDelayBtn.classList.add('btn-outline-primary');
+                            setButtonState(saveFanDelayBtn, false);
+                        }, 2000);
+                    } else {
+                        addLogMessage(`Error saving fan delay: ${data.message || 'Unknown error'}`, true);
+                        // Reset button
+                        saveFanDelayBtn.innerHTML = '<i class="fas fa-save me-1"></i> Save Fan Delay';
+                        setButtonState(saveFanDelayBtn, false);
+                    }
+                },
+                function(error) {
+                    addLogMessage(`Error saving fan delay: ${error.message}`, true);
+                    // Reset button
+                    saveFanDelayBtn.innerHTML = '<i class="fas fa-save me-1"></i> Save Fan Delay';
+                    setButtonState(saveFanDelayBtn, false);
                 }
             );
         });
     }
     
-    // Fiber sequence test button
-    if (fireFiberButtonTest) {
-        fireFiberButtonTest.addEventListener('click', function() {
-            addLogMessage('Starting FIBER sequence (TEST)...', false, 'action');
-            clearSimulationWarnings();
+    // Save red light delay button
+    if (saveRedLightDelayBtn && redLightDelaySlider) {
+        saveRedLightDelayBtn.addEventListener('click', function() {
+            const delaySeconds = parseInt(redLightDelaySlider.value);
             
-            setButtonState(fireFiberButtonTest, true);
+            // Disable button and show loading
+            setButtonState(saveRedLightDelayBtn, true);
+            saveRedLightDelayBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Saving...';
             
-            // Use the makeRequest utility with finally callback for re-enabling button
             makeRequest(
-                '/fire_fiber',
+                '/settings/red_lights_off_delay',
                 'POST',
-                null,
+                { delay_seconds: delaySeconds },
                 function(data) {
                     if (data.status === 'success') {
-                        // Use handleSimulationResponse utility
-                        if (!handleSimulationResponse(data, 'Fire fiber sequence test')) {
-                            // This is a real hardware response
-                            addLogMessage('Fiber sequence started (Test mode)', false, 'success');
-                        }
+                        addLogMessage(`Red light off delay updated to ${delaySeconds} seconds`, false, 'success');
+                        
+                        // Update button to show success
+                        saveRedLightDelayBtn.innerHTML = '<i class="fas fa-check me-1"></i> Saved!';
+                        saveRedLightDelayBtn.classList.remove('btn-outline-primary');
+                        saveRedLightDelayBtn.classList.add('btn-success');
+                        
+                        // Reset button after 2 seconds
+                        setTimeout(() => {
+                            saveRedLightDelayBtn.innerHTML = '<i class="fas fa-save me-1"></i> Save Light Delay';
+                            saveRedLightDelayBtn.classList.remove('btn-success');
+                            saveRedLightDelayBtn.classList.add('btn-outline-primary');
+                            setButtonState(saveRedLightDelayBtn, false);
+                        }, 2000);
                     } else {
-                        addLogMessage(`Error starting fiber sequence: ${data.message}`, true);
+                        addLogMessage(`Error saving red light delay: ${data.message || 'Unknown error'}`, true);
+                        // Reset button
+                        saveRedLightDelayBtn.innerHTML = '<i class="fas fa-save me-1"></i> Save Light Delay';
+                        setButtonState(saveRedLightDelayBtn, false);
                     }
                 },
-                null,
-                function() {
-                    // Re-enable button after a short delay
-                    setTimeout(() => {
-                        setButtonState(fireFiberButtonTest, false);
-                    }, 2000);
+                function(error) {
+                    addLogMessage(`Error saving red light delay: ${error.message}`, true);
+                    // Reset button
+                    saveRedLightDelayBtn.innerHTML = '<i class="fas fa-save me-1"></i> Save Light Delay';
+                    setButtonState(saveRedLightDelayBtn, false);
                 }
             );
         });

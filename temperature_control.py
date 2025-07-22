@@ -278,21 +278,56 @@ class TemperatureController:
                 'name': data['name'],
                 'high_limit': high_limit,
                 'high_temp': data.get('high_temp', False),
-                'last_reading': data['last_reading'].strftime('%Y-%m-%d %H:%M:%S')
+                'temp': data['temp'],  # Include both for compatibility
+                'last_reading': data['last_reading'].strftime('%Y-%m-%d %H:%M:%S') if isinstance(data['last_reading'], datetime) else str(data['last_reading'])
             }
         
-        # Create the status dictionary
-        status = {
+        return {
             'sensors': sensors,
-            'high_limit': self.temp_config.get('high_limit', 50.0),  # Global high limit
+            'temperatures': self.temperatures,  # Include original format for compatibility
+            'high_limit': self.temp_config.get('high_limit', 50.0),
+            'monitoring_interval': self.temp_config.get('sampling_interval', 5.0),
             'high_temp_condition': self.high_temp_condition,
             'monitoring_enabled': self.monitoring,
             'devices_found': len(self.temperatures),
             'sensor_limits': self.temp_config.get('sensor_limits', {}),
+            'simulated': False,
             'primary_sensor': self.temp_config.get('primary_sensor', None)
         }
+    
+    def get_status_cached(self):
+        """Get current temperature status without forcing an update"""
+        # Return cached values without calling update_temperatures()
+        # The background monitoring thread keeps these values fresh
         
-        return status
+        # For API compatibility, create a sensors dictionary with device_id as key
+        sensors = {}
+        for device_id, data in self.temperatures.items():
+            # Get sensor-specific high limit or fall back to global limit
+            sensor_limits = self.temp_config.get('sensor_limits', {})
+            high_limit = sensor_limits.get(device_id, self.temp_config.get('high_limit', 50.0))
+            
+            sensors[device_id] = {
+                'temperature': data['temp'],
+                'name': data['name'],
+                'high_limit': high_limit,
+                'high_temp': data.get('high_temp', False),
+                'temp': data['temp'],  # Include both for compatibility
+                'last_reading': data['last_reading'].strftime('%Y-%m-%d %H:%M:%S') if isinstance(data['last_reading'], datetime) else str(data['last_reading'])
+            }
+        
+        return {
+            'sensors': sensors,
+            'temperatures': self.temperatures,  # Include original format for compatibility
+            'high_limit': self.temp_config.get('high_limit', 50.0),
+            'monitoring_interval': self.temp_config.get('sampling_interval', 5.0),
+            'high_temp_condition': self.high_temp_condition,
+            'monitoring_enabled': self.monitoring,
+            'devices_found': len(self.temperatures),
+            'sensor_limits': self.temp_config.get('sensor_limits', {}),
+            'simulated': False,
+            'primary_sensor': self.temp_config.get('primary_sensor', None)
+        }
     
     def update_config(self, new_config):
         """Update temperature sensor configuration"""

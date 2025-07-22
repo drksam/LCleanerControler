@@ -101,6 +101,66 @@ else:
     gpiod = MockGpiod()
     logging.info("Using mock gpiod implementation on Windows")
 
+# Shared GPIO Controller Manager to prevent port conflicts
+class SharedGPIOController:
+    """
+    Singleton manager for shared GPIOController instance.
+    Prevents multiple instances from competing for the same serial port.
+    """
+    _instance = None
+    _controller = None
+    _ref_count = 0
+    _lock = threading.Lock()
+    
+    @classmethod
+    def get_controller(cls, port=None, simulation_mode=False):
+        """Get or create the shared GPIOController instance."""
+        with cls._lock:
+            if cls._instance is None:
+                cls._instance = cls()
+            
+            if cls._controller is None and not simulation_mode and GPIOCTRL_AVAILABLE:
+                try:
+                    serial_port = port or DEFAULT_SERIAL_PORT
+                    logging.info(f"Creating shared GPIOController on port {serial_port}")
+                    cls._controller = GPIOController(port=serial_port)
+                    logging.info("Shared GPIOController created successfully")
+                except Exception as e:
+                    logging.error(f"Failed to create shared GPIOController: {e}")
+                    if FORCE_HARDWARE:
+                        raise
+                    cls._controller = None
+            
+            cls._ref_count += 1
+            logging.info(f"SharedGPIOController reference count: {cls._ref_count}")
+            return cls._controller
+    
+    @classmethod
+    def release_controller(cls):
+        """Release a reference to the shared controller."""
+        with cls._lock:
+            if cls._ref_count > 0:
+                cls._ref_count -= 1
+                logging.info(f"SharedGPIOController reference count: {cls._ref_count}")
+                
+                if cls._ref_count == 0 and cls._controller is not None:
+                    logging.info("Stopping shared GPIOController")
+                    try:
+                        cls._controller.stop()
+                    except Exception as e:
+                        logging.warning(f"Error stopping shared GPIOController: {e}")
+                    cls._controller = None
+    
+    @classmethod
+    def get_status(cls):
+        """Get the current status of the shared controller."""
+        with cls._lock:
+            return {
+                "controller_exists": cls._controller is not None,
+                "ref_count": cls._ref_count,
+                "simulation_mode": cls._controller is None and GPIOCTRL_AVAILABLE
+            }
+
 class ServoWrapper:
     """
     Wrapper for GPIOController servo functionality to replace gpiozero.AngularServo.
@@ -143,11 +203,12 @@ class ServoWrapper:
         # Initialize controller if not in simulation mode
         if not simulation_mode and GPIOCTRL_AVAILABLE:
             try:
-                logging.info(f"Attempting to initialize GPIOController for servo on port {self.serial_port}")
-                self._controller = GPIOController(port=self.serial_port)
-                logging.info(f"GPIOController initialized for servo")
-                # Set initial angle
-                self._controller.set_servo(pin=pin, angle=initial_angle)
+                logging.info(f"Attempting to get shared GPIOController for servo on port {self.serial_port}")
+                self._controller = SharedGPIOController.get_controller(port=self.serial_port, simulation_mode=simulation_mode)
+                if self._controller:
+                    logging.info(f"Got shared GPIOController for servo")
+                    # Set initial angle
+                    self._controller.set_servo(pin=pin, angle=initial_angle)
                 logging.info(f"Initialized ServoWrapper with GPIOController on pin {pin}")
             except Exception as e:
                 logging.error(f"Failed to initialize GPIOController for servo: {e}")
@@ -196,8 +257,9 @@ class ServoWrapper:
                 middle_position = (self.min_angle + self.max_angle) / 2
                 self._controller.set_servo(pin=self.pin, angle=middle_position)
                 time.sleep(0.5)  # Give servo time to move
-                # No explicit detach method in GPIOController, but stop will clean up
-                self._controller.stop()
+                # Release the shared controller reference
+                SharedGPIOController.release_controller()
+                self._controller = None
                 logging.info(f"Closed servo on pin {self.pin}")
             except Exception as e:
                 logging.error(f"Error closing servo: {e}")
@@ -260,22 +322,23 @@ class StepperWrapper:
         # Initialize controller if not in simulation mode
         if not simulation_mode and GPIOCTRL_AVAILABLE:
             try:
-                logging.info(f"Attempting to initialize GPIOController for stepper on port {self.serial_port}")
-                self._controller = GPIOController(port=self.serial_port)
-                logging.info(f"GPIOController initialized for stepper")
-                # Initialize stepper with ESP32 pins only
-                self._controller.init_stepper(
-                    id=self._stepper_id,
-                    step_pin=step_pin,
-                    dir_pin=dir_pin,
-                    limit_a=self.limit_a_pin,
-                    limit_b=self.limit_b_pin,
-                    home=self.home_pin,
-                    min_limit=min_position,
-                    max_limit=max_position,
-                    enable_pin=self.enable_pin
-                )
-                logging.info(f"Initialized StepperWrapper with GPIOController (ESP32 pins)")
+                logging.info(f"Attempting to get shared GPIOController for stepper on port {self.serial_port}")
+                self._controller = SharedGPIOController.get_controller(port=self.serial_port, simulation_mode=simulation_mode)
+                if self._controller:
+                    logging.info(f"Got shared GPIOController for stepper")
+                    # Initialize stepper with ESP32 pins only
+                    self._controller.init_stepper(
+                        id=self._stepper_id,
+                        step_pin=step_pin,
+                        dir_pin=dir_pin,
+                        limit_a=self.limit_a_pin,
+                        limit_b=self.limit_b_pin,
+                        home=self.home_pin,
+                        min_limit=min_position,
+                        max_limit=max_position,
+                        enable_pin=self.enable_pin
+                    )
+                    logging.info(f"Initialized StepperWrapper with shared GPIOController (ESP32 pins)")
             except Exception as e:
                 logging.error(f"Failed to initialize GPIOController for stepper: {e}")
                 if FORCE_HARDWARE:
@@ -301,10 +364,10 @@ class StepperWrapper:
             
             if self._controller:
                 try:
-                    # Explicitly set EN pin LOW (active low) if defined
+                    # Explicitly set EN pin HIGH to enable stepper motor
                     if self.enable_pin:
-                        self._controller.set_pin(self.enable_pin, 0)  # LOW=Enable
-                        logging.info(f"Set EN pin {self.enable_pin} LOW (enable)")
+                        self._controller.set_pin(self.enable_pin, 1)  # HIGH=Enable
+                        logging.info(f"Set EN pin {self.enable_pin} HIGH (enable)")
                     self._enabled = True
                     logging.info("Stepper motor enabled")
                     return True
@@ -324,10 +387,10 @@ class StepperWrapper:
             
             if self._controller:
                 try:
-                    # Explicitly set EN pin HIGH (active low) if defined
+                    # Explicitly set EN pin LOW to disable stepper motor
                     if self.enable_pin:
-                        self._controller.set_pin(self.enable_pin, 1)  # HIGH=Disable
-                        logging.info(f"Set EN pin {self.enable_pin} HIGH (disable)")
+                        self._controller.set_pin(self.enable_pin, 0)  # LOW=Disable
+                        logging.info(f"Set EN pin {self.enable_pin} LOW (disable)")
                     # Stop the stepper which should release it
                     self._controller.stop_stepper(id=self._stepper_id)
                     self._enabled = False
@@ -402,7 +465,6 @@ class StepperWrapper:
             
             if self._controller:
                 try:
-                    logging.info(f"HW move: {steps} steps {'forward' if direction==1 else 'backward'} from {self._position} to {new_position} (adj={adjusted_steps}) speed={self._speed}")
                     # Calculate actual steps to move based on limits
                     step_change = steps * (1 if direction == 1 else -1)
                     new_position = self._position + step_change
@@ -419,38 +481,87 @@ class StepperWrapper:
                     else:
                         adjusted_steps = steps
                     
+                    logging.info(f"HW move: {steps} steps {'forward' if direction==1 else 'backward'} from {self._position} to {new_position} (adj={adjusted_steps}) speed={self._speed}")
+                    
                     # If no steps to move after adjustment, return early
                     if adjusted_steps == 0:
                         return True
                     
-                    self._moving = True
-                    
-                    def move_and_update():
+                    # For immediate return (wait=False), just fire the command and return
+                    if not wait:
                         try:
-                            logging.info(f"Calling GPIOController.move_stepper(id={self._stepper_id}, steps={adjusted_steps}, direction={direction}, speed={self._speed}, wait=True)")
+                            logging.info(f"Starting async HW move: {adjusted_steps} steps, direction={direction}")
+                            # Fire and forget - don't wait for completion
                             self._controller.move_stepper(
                                 id=self._stepper_id,
                                 steps=adjusted_steps,
                                 direction=direction,
                                 speed=self._speed,
-                                wait=True
+                                wait=False  # Don't wait for completion
                             )
-                            
-                            # Update position after movement is complete
+                            logging.info("Async hardware movement command sent successfully")
+                            # Update position immediately since hardware movement started
                             with self.lock:
                                 self._position = new_position
-                                self._moving = False
-                                
-                            logging.info(f"HW move complete: new position {new_position}")
+                            logging.info(f"Position updated to {new_position} for async move")
+                            return True
                         except Exception as e:
-                            logging.error(f"Error during stepper movement: {e}")
+                            logging.error(f"Failed to start async hardware movement: {e}")
                             with self.lock:
                                 self._moving = False
+                            return False
                     
-                    if wait:
-                        move_and_update()
+                    # For synchronous operation (wait=True), use timeout protection
                     else:
-                        threading.Thread(target=move_and_update, daemon=True).start()
+                        self._moving = True
+                        try:
+                            logging.info(f"Starting sync HW move: {adjusted_steps} steps, direction={direction}")
+                            
+                            # Use simple timeout for synchronous calls
+                            import signal
+                            
+                            def timeout_handler(signum, frame):
+                                raise TimeoutError("Hardware movement timed out")
+                            
+                            signal.signal(signal.SIGALRM, timeout_handler)
+                            signal.alarm(5)  # 5 second timeout
+                            
+                            try:
+                                self._controller.move_stepper(
+                                    id=self._stepper_id,
+                                    steps=adjusted_steps,
+                                    direction=direction,
+                                    speed=self._speed,
+                                    wait=True
+                                )
+                                signal.alarm(0)  # Cancel timeout
+                                
+                                # Update position after successful movement
+                                with self.lock:
+                                    self._position = new_position
+                                    self._moving = False
+                                    
+                                logging.info(f"Sync HW move complete: new position {new_position}")
+                                return True
+                                
+                            except TimeoutError:
+                                signal.alarm(0)
+                                logging.error("Sync hardware movement timed out after 5 seconds")
+                                with self.lock:
+                                    self._moving = False
+                                return False
+                            except Exception as e:
+                                signal.alarm(0)
+                                logging.error(f"Sync hardware movement failed: {e}")
+                                with self.lock:
+                                    self._moving = False
+                                return False
+                        
+                        except Exception as e:
+                            logging.error(f"Failed to set up sync hardware movement: {e}")
+                            with self.lock:
+                                self._moving = False
+                            return False
                     
                     return True
                 except Exception as e:
@@ -545,7 +656,18 @@ class StepperWrapper:
             try:
                 # Get feedback from the controller
                 feedback = self._controller.get_feedback()
+                
+                # Ensure feedback is a dictionary
+                if not isinstance(feedback, dict):
+                    logging.warning(f"Feedback is not a dictionary: {type(feedback)} - {feedback}")
+                    feedback = {}
+                
                 status = feedback.get("status", {})
+                
+                # Ensure status is also a dictionary
+                if not isinstance(status, dict):
+                    logging.warning(f"Status is not a dictionary: {type(status)} - {status}")
+                    status = {}
                 
                 # Update limit switch states
                 self._limit_a_triggered = status.get(f"limit_a_{self._stepper_id}", False)
@@ -591,10 +713,12 @@ class StepperWrapper:
         self.disable()
         if self._controller:
             try:
-                self._controller.stop()
-                logging.info("Stepper controller closed")
+                # Release the shared controller reference
+                SharedGPIOController.release_controller()
+                self._controller = None
+                logging.info("Stepper shared controller reference released")
             except Exception as e:
-                logging.error(f"Error closing stepper controller: {e}")
+                logging.error(f"Error releasing stepper controller: {e}")
 
 
 class LocalGPIOWrapper:

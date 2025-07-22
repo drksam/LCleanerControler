@@ -92,6 +92,68 @@
         </div>
     </div>
     
+    <!-- Delay Settings Section -->
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="card-title mb-0">Output Delay Settings</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <!-- Fan Off Delay -->
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-header bg-light">
+                                <i class="fas fa-fan me-2"></i>Fan Auto-Off Delay
+                            </div>
+                            <div class="card-body">
+                                <label for="fan-off-delay" class="form-label">
+                                    Delay after firing stops (seconds):
+                                </label>
+                                <div class="d-flex align-items-center">
+                                    <input type="range" class="form-range me-2" id="fan-off-delay" 
+                                           min="10" max="1800" step="10" value="{{ fan_off_delay // 1000 }}">
+                                    <span id="fan-off-delay-value" class="badge bg-secondary">{{ fan_off_delay // 1000 }}s</span>
+                                </div>
+                                <div class="text-muted mt-2">
+                                    <small>Fan will turn off automatically after this delay when firing stops</small>
+                                </div>
+                                <button id="save-fan-delay" class="btn btn-outline-primary btn-sm mt-2">
+                                    <i class="fas fa-save me-1"></i> Save Fan Delay
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Red Light Off Delay -->
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-header bg-light">
+                                <i class="fas fa-lightbulb me-2"></i>Red Light Auto-Off Delay
+                            </div>
+                            <div class="card-body">
+                                <label for="red-light-off-delay" class="form-label">
+                                    Delay after firing stops (seconds):
+                                </label>
+                                <div class="d-flex align-items-center">
+                                    <input type="range" class="form-range me-2" id="red-light-off-delay" 
+                                           min="5" max="300" step="5" value="{{ red_lights_off_delay // 1000 }}">
+                                    <span id="red-light-off-delay-value" class="badge bg-secondary">{{ red_lights_off_delay // 1000 }}s</span>
+                                </div>
+                                <div class="text-muted mt-2">
+                                    <small>Red warning lights will turn off automatically after this delay when firing stops</small>
+                                </div>
+                                <button id="save-red-light-delay" class="btn btn-outline-primary btn-sm mt-2">
+                                    <i class="fas fa-save me-1"></i> Save Light Delay
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <!-- Firing Test Section -->
     <div class="col-md-12 mb-4">
         <div class="card">
@@ -107,9 +169,6 @@
                                 <div class="d-grid gap-2">
                                     <button id="fire-button-test" class="btn btn-danger btn-lg mb-2">
                                         <i class="fas fa-fire-alt me-2"></i> FIRE TEST
-                                    </button>
-                                    <button id="stop-fire-button-test" class="btn btn-secondary btn-lg" disabled>
-                                        <i class="fas fa-stop-circle me-2"></i> STOP
                                     </button>
                                 </div>
                             </div>
