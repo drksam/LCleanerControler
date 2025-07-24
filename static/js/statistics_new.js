@@ -8,12 +8,12 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Elements
     const laserFireCount = document.getElementById('laser-fire-count');
-    const laserFireTime = document.getElementById('total-fire-time');
+    const laserFireTime = document.getElementById('laser-fire-time');
     const sessionFireCount = document.getElementById('session-fire-count');
     const sessionFireTime = document.getElementById('session-fire-time');
-    const resetCountButton = document.getElementById('reset-counter-btn-large');
-    const resetTimeButton = document.getElementById('reset-timer-btn-large');
-    const resetAllButton = document.getElementById('reset-all-btn');
+    const resetCountButton = document.getElementById('reset-count');
+    const resetTimeButton = document.getElementById('reset-time');
+    const resetAllButton = document.getElementById('reset-all');
 
     // Session tracking variables
     let sessionFiringCount = 0;
@@ -29,24 +29,12 @@ document.addEventListener('DOMContentLoaded', function() {
      * @returns {string} - Formatted time string
      */
     function formatTime(ms) {
-        console.log('formatTime called with ms:', ms, 'type:', typeof ms);
-        
-        // Ensure ms is a number
-        const msNum = Number(ms);
-        if (isNaN(msNum)) {
-            console.error('formatTime received invalid number:', ms);
-            return '00:00:00';
-        }
-        
-        const seconds = Math.floor(msNum / 1000);
+        const seconds = Math.floor(ms / 1000);
         const hours = Math.floor(seconds / 3600);
         const minutes = Math.floor((seconds % 3600) / 60);
         const secs = seconds % 60;
         
-        const result = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-        console.log('formatTime result:', result, 'from', msNum, 'ms =>', seconds, 'seconds');
-        
-        return result;
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }
 
     /**
@@ -58,31 +46,17 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch('/statistics/data')
             .then(response => response.json())
             .then(data => {
-                console.log('Statistics data received:', data);
-                
                 // Update total statistics display
                 if (laserFireCount) {
-                    laserFireCount.textContent = data.laser_fire_count || 0;
-                    console.log('Updated laser fire count to:', data.laser_fire_count);
+                    laserFireCount.textContent = data.total_fire_count || 0;
                 }
                 if (laserFireTime) {
-                    const totalTimeMs = data.total_laser_fire_time || 0;
-                    console.log('Processing laser fire time:', {
-                        rawValue: data.total_laser_fire_time,
-                        processedValue: totalTimeMs,
-                        type: typeof totalTimeMs
-                    });
-                    
-                    const formattedTime = formatTime(totalTimeMs);
-                    laserFireTime.textContent = formattedTime;
-                    console.log('Updated laser fire time to:', formattedTime, '(from', totalTimeMs, 'ms)');
-                    console.log('laserFireTime element:', laserFireTime, 'innerHTML:', laserFireTime.innerHTML);
-                } else {
-                    console.error('laserFireTime element not found!');
+                    const totalTimeMs = (data.total_fire_time_seconds || 0) * 1000;
+                    laserFireTime.textContent = formatTime(totalTimeMs);
                 }
 
                 // Track session statistics using backend changes
-                trackSessionFromTotalStats(data.laser_fire_count || 0, data.total_laser_fire_time || 0);
+                trackSessionFromTotalStats(data.total_fire_count || 0, (data.total_fire_time_seconds || 0) * 1000);
             })
             .catch(error => {
                 console.error('Error fetching statistics:', error);
@@ -127,12 +101,9 @@ document.addEventListener('DOMContentLoaded', function() {
             // Update session display
             if (sessionFireCount) {
                 sessionFireCount.textContent = sessionFiringCount;
-                console.log('Updated session fire count display to:', sessionFiringCount);
             }
             if (sessionFireTime) {
-                const formattedSessionTime = formatTime(sessionFiringTimeMs);
-                sessionFireTime.textContent = formattedSessionTime;
-                console.log('Updated session fire time display to:', formattedSessionTime);
+                sessionFireTime.textContent = formatTime(sessionFiringTimeMs);
             }
 
             // Update last known totals
@@ -248,26 +219,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Add event listeners for small reset buttons too
-    const resetCountSmall = document.getElementById('reset-counter-btn');
-    const resetTimeSmall = document.getElementById('reset-timer-btn');
-    
-    if (resetCountSmall) {
-        resetCountSmall.addEventListener('click', function() {
-            if (confirm('Are you sure you want to reset the laser fire counter?')) {
-                resetCounter();
-            }
-        });
-    }
-
-    if (resetTimeSmall) {
-        resetTimeSmall.addEventListener('click', function() {
-            if (confirm('Are you sure you want to reset the laser fire timer?')) {
-                resetTimer();
-            }
-        });
-    }
-
     /**
      * Display a simulation warning in the UI
      * 
@@ -345,8 +296,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Make addLogMessage available globally
     window.addLogMessage = addLogMessage;
 
-    // Update statistics periodically (reduced frequency to avoid server load)
-    setInterval(updateStatisticsFromServer, 5000); // Changed from 2000ms to 5000ms (5 seconds)
+    // Update statistics periodically (more frequently to catch session changes)
+    setInterval(updateStatisticsFromServer, 2000);
 
     // Add debugging functions to window for manual testing
     window.debugStatistics = {

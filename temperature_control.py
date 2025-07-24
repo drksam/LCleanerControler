@@ -129,9 +129,27 @@ class TemperatureController:
         """Read raw temperature data from sensor file"""
         try:
             logger.debug(f"Reading raw temperature from {device_file}")
+            
+            # Check if file exists
+            if not os.path.exists(device_file):
+                logger.error(f"Temperature sensor file does not exist: {device_file}")
+                return None
+            
+            # Check file permissions
+            if not os.access(device_file, os.R_OK):
+                logger.error(f"Cannot read temperature sensor file (permissions): {device_file}")
+                return None
+            
             with open(device_file, 'r') as f:
                 lines = f.readlines()
+            
             logger.debug(f"Raw lines from {device_file}: {lines}")
+            
+            # Check if we got any data
+            if not lines:
+                logger.warning(f"Temperature sensor file is empty: {device_file}")
+                return None
+                
             return lines
         except Exception as e:
             logger.error(f"Error reading temperature sensor {device_file}: {e}")
@@ -145,6 +163,8 @@ class TemperatureController:
         lines = self._read_temp_raw(device_file)
         if not lines:
             logger.warning(f"No lines read from {device_file}")
+            # Try to diagnose the issue
+            self._diagnose_sensor_issue(device_file)
             return None
         try:
             if lines[0].strip()[-3:] != 'YES':
@@ -156,11 +176,61 @@ class TemperatureController:
                 return None
             temp_string = lines[1][equals_pos+2:]
             temp_c = float(temp_string) / 1000.0
-            logger.info(f"Read temperature {temp_c:.2f}C from {device_file}")
+            # logger.info(f"Read temperature {temp_c:.2f}C from {device_file}")  # Commented out to reduce log noise
             return temp_c
         except Exception as e:
             logger.error(f"Error processing temperature data from {device_file}: {e}")
             return None
+
+    def _diagnose_sensor_issue(self, device_file):
+        """Diagnose why sensor reading failed"""
+        try:
+            device_dir = os.path.dirname(device_file)
+            device_id = os.path.basename(device_dir)
+            
+            logger.info(f"Diagnosing sensor issue for {device_id}")
+            
+            # Check if device directory exists
+            if os.path.exists(device_dir):
+                logger.info(f"Device directory exists: {device_dir}")
+                
+                # List files in device directory
+                files = os.listdir(device_dir)
+                logger.info(f"Files in device directory: {files}")
+                
+                # Check if w1_slave file exists
+                if os.path.exists(device_file):
+                    # Get file size
+                    file_size = os.path.getsize(device_file)
+                    logger.info(f"w1_slave file size: {file_size} bytes")
+                    
+                    # Try to read file with different method
+                    try:
+                        with open(device_file, 'rb') as f:
+                            raw_data = f.read()
+                        logger.info(f"Raw file content (bytes): {raw_data}")
+                        logger.info(f"Raw file content (string): {raw_data.decode('utf-8', errors='ignore')}")
+                    except Exception as read_error:
+                        logger.error(f"Failed to read file with binary mode: {read_error}")
+                else:
+                    logger.error(f"w1_slave file does not exist: {device_file}")
+            else:
+                logger.error(f"Device directory does not exist: {device_dir}")
+                
+            # Check 1-Wire master status
+            master_dir = "/sys/bus/w1/devices/w1_bus_master1"
+            if os.path.exists(master_dir):
+                try:
+                    with open(f"{master_dir}/w1_master_slaves", 'r') as f:
+                        slaves = f.read().strip()
+                    logger.info(f"1-Wire master slaves: {slaves}")
+                except Exception as e:
+                    logger.error(f"Could not read 1-Wire master slaves: {e}")
+            else:
+                logger.error("1-Wire master directory not found")
+                
+        except Exception as e:
+            logger.error(f"Error during sensor diagnosis: {e}")
 
     def _monitor_temperatures(self):
         """Background thread to monitor temperatures"""
@@ -253,7 +323,7 @@ class TemperatureController:
                 if temp is not None:
                     self.temperatures[device_id]['temp'] = temp
                     self.temperatures[device_id]['last_reading'] = datetime.now()
-                    logger.info(f"Updated temperature for {device_id}: {temp}")
+                    # logger.info(f"Updated temperature for {device_id}: {temp}")  # Commented out to reduce log noise
                 else:
                     logger.warning(f"Failed to update temperature for {device_id}")
             return True
@@ -294,10 +364,79 @@ class TemperatureController:
             'simulated': False,
             'primary_sensor': self.temp_config.get('primary_sensor', None)
         }
-    
+
     def get_status_cached(self):
         """Get current temperature status without forcing an update"""
         # Return cached values without calling update_temperatures()
+        # For API compatibility, create a sensors dictionary with device_id as key
+        sensors = {}
+        for device_id, data in self.temperatures.items():
+            # Get sensor-specific high limit or fall back to global limit
+            sensor_limits = self.temp_config.get('sensor_limits', {})
+            high_limit = sensor_limits.get(device_id, self.temp_config.get('high_limit', 50.0))
+            
+            sensors[device_id] = {
+                'temperature': data['temp'],
+                'name': data['name'],
+                'high_limit': high_limit,
+                'high_temp': data.get('high_temp', False),
+                'temp': data['temp'],  # Include both for compatibility
+                'last_reading': data['last_reading'].strftime('%Y-%m-%d %H:%M:%S') if isinstance(data['last_reading'], datetime) else str(data['last_reading'])
+            }
+        
+        return {
+            'sensors': sensors,
+            'temperatures': self.temperatures,  # Include original format for compatibility
+            'high_limit': self.temp_config.get('high_limit', 50.0),
+            'monitoring_interval': self.temp_config.get('sampling_interval', 5.0),
+            'high_temp_condition': self.high_temp_condition,
+            'monitoring_enabled': self.monitoring,
+            'devices_found': len(self.temperatures),
+            'sensor_limits': self.temp_config.get('sensor_limits', {}),
+            'simulated': False,
+            'primary_sensor': self.temp_config.get('primary_sensor', None)
+        }
+    
+    def diagnose_sensors(self):
+        """Public method to diagnose all sensor issues"""
+        logger.info("=== Temperature Sensor Diagnosis ===")
+        
+        # Check if 1-Wire modules are loaded
+        try:
+            result = subprocess.run(['lsmod'], capture_output=True, text=True)
+            w1_modules = [line for line in result.stdout.split('\n') if 'w1' in line]
+            if w1_modules:
+                logger.info(f"1-Wire modules loaded: {w1_modules}")
+            else:
+                logger.warning("No 1-Wire modules found in lsmod output")
+        except Exception as e:
+            logger.error(f"Could not check loaded modules: {e}")
+        
+        # Check base 1-Wire directory
+        base_dir = '/sys/bus/w1/devices/'
+        if os.path.exists(base_dir):
+            logger.info(f"1-Wire base directory exists: {base_dir}")
+            try:
+                devices = os.listdir(base_dir)
+                logger.info(f"Devices in 1-Wire directory: {devices}")
+                
+                # Look for temperature sensors (28-*)
+                temp_sensors = [d for d in devices if d.startswith('28-')]
+                logger.info(f"Temperature sensors found: {temp_sensors}")
+                
+                # Diagnose each sensor
+                for sensor in temp_sensors:
+                    device_file = os.path.join(base_dir, sensor, 'w1_slave')
+                    self._diagnose_sensor_issue(device_file)
+                    
+            except Exception as e:
+                logger.error(f"Could not list 1-Wire devices: {e}")
+        else:
+            logger.error(f"1-Wire base directory does not exist: {base_dir}")
+            
+        logger.info("=== End Temperature Sensor Diagnosis ===")
+        
+        return {"status": "diagnosis_complete", "check_logs": True}
         # The background monitoring thread keeps these values fresh
         
         # For API compatibility, create a sensors dictionary with device_id as key

@@ -144,6 +144,30 @@ class StepperMotor:
                 logging.error("Cannot set speed: Stepper not initialized")
                 return False
     
+    def set_acceleration(self, acceleration):
+        """Set the stepper motor acceleration."""
+        logging.info(f"StepperMotor.set_acceleration called: acceleration={acceleration}")
+        with self.lock:
+            if self.stepper:
+                result = self.stepper.set_acceleration(acceleration)
+                logging.info(f"Stepper acceleration set to {acceleration}")
+                return result
+            else:
+                logging.error("Cannot set acceleration: Stepper not initialized")
+                return False
+    
+    def set_deceleration(self, deceleration):
+        """Set the stepper motor deceleration."""
+        logging.info(f"StepperMotor.set_deceleration called: deceleration={deceleration}")
+        with self.lock:
+            if self.stepper:
+                result = self.stepper.set_deceleration(deceleration)
+                logging.info(f"Stepper deceleration set to {deceleration}")
+                return result
+            else:
+                logging.error("Cannot set deceleration: Stepper not initialized")
+                return False
+
     def get_position(self):
         logging.info(f"StepperMotor.get_position called, returning {self.position}")
         """Get the current position."""
@@ -198,8 +222,15 @@ class StepperMotor:
             logging.info("StepperMotor.move_to: Setting target position...")
             self.target_position = position
             logging.info("StepperMotor.move_to: Getting current position...")
-            current_position = self.get_position()
-            logging.info(f"StepperMotor.move_to: Current position retrieved: {current_position}")
+            try:
+                current_position = self.get_position()
+                logging.info(f"StepperMotor.move_to: Current position retrieved: {current_position}")
+            except Exception as e:
+                logging.error(f"Error getting position in move_to: {e}")
+                # Use last known position if position query fails
+                current_position = self.position
+                logging.info(f"StepperMotor.move_to: Using fallback position: {current_position}")
+            
             steps = abs(position - current_position)
             direction = 1 if position > current_position else 0
             logging.info(f"StepperMotor.move_to: Calculated steps={steps}, direction={direction}")
@@ -333,12 +364,20 @@ class StepperMotor:
         Returns:
             True if jogging started successfully, False otherwise
         """
+        # Check enabled state and calculate new position without holding the lock for too long
         with self.lock:
             if not self.enabled:
                 logging.warning("Cannot jog: Stepper motor is disabled")
                 return False
             
-            current_position = self.get_position()
+            try:
+                current_position = self.get_position()
+                logging.info(f"StepperMotor.get_position called, returning {current_position}")
+            except Exception as e:
+                logging.error(f"Error getting position in jog: {e}")
+                # Use last known position if position query fails
+                current_position = self.position
+                
             step_change = steps * (1 if direction == 1 else -1)
             new_position = current_position + step_change
             
@@ -359,9 +398,13 @@ class StepperMotor:
                 logging.warning(f"Jog adjusted to {step_change} steps due to min limit")
             
             logging.info(f"Jogging {'forward' if direction == 1 else 'backward'} {abs(step_change)} steps")
-            
-            # Use move_to for consistent position tracking
+        
+        # Release the lock before calling move_to to avoid deadlock
+        try:
             return self.move_to(new_position)
+        except Exception as e:
+            logging.error(f"Error in move_to during jog: {e}")
+            return False
     
     def move_index(self, direction=1):
         logging.info(f"StepperMotor.move_index called: direction={direction}")
@@ -374,25 +417,50 @@ class StepperMotor:
         Returns:
             True if the movement started successfully, False otherwise
         """
+        # Check enabled state and get current position without holding the lock for too long
         with self.lock:
+            logging.info(f"StepperMotor.move_index: Lock acquired, enabled={self.enabled}")
             if not self.enabled:
                 logging.warning("Cannot move index: Stepper motor is disabled")
                 return False
             
-            current_position = self.get_position()
+            try:
+                current_position = self.get_position()
+                logging.info(f"StepperMotor.move_index: Current position={current_position}")
+            except Exception as e:
+                logging.error(f"Error getting position in move_index: {e}")
+                # Use last known position if position query fails
+                current_position = self.position
+                logging.info(f"StepperMotor.move_index: Using fallback position={current_position}")
             
             # Convert direction: 0 -> -1 for backward compatibility with jog direction format
             if direction == 0:
                 direction = -1
+                logging.info("StepperMotor.move_index: Converted direction 0 to -1")
+            
+            # Get current index distance from configuration to ensure we use the latest value
+            try:
+                current_config = get_stepper_config()
+                current_index_distance = current_config.get('index_distance', self.index_distance)
+                logging.info(f"StepperMotor.move_index: Using index_distance={current_index_distance}")
+            except Exception as e:
+                logging.error(f"Error loading config in move_index, using cached value: {e}")
+                current_index_distance = self.index_distance
             
             # Calculate new position based on direction
-            step_change = self.index_distance * direction
+            step_change = current_index_distance * direction
             new_position = current_position + step_change
             
             logging.info(f"Moving index distance: {step_change} from {current_position} to {new_position}")
-            
-            # Use move_to for consistent position tracking
-            return self.move_to(new_position)
+        
+        # Release the lock before calling move_to to avoid deadlock
+        try:
+            result = self.move_to(new_position)
+            logging.info(f"StepperMotor.move_index: move_to returned {result}")
+            return result
+        except Exception as e:
+            logging.error(f"Error in move_to during move_index: {e}")
+            return False
     
     def cleanup(self):
         logging.info("StepperMotor.cleanup called")

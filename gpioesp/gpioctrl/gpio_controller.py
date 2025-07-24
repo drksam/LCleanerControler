@@ -19,16 +19,30 @@ class GPIOController:
                 if self.ser.in_waiting:
                     line = self.ser.readline().decode().strip()
                     if line:
-                        data = json.loads(line)
-                        self._handle_feedback(data)
+                        try:
+                            data = json.loads(line)
+                            # Ensure data is a dictionary
+                            if isinstance(data, dict):
+                                self._handle_feedback(data)
+                            else:
+                                # Handle plain string responses (like "stepper_initialized")
+                                print(f"Received plain string response: {data}")
+                                self._handle_feedback({"message": data})
+                        except json.JSONDecodeError:
+                            # Handle non-JSON responses
+                            print(f"Received non-JSON response: {line}")
+                            self._handle_feedback({"message": line})
             except Exception as e:
                 print("Error in _listen:", e)
 
     def _handle_feedback(self, data):
         with self.lock:
-            self.feedback.update(data)
-            if "event" in data:
-                self.last_event = data
+            if isinstance(data, dict):
+                self.feedback.update(data)
+                if "event" in data:
+                    self.last_event = data
+            else:
+                print(f"Warning: _handle_feedback received non-dict data: {data} (type: {type(data)})")
 
     def _send_cmd(self, cmd):
         with self.lock:
@@ -84,14 +98,34 @@ class GPIOController:
     def stop_stepper(self, id):
         self._send_cmd({"cmd": "stop_stepper", "id": id})
 
+    def set_stepper_acceleration(self, id, acceleration):
+        """Set stepper motor acceleration."""
+        self._send_cmd({"cmd": "set_stepper_acceleration", "id": id, "acceleration": acceleration})
+
+    def set_stepper_deceleration(self, id, deceleration):
+        """Set stepper motor deceleration."""
+        self._send_cmd({"cmd": "set_stepper_deceleration", "id": id, "deceleration": deceleration})
+
     def get_status(self):
-        self._send_cmd({"cmd": "get_status"})
-        time.sleep(0.1)
-        return self.get_feedback()
+        try:
+            self._send_cmd({"cmd": "get_status"})
+            time.sleep(0.1)
+            status = self.get_feedback()
+            # Ensure we return a dictionary, even if ESP32 sent a string
+            if not isinstance(status, dict):
+                return {"status": "ok", "message": str(status)}
+            return status
+        except Exception as e:
+            print(f"Error getting status: {e}")
+            return {"status": "error", "message": str(e)}
 
     def get_feedback(self):
         with self.lock:
-            return self.feedback.copy()
+            feedback = self.feedback.copy()
+            # Ensure we always return a dictionary
+            if not isinstance(feedback, dict):
+                return {"message": str(feedback)}
+            return feedback
 
     def wait_for_stepper_done(self, id, timeout=10):
         start = time.time()

@@ -4,7 +4,7 @@ Default pinout.txt
 ESP32 
     Stepper 
         Outputs
-            EN 27 (LOW=Enable)
+            EN 27 (HIGH=Enable)
             DIR 26
             STEP 25
         Inputs 
@@ -39,3 +39,5 @@ Raspberry Pi5
         MISO (Physical pin 21, BCM 9, valid for gpiod)
         SCLK (Physical pin 23, BCM 11, valid for gpiod)
         CE0 (Physical pin 24, BCM 8, valid for gpiod)
+
+ESTOP pin 11 BCM17

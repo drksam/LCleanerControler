@@ -259,80 +259,52 @@ document.addEventListener('DOMContentLoaded', function() {
             indexButton.disabled = true;
             clearSimulationWarnings();
             
-            // Use makeRequest utility if available
-            if (typeof makeRequest === 'function') {
-                makeRequest(
-                    '/index_move',
-                    'POST',
-                    { direction: 'forward' },
-                    function(data) {
-                        if (data.status === 'success') {
-                            const currentPosition = data.position;
-                            updatePositionDisplay(currentPosition);
-                            
-                            // Use handleSimulationResponse utility for simulation mode handling
-                            if (!handleSimulationResponse(data, 'Index forward')) {
-                                // This was a real hardware response
-                                addLogMessage('Index forward complete!', false, 'success');
-                            }
-                        } else {
-                            addLogMessage('Error: ' + data.message, true);
-                        }
-                    },
-                    null,
-                    function() {
-                        if (indexButton) indexButton.disabled = false;
-                    }
-                );
-            } else {
-                // Original implementation as fallback
-                fetch('/index_move', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        direction: 'forward'
-                    })
+            fetch('/index_move', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    direction: 'forward'
                 })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        const currentPosition = data.position;
-                        updatePositionDisplay(currentPosition);
-                        
-                        // Handle simulation status based on mode
-                        if (data.simulated) {
-                            // For simulation mode, this is expected
-                            if (currentOperationMode === 'simulation') {
-                                addLogMessage('Index forward complete! (simulation mode)', false, 'success');
-                            } 
-                            // For prototype mode, this should NEVER happen
-                            else if (currentOperationMode === 'prototype') {
-                                addLogMessage('ERROR: Index forward simulation in PROTOTYPE MODE. Hardware is required!', true);
-                                addSimulationError('HARDWARE ERROR: Receiving simulated values in PROTOTYPE MODE. Check your hardware connections.');
-                            } 
-                            // For normal mode, it's a warning
-                            else {
-                                addLogMessage('WARNING: Index forward simulated due to hardware error', false, 'warning');
-                                addSimulationWarning('Hardware error detected - using simulation values');
-                            }
-                        } else {
-                            // Real hardware values - clear any warnings
-                            clearSimulationWarnings();
-                            addLogMessage('Index forward complete!', false, 'success');
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    const currentPosition = data.position;
+                    updatePositionDisplay(currentPosition);
+                    
+                    // Handle simulation status based on mode
+                    if (data.simulated) {
+                        // For simulation mode, this is expected
+                        if (currentOperationMode === 'simulation') {
+                            addLogMessage('Index forward complete! (simulation mode)', false, 'success');
+                        } 
+                        // For prototype mode, this should NEVER happen
+                        else if (currentOperationMode === 'prototype') {
+                            addLogMessage('ERROR: Index forward simulation in PROTOTYPE MODE. Hardware is required!', true);
+                            addSimulationError('HARDWARE ERROR: Receiving simulated values in PROTOTYPE MODE. Check your hardware connections.');
+                        } 
+                        // For normal mode, it's a warning
+                        else {
+                            addLogMessage('WARNING: Index forward simulated due to hardware error', false, 'warning');
+                            addSimulationWarning('Hardware error detected - using simulation values');
                         }
                     } else {
-                        addLogMessage('Error: ' + data.message, true);
+                        // Real hardware values - clear any warnings
+                        clearSimulationWarnings();
+                        addLogMessage('Index forward complete!', false, 'success');
                     }
-                })
-                .catch(error => {
-                    addLogMessage('Error: ' + error.message, true);
-                })
-                .finally(() => {
-                    if (indexButton) indexButton.disabled = false;
-                });
-            }
+                } else {
+                    addLogMessage('Error: ' + data.message, true);
+                }
+            })
+            .catch(error => {
+                addLogMessage('Error: ' + error.message, true);
+            })
+            .finally(() => {
+                if (indexButton) indexButton.disabled = false;
+            });
         });
     }
     
@@ -449,49 +421,113 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // Global jog interval variable for proper cleanup
+    let jogInterval = null;
+    let jogHoldTimer = null;
+    let jogIsHolding = false;
+    
     // Jog Forward button - Enhanced with hold-to-jog functionality
     const jogForwardButton = document.getElementById('jog-forward');
-    let jogForwardInterval = null;
-    let jogForwardHoldStarted = false;
     
     if (jogForwardButton) {
-        // Click event for single jog (kept for backward compatibility)
-        jogForwardButton.addEventListener('click', function(e) {
-            // Only process click if it wasn't part of a hold operation
-            if (!jogForwardHoldStarted) {
-                const stepSize = parseInt(document.getElementById('step-size').value || 10);
-                performSingleJog('forward', stepSize, jogForwardButton);
-            }
-        });
-        
         // Mouse events for hold-to-jog
         jogForwardButton.addEventListener('mousedown', function(e) {
             e.preventDefault();
-            startJogHold('forward', jogForwardButton);
+            e.stopPropagation();
+            
+            console.log('Jog forward mousedown event');
+            
+            // Clear any existing timer
+            if (jogHoldTimer) {
+                clearTimeout(jogHoldTimer);
+                jogHoldTimer = null;
+            }
+            
+            jogIsHolding = false;
+            
+            // Start timer - if held for 150ms, start continuous jog (faster response)
+            jogHoldTimer = setTimeout(() => {
+                console.log('Jog timer fired, starting continuous jog');
+                if (!jogIsHolding) { // Only start if not already holding
+                    jogIsHolding = true;
+                    startJogHold('forward', jogForwardButton);
+                }
+            }, 150);
         });
         
         jogForwardButton.addEventListener('mouseup', function(e) {
             e.preventDefault();
-            stopJogHold();
+            e.stopPropagation();
+            
+            console.log('Jog forward mouseup event, jogIsHolding:', jogIsHolding);
+            
+            // Clear the hold timer
+            if (jogHoldTimer) {
+                clearTimeout(jogHoldTimer);
+                jogHoldTimer = null;
+                console.log('Cleared jog timer');
+            }
+            
+            // If we were holding, stop the continuous jog
+            if (jogIsHolding) {
+                console.log('Stopping continuous jog');
+                stopJogHold();
+                jogIsHolding = false;
+            }
         });
         
         jogForwardButton.addEventListener('mouseleave', function(e) {
-            stopJogHold();
+            console.log('Jog forward mouseleave event, jogIsHolding:', jogIsHolding);
+            
+            // Clear timer and stop any continuous jog
+            if (jogHoldTimer) {
+                clearTimeout(jogHoldTimer);
+                jogHoldTimer = null;
+                console.log('Cleared jog timer on mouseleave');
+            }
+            if (jogIsHolding) {
+                console.log('Stopping continuous jog on mouseleave');
+                stopJogHold();
+                jogIsHolding = false;
+            }
         });
         
         // Touch events for mobile hold-to-jog
         jogForwardButton.addEventListener('touchstart', function(e) {
             e.preventDefault();
-            startJogHold('forward', jogForwardButton);
+            jogIsHolding = false;
+            
+            // Start timer - faster response for touch
+            jogHoldTimer = setTimeout(() => {
+                jogIsHolding = true;
+                startJogHold('forward', jogForwardButton);
+            }, 150);
         });
         
         jogForwardButton.addEventListener('touchend', function(e) {
             e.preventDefault();
-            stopJogHold();
+            
+            if (jogHoldTimer) {
+                clearTimeout(jogHoldTimer);
+                jogHoldTimer = null;
+            }
+            
+            if (jogIsHolding) {
+                stopJogHold();
+                jogIsHolding = false;
+            }
+            // Remove single-click functionality - only continuous jog on hold
         });
         
         jogForwardButton.addEventListener('touchcancel', function(e) {
-            stopJogHold();
+            if (jogHoldTimer) {
+                clearTimeout(jogHoldTimer);
+                jogHoldTimer = null;
+            }
+            if (jogIsHolding) {
+                stopJogHold();
+                jogIsHolding = false;
+            }
         });
     }
     
@@ -552,18 +588,24 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Helper function to start continuous jogging
     function startJogHold(direction, button) {
-        if (jogForwardInterval) return; // Already jogging
+        console.log('startJogHold called, direction:', direction, 'jogInterval exists:', !!jogInterval);
         
-        jogForwardHoldStarted = true;
-        const stepSize = parseInt(document.getElementById('step-size').value || 10);
+        if (jogInterval) return; // Already jogging
+        
+        // Get current step size from slider
+        const stepSizeSlider = document.getElementById('step-size');
+        const stepSize = stepSizeSlider ? parseInt(stepSizeSlider.value) : 10;
+        
+        console.log('Starting jog with step size:', stepSize);
         
         // Start immediately
-        addLogMessage(`Starting continuous jog ${direction}...`, false, 'action');
-        button.disabled = true;
+        addLogMessage(`Starting continuous jog ${direction} with ${stepSize} steps...`, false, 'action');
+        // Don't disable button here as it might trigger mouseleave
         clearSimulationWarnings();
         
-        // Send continuous jog commands every 200ms
-        jogForwardInterval = setInterval(() => {
+        // Send continuous jog commands every 150ms for smooth movement
+        jogInterval = setInterval(() => {
+            console.log('Sending jog request:', direction, stepSize);
             fetch('/jog_continuous', {
                 method: 'POST',
                 headers: {
@@ -576,6 +618,7 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(response => response.json())
             .then(data => {
+                console.log('Jog response:', data);
                 if (data.status === 'success') {
                     const currentPosition = data.position;
                     updatePositionDisplay(currentPosition);
@@ -585,135 +628,120 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(error => {
+                console.log('Jog fetch error:', error);
                 addLogMessage('Jog error: ' + error.message, true);
                 stopJogHold();
             });
-        }, 200); // 200ms interval for smooth continuous movement
+        }, 100); // 100ms interval for smooth continuous movement
+        
+        console.log('Jog interval started with ID:', jogInterval);
     }
     
     // Helper function to stop continuous jogging
     function stopJogHold() {
-        if (jogForwardInterval) {
-            clearInterval(jogForwardInterval);
-            jogForwardInterval = null;
+        console.log('stopJogHold called, jogInterval exists:', !!jogInterval);
+        
+        if (jogInterval) {
+            clearInterval(jogInterval);
+            jogInterval = null;
             
             addLogMessage('Continuous jog stopped', false, 'info');
-            
-            // Re-enable button after a short delay to prevent accidental clicks
-            setTimeout(() => {
-                const jogForwardButton = document.getElementById('jog-forward');
-                const jogBackwardButton = document.getElementById('jog-backward');
-                if (jogForwardButton) jogForwardButton.disabled = false;
-                if (jogBackwardButton) jogBackwardButton.disabled = false;
-                jogForwardHoldStarted = false;
-            }, 100);
+            console.log('Jog interval cleared');
         }
     }
     
     // Jog Backward button - Enhanced with hold-to-jog functionality
     const jogBackwardButton = document.getElementById('jog-backward');
-    let jogBackwardInterval = null;
-    let jogBackwardHoldStarted = false;
     
     if (jogBackwardButton) {
-        // Click event for single jog (kept for backward compatibility)
-        jogBackwardButton.addEventListener('click', function(e) {
-            // Only process click if it wasn't part of a hold operation
-            if (!jogBackwardHoldStarted) {
-                const stepSize = parseInt(document.getElementById('step-size').value || 10);
-                performSingleJog('backward', stepSize, jogBackwardButton);
-            }
-        });
-        
         // Mouse events for hold-to-jog
         jogBackwardButton.addEventListener('mousedown', function(e) {
             e.preventDefault();
-            startJogHoldBackward('backward', jogBackwardButton);
+            e.stopPropagation();
+            
+            // Clear any existing timer
+            if (jogHoldTimer) {
+                clearTimeout(jogHoldTimer);
+                jogHoldTimer = null;
+            }
+            
+            jogIsHolding = false;
+            
+            // Start timer - if held for 150ms, start continuous jog (faster response)
+            jogHoldTimer = setTimeout(() => {
+                if (!jogIsHolding) { // Only start if not already holding
+                    jogIsHolding = true;
+                    startJogHold('backward', jogBackwardButton);
+                }
+            }, 150);
         });
         
         jogBackwardButton.addEventListener('mouseup', function(e) {
             e.preventDefault();
-            stopJogHoldBackward();
+            e.stopPropagation();
+            
+            // Clear the hold timer
+            if (jogHoldTimer) {
+                clearTimeout(jogHoldTimer);
+                jogHoldTimer = null;
+            }
+            
+            // If we were holding, stop the continuous jog
+            if (jogIsHolding) {
+                stopJogHold();
+                jogIsHolding = false;
+            }
         });
         
         jogBackwardButton.addEventListener('mouseleave', function(e) {
-            stopJogHoldBackward();
+            // Clear timer and stop any continuous jog
+            if (jogHoldTimer) {
+                clearTimeout(jogHoldTimer);
+                jogHoldTimer = null;
+            }
+            if (jogIsHolding) {
+                stopJogHold();
+                jogIsHolding = false;
+            }
         });
         
         // Touch events for mobile hold-to-jog
         jogBackwardButton.addEventListener('touchstart', function(e) {
             e.preventDefault();
-            startJogHoldBackward('backward', jogBackwardButton);
+            jogIsHolding = false;
+            
+            // Start timer - faster response for touch
+            jogHoldTimer = setTimeout(() => {
+                jogIsHolding = true;
+                startJogHold('backward', jogBackwardButton);
+            }, 150);
         });
         
         jogBackwardButton.addEventListener('touchend', function(e) {
             e.preventDefault();
-            stopJogHoldBackward();
+            
+            if (jogHoldTimer) {
+                clearTimeout(jogHoldTimer);
+                jogHoldTimer = null;
+            }
+            
+            if (jogIsHolding) {
+                stopJogHold();
+                jogIsHolding = false;
+            }
+            // Remove single-click functionality - only continuous jog on hold
         });
         
         jogBackwardButton.addEventListener('touchcancel', function(e) {
-            stopJogHoldBackward();
+            if (jogHoldTimer) {
+                clearTimeout(jogHoldTimer);
+                jogHoldTimer = null;
+            }
+            if (jogIsHolding) {
+                stopJogHold();
+                jogIsHolding = false;
+            }
         });
-    }
-    
-    // Helper function to start continuous jogging backward
-    function startJogHoldBackward(direction, button) {
-        if (jogBackwardInterval) return; // Already jogging
-        
-        jogBackwardHoldStarted = true;
-        const stepSize = parseInt(document.getElementById('step-size').value || 10);
-        
-        // Start immediately
-        addLogMessage(`Starting continuous jog ${direction}...`, false, 'action');
-        button.disabled = true;
-        clearSimulationWarnings();
-        
-        // Send continuous jog commands every 200ms
-        jogBackwardInterval = setInterval(() => {
-            fetch('/jog_continuous', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    direction: direction,
-                    steps: stepSize
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    const currentPosition = data.position;
-                    updatePositionDisplay(currentPosition);
-                } else if (data.status === 'error') {
-                    addLogMessage('Jog error: ' + data.message, true);
-                    stopJogHoldBackward();
-                }
-            })
-            .catch(error => {
-                addLogMessage('Jog error: ' + error.message, true);
-                stopJogHoldBackward();
-            });
-        }, 200); // 200ms interval for smooth continuous movement
-    }
-    
-    // Helper function to stop continuous jogging backward
-    function stopJogHoldBackward() {
-        if (jogBackwardInterval) {
-            clearInterval(jogBackwardInterval);
-            jogBackwardInterval = null;
-            
-            addLogMessage('Continuous jog stopped', false, 'info');
-            
-            // Re-enable button after a short delay to prevent accidental clicks
-            setTimeout(() => {
-                const jogForwardButton = document.getElementById('jog-forward');
-                const jogBackwardButton = document.getElementById('jog-backward');
-                if (jogForwardButton) jogForwardButton.disabled = false;
-                if (jogBackwardButton) jogBackwardButton.disabled = false;
-                jogBackwardHoldStarted = false;
-            }, 100);
-        }
     }
     
     // Absolute Position Move (mm)
@@ -850,13 +878,104 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Step size display update
-    const stepSizeInput = document.getElementById('step-size');
-    const stepSizeDisplay = document.getElementById('step-size-value');
+    // Speed control display updates and save functionality
+    const jogSpeedInput = document.getElementById('jog-speed');
+    const jogSpeedDisplay = document.getElementById('jog-speed-value');
     
-    if (stepSizeInput && stepSizeDisplay) {
-        stepSizeInput.addEventListener('input', function() {
-            stepSizeDisplay.textContent = stepSizeInput.value;
+    if (jogSpeedInput && jogSpeedDisplay) {
+        jogSpeedInput.addEventListener('input', function() {
+            jogSpeedDisplay.textContent = jogSpeedInput.value;
+        });
+        
+        // Save on change (debounced)
+        let jogSpeedTimer;
+        jogSpeedInput.addEventListener('change', function() {
+            clearTimeout(jogSpeedTimer);
+            jogSpeedTimer = setTimeout(() => {
+                saveSpeedSetting('jog_speed', jogSpeedInput.value);
+            }, 500);
+        });
+    }
+    
+    const indexSpeedInput = document.getElementById('index-speed');
+    const indexSpeedDisplay = document.getElementById('index-speed-value');
+    
+    if (indexSpeedInput && indexSpeedDisplay) {
+        indexSpeedInput.addEventListener('input', function() {
+            indexSpeedDisplay.textContent = indexSpeedInput.value;
+        });
+        
+        // Save on change (debounced)
+        let indexSpeedTimer;
+        indexSpeedInput.addEventListener('change', function() {
+            clearTimeout(indexSpeedTimer);
+            indexSpeedTimer = setTimeout(() => {
+                saveSpeedSetting('index_speed', indexSpeedInput.value);
+            }, 500);
+        });
+    }
+    
+    const accelerationInput = document.getElementById('acceleration');
+    const accelerationDisplay = document.getElementById('acceleration-value');
+    
+    if (accelerationInput && accelerationDisplay) {
+        accelerationInput.addEventListener('input', function() {
+            accelerationDisplay.textContent = accelerationInput.value;
+        });
+        
+        // Save on change (debounced)
+        let accelerationTimer;
+        accelerationInput.addEventListener('change', function() {
+            clearTimeout(accelerationTimer);
+            accelerationTimer = setTimeout(() => {
+                saveSpeedSetting('acceleration', accelerationInput.value);
+            }, 500);
+        });
+    }
+    
+    const decelerationInput = document.getElementById('deceleration');
+    const decelerationDisplay = document.getElementById('deceleration-value');
+    
+    if (decelerationInput && decelerationDisplay) {
+        decelerationInput.addEventListener('input', function() {
+            decelerationDisplay.textContent = decelerationInput.value;
+        });
+        
+        // Save on change (debounced)
+        let decelerationTimer;
+        decelerationInput.addEventListener('change', function() {
+            clearTimeout(decelerationTimer);
+            decelerationTimer = setTimeout(() => {
+                saveSpeedSetting('deceleration', decelerationInput.value);
+            }, 500);
+        });
+    }
+    
+    // Function to save speed settings to configuration
+    function saveSpeedSetting(setting, value) {
+        addLogMessage(`Updating ${setting} to ${value}...`, false, 'config');
+        
+        fetch('/update_config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                section: 'stepper',
+                key: setting,
+                value: parseInt(value)
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                addLogMessage(`${setting} updated to ${value}`, false, 'success');
+            } else {
+                addLogMessage(`Error updating ${setting}: ${data.message}`, true);
+            }
+        })
+        .catch(error => {
+            addLogMessage(`Error updating ${setting}: ${error.message}`, true);
         });
     }
     
@@ -1014,4 +1133,47 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
+
+    // Speed Control Handlers
+    document.addEventListener('DOMContentLoaded', function() {
+        // Jog Speed Control
+        const jogSpeedSlider = document.getElementById('jog-speed');
+        const jogSpeedValue = document.getElementById('jog-speed-value');
+        
+        if (jogSpeedSlider && jogSpeedValue) {
+            jogSpeedSlider.addEventListener('input', function() {
+                jogSpeedValue.textContent = this.value;
+            });
+        }
+        
+        // Index Speed Control
+        const indexSpeedSlider = document.getElementById('index-speed');
+        const indexSpeedValue = document.getElementById('index-speed-value');
+        
+        if (indexSpeedSlider && indexSpeedValue) {
+            indexSpeedSlider.addEventListener('input', function() {
+                indexSpeedValue.textContent = this.value;
+            });
+        }
+        
+        // Acceleration Control
+        const accelerationSlider = document.getElementById('acceleration');
+        const accelerationValue = document.getElementById('acceleration-value');
+        
+        if (accelerationSlider && accelerationValue) {
+            accelerationSlider.addEventListener('input', function() {
+                accelerationValue.textContent = this.value;
+            });
+        }
+        
+        // Deceleration Control
+        const decelerationSlider = document.getElementById('deceleration');
+        const decelerationValue = document.getElementById('deceleration-value');
+        
+        if (decelerationSlider && decelerationValue) {
+            decelerationSlider.addEventListener('input', function() {
+                decelerationValue.textContent = this.value;
+            });
+        }
+    });
 });

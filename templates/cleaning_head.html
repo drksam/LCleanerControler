@@ -50,6 +50,55 @@
                     </div>
                 </div>
                 
+                <!-- Speed Controls -->
+                <div class="card bg-dark text-white mb-3">
+                    <div class="card-header">
+                        <h6 class="card-title mb-0" data-bs-toggle="tooltip" title="Motor speed and movement settings">Speed Controls</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="jog-speed" class="form-label" data-bs-toggle="tooltip" title="Speed for jog movements (steps per second)">Jog Speed:</label>
+                                <input type="range" class="form-range" id="jog-speed" min="100" max="2000" value="{{ stepper_config.jog_speed|default(1000) }}" data-bs-toggle="tooltip" title="Adjust jog speed">
+                                <div class="d-flex justify-content-between">
+                                    <span>100</span>
+                                    <span id="jog-speed-value">{{ stepper_config.jog_speed|default(1000) }}</span>
+                                    <span>2000</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="index-speed" class="form-label" data-bs-toggle="tooltip" title="Speed for index movements (steps per second)">Index Speed:</label>
+                                <input type="range" class="form-range" id="index-speed" min="200" max="3000" value="{{ stepper_config.index_speed|default(2000) }}" data-bs-toggle="tooltip" title="Adjust index speed">
+                                <div class="d-flex justify-content-between">
+                                    <span>200</span>
+                                    <span id="index-speed-value">{{ stepper_config.index_speed|default(2000) }}</span>
+                                    <span>3000</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="acceleration" class="form-label" data-bs-toggle="tooltip" title="Acceleration ramp (steps per second²)">Acceleration:</label>
+                                <input type="range" class="form-range" id="acceleration" min="100" max="2000" value="{{ stepper_config.acceleration|default(800) }}" data-bs-toggle="tooltip" title="Adjust acceleration">
+                                <div class="d-flex justify-content-between">
+                                    <span>100</span>
+                                    <span id="acceleration-value">{{ stepper_config.acceleration|default(800) }}</span>
+                                    <span>2000</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="deceleration" class="form-label" data-bs-toggle="tooltip" title="Deceleration ramp (steps per second²)">Deceleration:</label>
+                                <input type="range" class="form-range" id="deceleration" min="100" max="2000" value="{{ stepper_config.deceleration|default(800) }}" data-bs-toggle="tooltip" title="Adjust deceleration">
+                                <div class="d-flex justify-content-between">
+                                    <span>100</span>
+                                    <span id="deceleration-value">{{ stepper_config.deceleration|default(800) }}</span>
+                                    <span>2000</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Index Distance Control -->
                 <div class="card bg-info text-white mb-3">
                     <div class="card-header">
@@ -72,11 +121,11 @@
                             </small>
                         </div>
                         <div class="d-flex justify-content-between mb-2">
-                            <button id="index-button" class="btn btn-light w-100 me-2" data-bs-toggle="tooltip" title="Move forward by the index distance">
-                                <i class="fas fa-forward me-2"></i> Index Forward
-                            </button>
-                            <button id="index-back-button" class="btn btn-light w-100 ms-2" data-bs-toggle="tooltip" title="Move backward by the index distance">
+                            <button id="index-back-button" class="btn btn-light w-100 me-2" data-bs-toggle="tooltip" title="Move backward by the index distance">
                                 <i class="fas fa-backward me-2"></i> Index Back
+                            </button>
+                            <button id="index-button" class="btn btn-light w-100 ms-2" data-bs-toggle="tooltip" title="Move forward by the index distance">
+                                <i class="fas fa-forward me-2"></i> Index Forward
                             </button>
                         </div>
                     </div>

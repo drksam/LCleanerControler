@@ -202,6 +202,15 @@ def get_gpio_config():
     return mapped_config
 
 def get_statistics():
+    """Get statistics data, ensuring it exists with defaults"""
+    if 'statistics' not in config:
+        # Initialize statistics if it doesn't exist
+        config['statistics'] = {
+            'laser_fire_count': 0,
+            'total_laser_fire_time': 0
+        }
+        save_config(config)
+    
     return config['statistics']
 
 def get_temperature_config():
@@ -269,11 +278,27 @@ def add_laser_fire_time(time_ms):
         return config['statistics']['total_laser_fire_time']
     return 0
 
-def reset_statistics():
-    """Reset the laser fire statistics to zero"""
-    if 'statistics' in config:
-        config['statistics']['laser_fire_count'] = 0
-        config['statistics']['total_laser_fire_time'] = 0
+def reset_statistics(reset_type='all'):
+    """Reset the laser fire statistics to zero
+    
+    Args:
+        reset_type (str): Type of reset - 'counter', 'timer', or 'all'
+    """
+    if 'statistics' not in config:
+        return False
+        
+    try:
+        if reset_type == 'counter':
+            config['statistics']['laser_fire_count'] = 0
+        elif reset_type == 'timer':
+            config['statistics']['total_laser_fire_time'] = 0
+        elif reset_type == 'all':
+            config['statistics']['laser_fire_count'] = 0
+            config['statistics']['total_laser_fire_time'] = 0
+        else:
+            return False
+            
         save_config(config)
         return True
-    return False
+    except Exception:
+        return False

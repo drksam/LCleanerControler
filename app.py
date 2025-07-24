@@ -590,10 +590,28 @@ def jog():
         direction_int = 1 if direction == 'forward' else 0
         
         # Start jog operation asynchronously - don't wait for completion
-        result = stepper.jog(direction_int, steps)
+        try:
+            result = stepper.jog(direction_int, steps)
+        except Exception as jog_error:
+            logger.error(f"Jog command failed: {jog_error}")
+            # Still try to get position even if jog failed
+            try:
+                current_position = stepper.get_position()
+            except:
+                pass
+            return jsonify({
+                "status": "error", 
+                "message": f"Jog command failed: {str(jog_error)}",
+                "position": current_position
+            }), 500
         
         # Return immediately with current position (before movement)
-        current_position = stepper.get_position()
+        try:
+            current_position = stepper.get_position()
+        except Exception as pos_error:
+            logger.warning(f"Could not get position after jog: {pos_error}")
+            # Use last known position
+            pass
         
         if result:
             return jsonify({
@@ -641,15 +659,55 @@ def jog_continuous():
         direction = request.json.get('direction')
         steps = int(request.json.get('steps', 10))
         
+        # Load current configuration to get jog speed settings
+        from config import load_config
+        current_config = load_config()
+        jog_speed = current_config['stepper'].get('jog_speed', 1000)
+        acceleration = current_config['stepper'].get('acceleration', 1000)
+        deceleration = current_config['stepper'].get('deceleration', 1000)
+        
+        # Apply speed settings to the stepper motor
+        if hasattr(stepper, 'set_speed'):
+            stepper.set_speed(jog_speed)
+            logger.debug(f"Set jog speed to {jog_speed}")
+            
+        # Apply acceleration settings if supported
+        if hasattr(stepper, 'set_acceleration'):
+            stepper.set_acceleration(acceleration)
+            logger.debug(f"Set acceleration to {acceleration}")
+            
+        # Apply deceleration settings if supported  
+        if hasattr(stepper, 'set_deceleration'):
+            stepper.set_deceleration(deceleration)
+            logger.debug(f"Set deceleration to {deceleration}")
+        
         # Use GPIOController jog implementation with async movement
         direction_int = 1 if direction == 'forward' else 0
         
         # Start jog operation asynchronously for continuous movement
-        result = stepper.jog(direction_int, steps)
+        try:
+            result = stepper.jog(direction_int, steps)
+        except Exception as jog_error:
+            logger.error(f"Continuous jog command failed: {jog_error}")
+            # Still try to get position even if jog failed
+            try:
+                current_position = stepper.get_position()
+            except:
+                pass
+            return jsonify({
+                "status": "error", 
+                "message": f"Continuous jog failed: {str(jog_error)}",
+                "position": current_position
+            }), 500
         
         if result:
             # Get updated position after jog command
-            current_position = stepper.get_position()
+            try:
+                current_position = stepper.get_position()
+            except Exception as pos_error:
+                logger.warning(f"Could not get position after continuous jog: {pos_error}")
+                # Use last known position
+                pass
             return jsonify({
                 "status": "success", 
                 "position": current_position
@@ -1254,14 +1312,23 @@ def servo_status():
         return jsonify({"status": "error", "message": "Servo not initialized", "simulated": True}), 500
     try:
         states = servo.get_toggle_states()
+        current_pos = "B" if states.get("is_firing") else "A"
+        
         return jsonify({
             "status": "success",
             "toggle_states": states,
-            "current_position": "B" if states.get("is_firing") else "A"
+            "current_position": current_pos,
+            "position_a": "A",
+            "position_b": "B"
         })
     except Exception as e:
         logger.error(f"Error getting servo status: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
+
+@main_bp.route('/servo/status', methods=['GET'])
+def servo_status_alias():
+    """Alias for servo_status route for consistency"""
+    return servo_status()
 
 # Error handlers
 # Configuration update route
@@ -1312,8 +1379,10 @@ def index_move():
     """Move the stepper motor by the index distance"""
     global current_position
     
-    # Get the index distance in steps from configuration
-    index_distance = stepper_config['index_distance']
+    # Get the current index distance from configuration (reload to get latest value)
+    from config import load_config
+    current_config = load_config()
+    index_distance = current_config['stepper']['index_distance']
     direction = request.json.get('direction', 'forward')
     
     # Determine direction multiplier
@@ -1347,12 +1416,52 @@ def index_move():
             return jsonify({"status": "error", "message": str(e)}), 500
     
     try:
+        # Apply current speed settings before the operation
+        index_speed = current_config['stepper'].get('index_speed', 2000)
+        acceleration = current_config['stepper'].get('acceleration', 1000)
+        deceleration = current_config['stepper'].get('deceleration', 1000)
+        
+        # Apply speed settings to the stepper motor
+        if hasattr(stepper, 'set_speed'):
+            stepper.set_speed(index_speed)
+            logger.debug(f"Set index speed to {index_speed}")
+            
+        # Apply acceleration settings if supported
+        if hasattr(stepper, 'set_acceleration'):
+            stepper.set_acceleration(acceleration)
+            logger.debug(f"Set acceleration to {acceleration}")
+            
+        # Apply deceleration settings if supported  
+        if hasattr(stepper, 'set_deceleration'):
+            stepper.set_deceleration(deceleration)
+            logger.debug(f"Set deceleration to {deceleration}")
+        
         # Use GPIOController move_index implementation with direction
         direction_int = 1 if direction == 'forward' else -1
-        result = stepper.move_index(direction_int)
+        
+        try:
+            result = stepper.move_index(direction_int)
+        except Exception as index_error:
+            logger.error(f"Index move command failed: {index_error}")
+            # Still try to get position even if index move failed
+            try:
+                current_position = stepper.get_position()
+            except:
+                pass
+            return jsonify({
+                "status": "error", 
+                "message": f"Index move failed: {str(index_error)}",
+                "position": current_position
+            }), 500
+        
         if result:
-            current_position = stepper.get_position()
-            logger.info(f"Index moved {direction} to position {current_position}")
+            try:
+                current_position = stepper.get_position()
+                logger.info(f"Index moved {direction} to position {current_position}")
+            except Exception as pos_error:
+                logger.warning(f"Could not get position after index move: {pos_error}")
+                # Use last known position
+                pass
         else:
             return jsonify({"status": "error", "message": "Index move failed"}), 500
         
@@ -1788,9 +1897,12 @@ def get_statistics_data():
     """Get statistics data as JSON"""
     try:
         stats = config.get_statistics()
+        
+        # Return the stats data directly at the top level for JavaScript compatibility
         return jsonify({
             "status": "success",
-            "statistics": stats
+            "laser_fire_count": stats.get('laser_fire_count', 0),
+            "total_laser_fire_time": stats.get('total_laser_fire_time', 0)
         })
     except Exception as e:
         logger.error(f"Error getting statistics data: {e}")
@@ -2033,8 +2145,8 @@ def temperature_status():
             return jsonify({"status": "error", "message": str(e)}), 500
     
     try:
-        # Get temperature status from controller (without forcing update)
-        status = temp_controller.get_status_cached()
+        # Get temperature status from controller (with forced update)
+        status = temp_controller.get_status()
         
         # Add status field for consistency
         status["status"] = "success"
@@ -2064,6 +2176,28 @@ def temperature_status():
         return jsonify(status)
     except Exception as e:
         logger.error(f"Error getting temperature status: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@main_bp.route('/temperature/diagnose', methods=['POST'])
+def temperature_diagnose():
+    """Diagnose temperature sensor issues"""
+    try:
+        if not temp_initialized or temp_controller is None:
+            return jsonify({
+                "status": "error", 
+                "message": "Temperature controller not initialized"
+            }), 500
+            
+        # Run the diagnosis
+        result = temp_controller.diagnose_sensors()
+        
+        return jsonify({
+            "status": "success",
+            "message": "Sensor diagnosis completed. Check logs for details.",
+            "result": result
+        })
+    except Exception as e:
+        logger.error(f"Error during temperature sensor diagnosis: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @main_bp.route('/temperature/update_sensor_name', methods=['POST'])

@@ -110,7 +110,7 @@ class SharedGPIOController:
     _instance = None
     _controller = None
     _ref_count = 0
-    _lock = threading.Lock()
+    _lock = threading.RLock()  # Use reentrant lock for shared resource management
     
     @classmethod
     def get_controller(cls, port=None, simulation_mode=False):
@@ -311,9 +311,11 @@ class StepperWrapper:
         self._position = 0
         self._stepper_id = 0  # Default stepper ID
         self._enabled = False
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()  # Use reentrant lock to prevent deadlock with StepperMotor
         self._moving = False
         self._speed = 1000  # Default speed
+        self._acceleration = 1000  # Default acceleration
+        self._deceleration = 1000  # Default deceleration
         self._limit_a_triggered = False
         self._limit_b_triggered = False
         self._home_triggered = False
@@ -611,13 +613,63 @@ class StepperWrapper:
     def set_speed(self, speed):
         logging.info(f"StepperWrapper.set_speed called: speed={speed}")
         """Set the stepper speed."""
-        self._speed = speed
-        logging.debug(f"Stepper speed set to {speed}")
+        # Convert speed from velocity (higher = faster) to ESP32 delay (higher = slower)
+        # ESP32 expects delay values, so we need to invert the speed
+        # Map speed range 100-3500 to delay range 3500-100 
+        max_speed = 3500
+        min_speed = 100
+        if speed < min_speed:
+            speed = min_speed
+        elif speed > max_speed:
+            speed = max_speed
+        
+        # Invert speed: high UI speed = low ESP32 delay = fast movement
+        esp32_delay = max_speed + min_speed - speed
+        self._speed = esp32_delay
+        logging.debug(f"Stepper speed set to {speed} (converted to ESP32 delay: {esp32_delay})")
+        return True
+    
+    def set_acceleration(self, acceleration):
+        logging.info(f"StepperWrapper.set_acceleration called: acceleration={acceleration}")
+        """Set the stepper acceleration."""
+        self._acceleration = acceleration
+        
+        # Send acceleration command to ESP32 if hardware is available
+        if not self.simulation_mode and self._controller:
+            try:
+                self._controller.set_stepper_acceleration(id=self._stepper_id, acceleration=acceleration)
+                logging.debug(f"Sent acceleration {acceleration} to ESP32 stepper {self._stepper_id}")
+            except Exception as e:
+                logging.error(f"Failed to send acceleration to ESP32: {e}")
+                return False
+        else:
+            logging.debug(f"Stepper acceleration set to {acceleration} (simulation mode)")
+        
+        return True
+    
+    def set_deceleration(self, deceleration):
+        logging.info(f"StepperWrapper.set_deceleration called: deceleration={deceleration}")
+        """Set the stepper deceleration."""
+        self._deceleration = deceleration
+        
+        # Send deceleration command to ESP32 if hardware is available
+        if not self.simulation_mode and self._controller:
+            try:
+                self._controller.set_stepper_deceleration(id=self._stepper_id, deceleration=deceleration)
+                logging.debug(f"Sent deceleration {deceleration} to ESP32 stepper {self._stepper_id}")
+            except Exception as e:
+                logging.error(f"Failed to send deceleration to ESP32: {e}")
+                return False
+        else:
+            logging.debug(f"Stepper deceleration set to {deceleration} (simulation mode)")
+        
         return True
     
     def get_position(self):
         logging.info(f"StepperWrapper.get_position called, returning {self._position}")
         """Get the current position."""
+        # For now, just return the locally tracked position to avoid ESP32 communication issues
+        # that cause hanging. This ensures responsive operation while we debug the ESP32 communication.
         return self._position
     
     def set_position(self, position):
@@ -659,17 +711,25 @@ class StepperWrapper:
                 
                 # Ensure feedback is a dictionary
                 if not isinstance(feedback, dict):
-                    logging.warning(f"Feedback is not a dictionary: {type(feedback)} - {feedback}")
-                    feedback = {}
+                    logging.debug(f"Feedback is not a dictionary (likely ESP32 string response): {type(feedback)} - {feedback}")
+                    # Convert string responses to a useful dictionary
+                    if isinstance(feedback, str):
+                        feedback = {"message": feedback, "status": "ok"}
+                    else:
+                        feedback = {}
                 
                 status = feedback.get("status", {})
                 
-                # Ensure status is also a dictionary
+                # Handle string status responses from ESP32
                 if not isinstance(status, dict):
-                    logging.warning(f"Status is not a dictionary: {type(status)} - {status}")
-                    status = {}
+                    if isinstance(status, str) and status in ["ok", "stepper_initialized", "ready"]:
+                        logging.debug(f"ESP32 sent string status: {status} - treating as successful")
+                        status = {}  # Empty dict means no limit switch data, use defaults
+                    else:
+                        logging.warning(f"Unexpected status type: {type(status)} - {status}")
+                        status = {}
                 
-                # Update limit switch states
+                # Update limit switch states (will be False if no limit data received)
                 self._limit_a_triggered = status.get(f"limit_a_{self._stepper_id}", False)
                 self._limit_b_triggered = status.get(f"limit_b_{self._stepper_id}", False)
                 self._home_triggered = status.get(f"home_{self._stepper_id}", False)

@@ -9,7 +9,7 @@ import json
 from datetime import datetime
 from flask import current_app
 from sqlalchemy import text
-from main import db
+from main import db, app
 from models import SyncEvent, SuiteUser, User, RFIDCard
 
 logger = logging.getLogger(__name__)
@@ -150,9 +150,17 @@ def register_sync_tasks(app):
         
         scheduler = BackgroundScheduler()
         
-        # Add sync jobs
+        # Add sync jobs with app context wrappers
+        def process_sync_with_context():
+            with app.app_context():
+                SyncHandler.process_pending_sync_events()
+        
+        def sync_users_with_context():
+            with app.app_context():
+                SyncHandler.sync_users()
+        
         scheduler.add_job(
-            func=SyncHandler.process_pending_sync_events,
+            func=process_sync_with_context,
             trigger=IntervalTrigger(minutes=5),
             id='process_sync_events',
             name='Process pending sync events',
@@ -160,7 +168,7 @@ def register_sync_tasks(app):
         )
         
         scheduler.add_job(
-            func=SyncHandler.sync_users,
+            func=sync_users_with_context,
             trigger=IntervalTrigger(minutes=15),
             id='sync_users',
             name='Synchronize users with suite database',

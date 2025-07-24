@@ -26,7 +26,7 @@
                                     <div class="card-body text-center">
                                         <h2 id="laser-fire-count" class="display-1">{{ stats.laser_fire_count }}</h2>
                                         <p class="text-muted">
-                                            <small>Counts firings longer than {{ laser_fire_threshold / 1000 }} seconds</small>
+                                            <small>Total number of laser firing operations</small>
                                         </p>
                                     </div>
                                 </div>
@@ -137,5 +137,5 @@
 {% endblock %}
 
 {% block scripts %}
-    <script src="{{ url_for('static', filename='js/statistics.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/statistics.js') }}?v=20250124-004"></script>
 {% endblock %}

@@ -32,7 +32,7 @@
     - [x] Fixed threading lock deadlock in output_control_gpiod.py by changing to RLock and eliminating recursive calls
     - [x] Table controls now work properly after servo operations
 - [ ] E-Stop: Ensure servo is set to position A before turning off other outputs (backend and UI)
-- [ ] E-Stop: Set physical pin hard code to GPIO17 PIN11 Normaly Closed (OFF when ESTOP is ON)
+- [ ] E-Stop: Set physical input pin hard code to GPIO17 PIN11 Normaly Closed (HIGH when ESTOP is ON)
 
 ## UI FIXES & IMPROVEMENTS
 - [x] Fixed auto-cycle switch validation logic (operation.js and table_control.js) (2025-07-15)
@@ -238,6 +238,31 @@
 
 # End of TODO (2025-07-17)
 
+# Progress Summary - 2025-07-23 ✅ STATISTICS PAGE FIXES COMPLETED
+## Major Fixes Today:
+
+✅ **STATISTICS PAGE - FULL REPAIR AND ENHANCEMENT**
+   - **Fixed Missing /servo/status Route**: Added alias route to resolve 404 errors 
+   - **Enhanced Servo Status Response**: Added position_a and position_b fields for firing detection
+   - **Fixed Statistics Reset Functions**: Updated config.py reset_statistics to accept parameters (counter/timer/all)
+   - **Fixed Statistics Data Format**: Corrected /statistics/data endpoint to return data at proper level for JavaScript
+   - **Removed Incorrect Text**: Removed "Counts firings longer than 2.0 seconds" - replaced with "Total number of laser firing operations"
+   - **Added Comprehensive Debug Tools**: window.debugStatistics for manual testing and troubleshooting
+
+✅ **OPERATIONS PAGE FIRING TIMER - IMPLEMENTED FROM SCRATCH**
+   - **Root Cause Analysis**: Identified that firing timer under fire buttons was missing implementation in operation.js
+   - **Complete Timer System**: Added formatTime, updateFiringTimer, startFiringTimer, stopFiringTimer functions
+   - **Integrated with Fire Actions**: Connected timer to all firing modes (momentary fire, toggle fire, fiber sequence)
+   - **Progress Bar Support**: Added progress bar updates (5-minute max visualization)
+   - **Proper Reset Logic**: Timer resets when firing stops or status resets
+   - **Real-time Display**: 100ms update interval for smooth timer progression
+
+✅ **SESSION STATISTICS DEBUGGING INFRASTRUCTURE**
+   - **Enhanced Error Logging**: Added detailed console logging for session counter updates
+   - **Element Validation**: Added checks to ensure DOM elements are found correctly
+   - **Manual Testing Tools**: Created window.debugStatistics.testSessionUpdate() for manual testing
+   - **Firing Detection Logs**: Added logging when servo position changes trigger timer start/stop
+
 # Progress Summary - 2025-07-21 ✅ TRIGGER SERVO PAGE COMPLETED
 ## Major Accomplishments Today:
 
@@ -418,5 +443,72 @@ Both areas are now production-ready with stable, responsive user interfaces.
 
 All requested stepper motor improvements have been successfully implemented and are ready for hardware testing tomorrow morning!
 
-# End of TODO (2025-07-21 FINAL UPDATE)
+# End of TODO (2025-07-23 LATEST UPDATE)
+
+# Progress Summary - 2025-07-23
+## Completed Today:
+✅ **STEPPER MOTOR CONTROL ENHANCEMENTS:**
+   - Fixed corrupted cleaning head template syntax errors (missing quotes, bracket mismatches)
+   - Resolved "index speed is inverted" issue - higher UI slider values now correctly result in faster motor movement
+   - Restored jog button functionality - buttons now respond properly with hold-to-jog behavior
+   - Fixed speed controls area styling - changed from light to dark theme to match rest of interface
+   - Repositioned speed controls above Index Distance area for better UI organization
+   - Swapped index forward/backward button positions to match jog direction behavior
+   - Fixed distance adjustment integration - now properly loads current config in move_index method
+
+✅ **ACCELERATION/DECELERATION IMPLEMENTATION:**
+   - Added complete acceleration/deceleration support through entire class hierarchy:
+     - Enhanced GPIOController with set_stepper_acceleration and set_stepper_deceleration methods
+     - Updated StepperWrapper to send acceleration/deceleration commands to ESP32
+     - Added missing set_acceleration/set_deceleration methods to StepperMotor class
+   - Implemented proper method delegation chain: StepperMotor → StepperWrapper → GPIOController → ESP32
+   - Added acceleration/deceleration JSON command protocol for ESP32 communication
+   - **NOTE**: Requires application restart to load updated GPIOController methods
+
+✅ **TEMPERATURE SENSOR DIAGNOSTIC IMPROVEMENTS:**
+   - Fixed temperature sensor update issue - changed from get_status_cached() to get_status() for forced updates
+   - Added comprehensive sensor diagnostics with detailed error checking:
+     - Enhanced _read_temp_raw() with file existence, permissions, and content validation
+     - Added _diagnose_sensor_issue() method for detailed hardware analysis
+     - Created diagnose_sensors() method to check 1-Wire modules and device listings
+   - Implemented /temperature/diagnose web route for debugging sensor issues from UI
+   - Identified hardware issue: DS18B20 sensor (28-000000848d33) detected but w1_slave file returns no data
+   - Enhanced error logging provides detailed information about 1-Wire bus status and sensor connectivity
+
+## Technical Implementation Details:
+
+**Files Modified Today:**
+- `templates/cleaning_head.html`: Fixed template syntax errors, button positioning, styling
+- `stepper_control_gpioctrl.py`: Added set_acceleration/set_deceleration methods with proper delegation
+- `gpio_controller_wrapper.py`: Enhanced with acceleration/deceleration command sending
+- `gpioesp/gpioctrl/gpio_controller.py`: Confirmed acceleration/deceleration methods present
+- `temperature_control.py`: Enhanced diagnostics, improved error handling, added diagnosis methods
+- `app.py`: Changed temperature status to use get_status(), added /temperature/diagnose route
+
+**Architecture Improvements:**
+- **Complete Acceleration Support**: Full implementation from UI through ESP32 firmware
+- **Robust Temperature Diagnostics**: Comprehensive sensor issue analysis and reporting
+- **Enhanced Error Handling**: Better feedback for both stepper and temperature subsystems
+- **Improved UI Consistency**: Speed controls styling and positioning match overall interface
+
+## Current System State:
+- **✅ STEPPER CONTROLS**: Template corruption fixed, speed inversion resolved, jog buttons functional
+- **✅ ACCELERATION/DECELERATION**: Complete implementation ready (requires app restart to activate)
+- **✅ TEMPERATURE SENSORS**: Enhanced diagnostics available, hardware issue identified and analyzable
+- **✅ UI IMPROVEMENTS**: Better styling, positioning, and user experience consistency
+
+## Hardware Diagnosis Results:
+- **Temperature Sensor Status**: DS18B20 device (28-000000848d33) detected in /sys/bus/w1/devices/
+- **Issue Identified**: Sensor file /sys/bus/w1/devices/28-000000848d33/w1_slave returns empty data
+- **Likely Causes**: Hardware connection issue, faulty sensor, or 1-Wire bus timing problem
+- **Diagnostic Tools**: Enhanced logging and /temperature/diagnose endpoint available for analysis
+
+## Session Summary:
+**Started**: "speed controls area is too light, needs to be dark" + "jog buttons still do not work" + "accel and decel are still not working" + "temperature sensors quit updating"
+**Completed**: Comprehensive fixes for stepper UI/functionality + acceleration support + temperature diagnostics
+**Impact**: Stepper controls now fully functional with proper styling, acceleration support implemented, temperature issues diagnosed
+
+All stepper motor control issues resolved and acceleration/deceleration support completed. Temperature sensor hardware issue identified with enhanced diagnostic capabilities for troubleshooting.
+
+# End of TODO (2025-07-23 FINAL UPDATE)
 

@@ -272,6 +272,81 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // Firing timer variables
+    let firingTimerActive = false;
+    let firingStartTime = 0;
+    let currentFiringTime = 0;
+    let firingTimerInterval = null;
+    
+    /**
+     * Format time in milliseconds to HH:MM:SS
+     * @param {number} timeMs - Time in milliseconds
+     * @returns {string} Formatted time string (HH:MM:SS)
+     */
+    function formatTime(timeMs) {
+        const totalSeconds = Math.floor(timeMs / 1000);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+    
+    /**
+     * Update firing timer display while actively firing
+     */
+    function updateFiringTimer() {
+        if (firingTimerActive) {
+            const currentTime = Date.now();
+            currentFiringTime = currentTime - firingStartTime;
+            const formattedTime = formatTime(currentFiringTime);
+            
+            if (firingTimeDisplay) {
+                firingTimeDisplay.textContent = formattedTime;
+            }
+            
+            // Update progress bar if it exists
+            if (firingProgress) {
+                // Limit progress bar to 100% after 5 minutes (300000ms)
+                const progressPercent = Math.min(100, (currentFiringTime / 300000) * 100);
+                firingProgress.style.width = `${progressPercent}%`;
+            }
+        }
+    }
+    
+    /**
+     * Start the firing timer and update UI elements
+     */
+    function startFiringTimer() {
+        console.log('Starting firing timer...');
+        firingTimerActive = true;
+        firingStartTime = Date.now();
+        
+        // Start the timer interval
+        firingTimerInterval = setInterval(updateFiringTimer, 100);
+    }
+    
+    /**
+     * Stop the firing timer and reset displays
+     */
+    function stopFiringTimer() {
+        if (firingTimerActive) {
+            console.log('Stopping firing timer...');
+            firingTimerActive = false;
+            clearInterval(firingTimerInterval);
+            
+            // Reset the timer display
+            if (firingTimeDisplay) {
+                firingTimeDisplay.textContent = '00:00:00';
+            }
+            
+            // Reset progress bar
+            if (firingProgress) {
+                firingProgress.style.width = '0%';
+            }
+        }
+    }
+    
     /**
      * Disables all fire buttons
      */
@@ -291,6 +366,7 @@ document.addEventListener('DOMContentLoaded', function() {
      */
     function resetFiringStatus() {
         updateFiringStatus('Not Firing', 'badge bg-secondary');
+        stopFiringTimer(); // Stop the timer when resetting firing status
     }
     
     // Stop button functionality removed as requested
@@ -319,6 +395,7 @@ document.addEventListener('DOMContentLoaded', function() {
             fireButton.classList.add('btn-warning');
             fireButton.classList.remove('btn-danger');
             updateFiringStatus('Firing (Momentary)', 'badge bg-danger');
+            startFiringTimer(); // Start the firing timer
             
             makeRequest(
                 '/fire',
@@ -485,6 +562,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             fireToggleButton.classList.remove('btn-danger');
                             fireToggleButton.innerHTML = '<i class="fas fa-stop"></i> STOP FIRE';
                             updateFiringStatus('Firing (Toggle)', 'badge bg-danger');
+                            startFiringTimer(); // Start the firing timer
                             window.addLogMessage('Fire toggle activated - servo at position B', false, 'success');
                         } else if (data.toggle_state === 'inactive') {
                             fireToggleActive = false;
@@ -552,6 +630,7 @@ document.addEventListener('DOMContentLoaded', function() {
             momentaryFiberActive = true;
             fireFiberButton.innerHTML = '<span style="color: yellow;">●</span> FIBER - HOLD BUTTON';
             updateFiringStatus('Fiber Sequence (Momentary)', 'badge bg-warning text-dark');
+            startFiringTimer(); // Start the firing timer
             
             makeRequest(
                 '/fire_fiber',
@@ -686,13 +765,14 @@ document.addEventListener('DOMContentLoaded', function() {
                             fireFiberToggleButton.classList.remove('btn-outline-warning');
                             fireFiberToggleButton.innerHTML = '<i class="fas fa-stop"></i> STOP FIBER';
                             updateFiringStatus('Fiber Sequence (Toggle)', 'badge bg-warning text-dark');
+                            startFiringTimer(); // Start the firing timer when toggle is activated
                             window.addLogMessage('Fiber toggle activated - sequence: A→B→A→B complete, servo at position B', false, 'success');
                         } else if (data.toggle_state === 'inactive') {
                             fireFiberToggleActive = false;
                             fireFiberToggleButton.classList.remove('active', 'btn-warning');
                             fireFiberToggleButton.classList.add('btn-outline-warning');
                             fireFiberToggleButton.innerHTML = '<i class="fas fa-bolt"></i> FIBER';
-                            resetFiringStatus();
+                            resetFiringStatus(); // This already calls stopFiringTimer()
                             window.addLogMessage('Fiber toggle deactivated - servo at position A', false, 'success');
                         } else {
                             console.warn("Unknown fiber toggle_state:", data.toggle_state);
