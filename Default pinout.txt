@@ -8,9 +8,9 @@ ESP32
             DIR 26
             STEP 25
         Inputs 
-            Limit A 32 (Pull-Up, LOW=Enable)
-            Limit B 33 (Pull-Up, LOW=Enable)
-            Home 34 (Pull-Up, LOW=Enable)
+            Limit A 18 (Pull-Up, LOW=Enable) - CW limit
+            Limit B 19 (Pull-Up, LOW=Enable) - CCW limit
+            Home 21 (Pull-Up, LOW=Enable)
     Servo
         PWM 12
 

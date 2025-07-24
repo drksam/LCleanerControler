@@ -119,6 +119,20 @@ class GPIOController:
             print(f"Error getting status: {e}")
             return {"status": "error", "message": str(e)}
 
+    def get_pin_states(self, id=0):
+        """Get current state of input pins for the specified stepper."""
+        try:
+            self._send_cmd({"cmd": "get_pin_states", "id": id})
+            time.sleep(0.1)
+            status = self.get_feedback()
+            # Ensure we return a dictionary
+            if not isinstance(status, dict):
+                return {"status": "error", "message": str(status)}
+            return status
+        except Exception as e:
+            print(f"Error getting pin states: {e}")
+            return {"status": "error", "message": str(e)}
+
     def get_feedback(self):
         with self.lock:
             feedback = self.feedback.copy()

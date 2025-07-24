@@ -110,9 +110,9 @@ DEFAULT_CONFIG = {
         'esp_step_pin': 25,               # ESP32 Stepper STEP (GPIO 25)
         'esp_dir_pin': 26,                # ESP32 Stepper DIR (GPIO 26)
         'esp_enable_pin': 27,             # ESP32 Stepper EN (GPIO 27, LOW=Enable)
-        'esp_limit_a_pin': 32,            # ESP32 Stepper Limit A (GPIO 32, Pull-Up, LOW=Active)
-        'esp_limit_b_pin': 33,            # ESP32 Stepper Limit B (GPIO 33, Pull-Up, LOW=Active)
-        'esp_home_pin': 34,               # ESP32 Stepper Home (GPIO 34, Pull-Up, LOW=Active)
+        'esp_limit_a_pin': 18,            # ESP32 Stepper Limit A (GPIO 18, Pull-Up, LOW=Active) - CW limit
+        'esp_limit_b_pin': 19,            # ESP32 Stepper Limit B (GPIO 19, Pull-Up, LOW=Active) - CCW limit
+        'esp_home_pin': 21,               # ESP32 Stepper Home (GPIO 21, Pull-Up, LOW=Active)
         'esp_servo_pwm_pin': 12,          # ESP32 Servo PWM (GPIO 12)
     }
 }
@@ -166,7 +166,27 @@ def get_system_config():
     return system_config
 
 def get_stepper_config():
-    return config['stepper']
+    """Get stepper configuration including ESP32 pin assignments from GPIO section."""
+    stepper_config = config['stepper'].copy()
+    gpio_config = config['gpio']
+    
+    # Add ESP32 pin configurations from GPIO section
+    esp_pins = {
+        'esp_step_pin': gpio_config.get('esp_step_pin'),
+        'esp_dir_pin': gpio_config.get('esp_dir_pin'),
+        'esp_enable_pin': gpio_config.get('esp_enable_pin'),
+        'esp_limit_a_pin': gpio_config.get('esp_limit_a_pin'),
+        'esp_limit_b_pin': gpio_config.get('esp_limit_b_pin'),
+        'esp_home_pin': gpio_config.get('esp_home_pin'),
+        'esp_servo_pwm_pin': gpio_config.get('esp_servo_pwm_pin'),
+    }
+    
+    # Only add pins that have values (not None)
+    for pin_name, pin_value in esp_pins.items():
+        if pin_value is not None:
+            stepper_config[pin_name] = pin_value
+    
+    return stepper_config
 
 def get_servo_config():
     return config['servo']

@@ -745,7 +745,7 @@ def stop_motor():
 
 @main_bp.route('/home', methods=['POST'])
 def home():
-    """Home the motor (find zero position)"""
+    """Home the motor (find zero position) or stop if already homing"""
     global current_position
     
     if not motor_initialized or stepper is None:
@@ -762,6 +762,7 @@ def home():
             return jsonify({
                 "status": "success", 
                 "position": current_position,
+                "message": "Homing completed (simulated)",
                 "simulated": True
             })
         except Exception as e:
@@ -769,17 +770,29 @@ def home():
             return jsonify({"status": "error", "message": str(e)}), 500
     
     try:
-        # Use GPIOController home implementation
-        result = stepper.home()
+        # Check if stepper is currently moving (homing in progress)
+        if stepper.is_moving():
+            logger.info("Stopping homing operation in progress")
+            stepper.stop()
+            return jsonify({
+                "status": "success", 
+                "message": "Homing stopped",
+                "position": stepper.get_position()
+            })
+        
+        # Start homing operation
+        logger.info("Starting homing operation")
+        result = stepper.home(wait=False)  # Don't wait so we can respond immediately
         if result:
-            current_position = stepper.get_position()  # Should be 0
+            current_position = 0  # Will be updated when homing completes
+            return jsonify({
+                "status": "success", 
+                "message": "Homing started - moving backward to home switch at 33% speed",
+                "position": "homing_in_progress"
+            })
         else:
-            return jsonify({"status": "error", "message": "Home operation failed"}), 500
+            return jsonify({"status": "error", "message": "Failed to start homing operation"}), 500
             
-        return jsonify({
-            "status": "success", 
-            "position": current_position
-        })
     except Exception as e:
         logger.error(f"Error in homing operation: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500

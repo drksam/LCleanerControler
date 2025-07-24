@@ -210,8 +210,19 @@ class StepperMotor:
                 logging.warning("Cannot move: Stepper motor is disabled")
                 return False
             
-            logging.info("StepperMotor.move_to: Checking position limits...")
-            # Clamp position to limits
+            logging.info("StepperMotor.move_to: Checking position limits and safety...")
+            
+            # Safety check: Prevent movement into negative positions
+            if position < 0:
+                logging.warning(f"Cannot move to negative position: {position}. Clamping to 0.")
+                position = 0
+            
+            # Safety check: If home switch is triggered and trying to move backward, stop
+            if self.stepper and self.stepper.get_home_state() and position < self.get_position():
+                logging.warning("Home switch is triggered - cannot move further backward")
+                return False
+            
+            # Clamp position to hardware limits
             if position > self.max_position:
                 position = self.max_position
                 logging.warning(f"Position clamped to max: {position}")
@@ -306,7 +317,7 @@ class StepperMotor:
     def home(self, wait=True):
         logging.info(f"StepperMotor.home called: wait={wait}")
         """
-        Home the stepper motor (move to position 0).
+        Home the stepper motor by moving backward at 33% index speed until home switch is triggered.
         
         Args:
             wait: Whether to wait for homing to complete
@@ -315,42 +326,172 @@ class StepperMotor:
             True if homing started successfully, False otherwise
         """
         with self.lock:
+            # Enable stepper if not already enabled (required for homing)
             if not self.enabled:
-                logging.warning("Cannot home: Stepper motor is disabled")
-                return False
+                logging.info("Stepper not enabled, enabling for homing operation")
+                enable_result = self.enable()
+                # On Windows or in simulation mode, allow homing even if enable fails
+                is_simulation = self.simulation_mode or platform.system() == 'Windows'
+                if not enable_result and not is_simulation:
+                    logging.warning("Cannot home: Failed to enable stepper motor")
+                    return False
+                elif is_simulation:
+                    # In simulation mode or on Windows, force enable for testing
+                    self.enabled = True
+                    logging.info(f"Stepper enabled in simulation mode (Windows: {platform.system() == 'Windows'}, simulation_mode: {self.simulation_mode})")
             
             if self.stepper:
-                result = self.stepper.home(wait=wait)
-                if result:
+                # Check if already at home position
+                if self.stepper.get_home_state():
+                    logging.info("Already at home position")
+                    self.position = 0
                     self.target_position = 0
-                    self.moving = True
-                    
-                    # If not waiting, update position in a separate thread
-                    if not wait and not self.simulation_mode:
-                        def update_position():
-                            # Wait for movement to complete
-                            while self.stepper.is_moving():
-                                time.sleep(0.1)
-                            # Update position
-                            with self.lock:
-                                self.position = 0
-                                self.moving = False
-                            logging.info("Homing completed, position: 0")
-                        
-                        threading.Thread(target=update_position, daemon=True).start()
-                    elif wait:
-                        # If waiting, update position now
-                        self.position = 0
-                        self.moving = False
-                        logging.info("Homing completed, position: 0")
-                    
                     return True
+                
+                # Calculate homing speed (33% of index speed)
+                try:
+                    config = get_stepper_config()
+                    # Get index_speed from config, fallback to a reasonable default
+                    index_speed = config.get('index_speed', 2000)
+                    homing_speed = int(index_speed * 0.33)  # 33% of index speed
+                    logging.info(f"Using homing speed: {homing_speed} (33% of {index_speed} index speed)")
+                except Exception as e:
+                    logging.error(f"Error getting config for homing: {e}")
+                    homing_speed = 660  # Fallback: 33% of 2000 default index speed
+                
+                # Set homing speed temporarily
+                original_speed = self.speed
+                self.stepper.set_speed(homing_speed)
+                
+                # Start custom homing process
+                self.moving = True
+                self.target_position = -999999  # Large negative number to indicate homing
+                
+                if not wait:
+                    # Check if we're already in a background thread (like Flask request)
+                    import threading
+                    current_thread = threading.current_thread()
+                    is_main_thread = isinstance(current_thread, threading._MainThread)
+                    
+                    if is_main_thread:
+                        # We're in the main thread, start homing in a separate thread
+                        def homing_thread():
+                            try:
+                                result = self._perform_homing_sequence()
+                                return result
+                            finally:
+                                # Restore original speed
+                                self.stepper.set_speed(original_speed)
+                        
+                        threading.Thread(target=homing_thread, daemon=True).start()
+                        return True
+                    else:
+                        # We're already in a background thread (Flask request), run directly
+                        try:
+                            result = self._perform_homing_sequence()
+                            # Restore original speed
+                            self.stepper.set_speed(original_speed)
+                            return result
+                        except Exception as e:
+                            # Restore original speed on error
+                            self.stepper.set_speed(original_speed)
+                            raise e
                 else:
-                    logging.error("Failed to start homing")
-                    return False
+                    # Perform homing synchronously
+                    try:
+                        result = self._perform_homing_sequence()
+                        # Restore original speed
+                        self.stepper.set_speed(original_speed)
+                        return result
+                    except Exception as e:
+                        # Restore original speed on error
+                        self.stepper.set_speed(original_speed)
+                        raise e
             else:
                 logging.error("Cannot home: Stepper not initialized")
                 return False
+    
+    def _perform_homing_sequence(self):
+        """
+        Internal method to perform the actual homing sequence.
+        Moves backward until home switch is triggered, then stops and zeros position.
+        """
+        logging.info("Starting homing sequence - moving backward until home switch")
+        
+        # Check if we're in simulation (Windows or simulation mode)
+        is_simulation = self.simulation_mode or platform.system() == 'Windows'
+        if is_simulation:
+            logging.info("Running in simulation mode - simulating homing sequence")
+            time.sleep(0.5)  # Simulate homing time
+            with self.lock:
+                self.position = 0
+                self.target_position = 0
+                self.moving = False
+                # Set position to zero in stepper wrapper too if available
+                if hasattr(self.stepper, 'set_position'):
+                    self.stepper.set_position(0)
+            logging.info("Homing completed successfully (simulated), position zeroed to: 0")
+            return True
+        
+        # Move backward in small increments until home switch is triggered
+        step_size = 50  # Small steps for precise homing
+        max_steps = 10000  # Safety limit - max steps to travel while homing
+        steps_taken = 0
+        
+        try:
+            while not self.stepper.get_home_state() and steps_taken < max_steps:
+                # Check if homing was interrupted
+                if not self.moving:
+                    logging.info("Homing was interrupted")
+                    return False
+                
+                # Move backward one step increment using async movement
+                result = self.stepper.move_steps(step_size, 0, wait=False)  # direction 0 = backward, async
+                if not result:
+                    logging.error("Failed to move during homing")
+                    self.moving = False
+                    return False
+                
+                # Wait for movement to complete by polling
+                max_wait_time = 2.0  # Maximum time to wait for each step
+                wait_start = time.time()
+                while self.stepper.is_moving() and (time.time() - wait_start) < max_wait_time:
+                    time.sleep(0.01)  # Small delay while waiting
+                    # Check if homing was interrupted during wait
+                    if not self.moving:
+                        logging.info("Homing was interrupted during movement")
+                        return False
+                
+                # Check if movement timed out
+                if self.stepper.is_moving():
+                    logging.warning(f"Movement timed out after {max_wait_time}s, continuing homing")
+                    
+                steps_taken += step_size
+                
+                # Small delay to allow switch state to update
+                time.sleep(0.01)
+            
+            if self.stepper.get_home_state():
+                # Home switch triggered - stop and zero position
+                logging.info("Home switch triggered - zeroing position")
+                with self.lock:
+                    self.position = 0
+                    self.target_position = 0
+                    self.moving = False
+                    # Set position to zero in stepper wrapper too
+                    self.stepper.set_position(0)
+                logging.info("Homing completed successfully, position zeroed to: 0")
+                return True
+            else:
+                # Reached max steps without finding home
+                logging.error(f"Homing failed - home switch not found after {steps_taken} steps")
+                self.moving = False
+                return False
+                
+        except Exception as e:
+            logging.error(f"Error during homing sequence: {e}")
+            self.moving = False
+            return False
     
     def jog(self, direction, steps=10):
         logging.info(f"StepperMotor.jog called: direction={direction}, steps={steps}")
@@ -381,7 +522,21 @@ class StepperMotor:
             step_change = steps * (1 if direction == 1 else -1)
             new_position = current_position + step_change
             
-            # Check position limits
+            # Safety check: Prevent movement into negative positions
+            if new_position < 0:
+                logging.warning(f"Cannot jog to negative position: {new_position}. Limiting to position 0.")
+                new_position = 0
+                step_change = 0 - current_position
+                if step_change <= 0:
+                    logging.warning("Cannot jog: Already at position 0 or negative")
+                    return False
+            
+            # Safety check: If home switch is triggered and trying to move backward, stop
+            if self.stepper and self.stepper.get_home_state() and direction == 0:  # direction 0 = backward
+                logging.warning("Home switch is triggered - cannot jog backward")
+                return False
+            
+            # Check hardware position limits
             if new_position > self.max_position:
                 new_position = self.max_position
                 step_change = self.max_position - current_position

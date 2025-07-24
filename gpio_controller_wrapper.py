@@ -706,8 +706,19 @@ class StepperWrapper:
             
         if self._controller:
             try:
-                # Get feedback from the controller
-                feedback = self._controller.get_feedback()
+                # Try new firmware get_pin_states command first
+                try:
+                    feedback = self._controller.get_pin_states(self._stepper_id)
+                    logging.debug(f"Used get_pin_states() for stepper {self._stepper_id}: {feedback}")
+                except AttributeError:
+                    logging.debug("get_pin_states() not available, falling back to get_status()")
+                    # Fallback to get_status if get_pin_states not available
+                    feedback = self._controller.get_status()
+                    logging.debug(f"Used get_status() fallback: {feedback}")
+                except Exception as pin_state_error:
+                    logging.debug(f"get_pin_states() failed, falling back to get_status(): {pin_state_error}")
+                    # Fallback to get_status if pin_states request fails
+                    feedback = self._controller.get_status()
                 
                 # Ensure feedback is a dictionary
                 if not isinstance(feedback, dict):
@@ -720,19 +731,63 @@ class StepperWrapper:
                 
                 status = feedback.get("status", {})
                 
-                # Handle string status responses from ESP32
-                if not isinstance(status, dict):
-                    if isinstance(status, str) and status in ["ok", "stepper_initialized", "ready"]:
-                        logging.debug(f"ESP32 sent string status: {status} - treating as successful")
-                        status = {}  # Empty dict means no limit switch data, use defaults
-                    else:
-                        logging.warning(f"Unexpected status type: {type(status)} - {status}")
-                        status = {}
+                # Handle new firmware response format where status contains stepper data
+                if isinstance(status, dict) and f"stepper_{self._stepper_id}" in status:
+                    # New firmware format: {"status": {"stepper_0": {"limit_a": false, ...}}}
+                    stepper_status = status[f"stepper_{self._stepper_id}"]
+                    logging.debug(f"Using new firmware format for stepper_{self._stepper_id}: {stepper_status}")
+                    
+                    self._limit_a_triggered = bool(stepper_status.get('limit_a', False))
+                    self._limit_b_triggered = bool(stepper_status.get('limit_b', False))
+                    self._home_triggered = bool(stepper_status.get('home', False))
+                    
+                    # Log switch states for debugging
+                    logging.debug(f"Switch states: limit_a={self._limit_a_triggered}, limit_b={self._limit_b_triggered}, home={self._home_triggered}")
+                    
+                elif isinstance(status, str) and status in ["ok", "stepper_initialized", "ready"]:
+                    # Old firmware or initialization response
+                    logging.debug(f"ESP32 sent string status: {status} - treating as successful, no switch data")
+                    # Keep existing states, don't reset to False
+                    
+                else:
+                    # Handle other formats or fallback to comprehensive key checking
+                    logging.debug(f"Using fallback key checking for status: {status}")
+                    
+                    # Update limit switch states with comprehensive key checking
+                    # Try multiple possible key formats that ESP32 might send
+                    def get_switch_state(switch_name, default=False):
+                        """Try multiple key formats for switch states."""
+                        possible_keys = [
+                            f"{switch_name}_{self._stepper_id}",  # Original format: home_0
+                            switch_name,                          # Simple format: home
+                            f"{switch_name}_switch",              # Descriptive: home_switch
+                            f"pin_{getattr(self, f'{switch_name}_pin', 0)}",  # Pin-based: pin_21
+                            f"switch_{switch_name}",              # Alternate: switch_home
+                            f"{switch_name}_state",               # State format: home_state
+                        ]
+                        
+                        for key in possible_keys:
+                            if key in status:
+                                logging.debug(f"Found {switch_name} switch state using key '{key}': {status[key]}")
+                                return bool(status[key])
+                        
+                        # Also check if there's a pins section
+                        if 'pins' in status and isinstance(status['pins'], dict):
+                            pins = status['pins']
+                            pin_num = getattr(self, f'{switch_name}_pin', 0)
+                            if str(pin_num) in pins:
+                                logging.debug(f"Found {switch_name} switch state in pins section: {pins[str(pin_num)]}")
+                                return bool(pins[str(pin_num)])
+                        
+                        return default
+                    
+                    self._limit_a_triggered = get_switch_state('limit_a')
+                    self._limit_b_triggered = get_switch_state('limit_b') 
+                    self._home_triggered = get_switch_state('home')
                 
-                # Update limit switch states (will be False if no limit data received)
-                self._limit_a_triggered = status.get(f"limit_a_{self._stepper_id}", False)
-                self._limit_b_triggered = status.get(f"limit_b_{self._stepper_id}", False)
-                self._home_triggered = status.get(f"home_{self._stepper_id}", False)
+                # Log all available keys for debugging
+                if status:
+                    logging.debug(f"Available status keys: {list(status.keys())}")
                 
                 return {
                     'limit_a': self._limit_a_triggered,
