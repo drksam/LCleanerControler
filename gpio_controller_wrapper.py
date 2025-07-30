@@ -14,7 +14,7 @@ from typing import Optional, Callable, Dict, Any
 if platform.system() == 'Windows':
     DEFAULT_SERIAL_PORT = "COM3"  # Default Windows port, adjust as needed
 else:
-    DEFAULT_SERIAL_PORT = "/dev/ttyUSB0"  # Default Linux port
+    DEFAULT_SERIAL_PORT = "/dev/ttyUSB1"  # Updated default Linux port
 
 # Check if FORCE_HARDWARE flag is set
 FORCE_HARDWARE = os.environ.get('FORCE_HARDWARE', 'False').lower() == 'true'
@@ -121,7 +121,16 @@ class SharedGPIOController:
             
             if cls._controller is None and not simulation_mode and GPIOCTRL_AVAILABLE:
                 try:
-                    serial_port = port or DEFAULT_SERIAL_PORT
+                    # Try to get port from configuration first
+                    if port is None:
+                        try:
+                            from config import load_config
+                            config = load_config()
+                            port = config.get('system', {}).get('esp32_serial_port', DEFAULT_SERIAL_PORT)
+                        except:
+                            port = DEFAULT_SERIAL_PORT
+                    
+                    serial_port = port
                     logging.info(f"Creating shared GPIOController on port {serial_port}")
                     cls._controller = GPIOController(port=serial_port)
                     logging.info("Shared GPIOController created successfully")
@@ -196,7 +205,17 @@ class ServoWrapper:
         self.max_angle = max_angle
         self._angle = initial_angle
         self.simulation_mode = simulation_mode
-        self.serial_port = serial_port or DEFAULT_SERIAL_PORT
+        
+        # Get serial port from configuration if not provided
+        if serial_port is None:
+            try:
+                from config import load_config
+                config = load_config()
+                serial_port = config.get('system', {}).get('esp32_serial_port', DEFAULT_SERIAL_PORT)
+            except:
+                serial_port = DEFAULT_SERIAL_PORT
+        
+        self.serial_port = serial_port
         self._controller = None
         
         logging.info(f"ServoWrapper __init__: simulation_mode={simulation_mode}, FORCE_HARDWARE={os.environ.get('FORCE_HARDWARE')}, GPIOCTRL_AVAILABLE={GPIOCTRL_AVAILABLE}")
@@ -282,7 +301,8 @@ class StepperWrapper:
                  min_position=-1000, 
                  max_position=1000,
                  simulation_mode=False,
-                 serial_port=None):
+                 serial_port=None,
+                 invert_enable_logic=False):
         """
         Initialize the stepper wrapper.
         Args:
@@ -296,6 +316,7 @@ class StepperWrapper:
             max_position: Maximum allowed position (soft limit)
             simulation_mode: Whether to run in simulation mode
             serial_port: Serial port for the GPIOController
+            invert_enable_logic: If True, inverts enable pin logic (LOW=Enable, HIGH=Disable)
         """
         self.step_pin = step_pin
         self.dir_pin = dir_pin
@@ -306,7 +327,18 @@ class StepperWrapper:
         self.min_position = min_position
         self.max_position = max_position
         self.simulation_mode = simulation_mode
-        self.serial_port = serial_port or DEFAULT_SERIAL_PORT
+        
+        # Get serial port from configuration if not provided
+        if serial_port is None:
+            try:
+                from config import load_config
+                config = load_config()
+                serial_port = config.get('system', {}).get('esp32_serial_port', DEFAULT_SERIAL_PORT)
+            except:
+                serial_port = DEFAULT_SERIAL_PORT
+        
+        self.serial_port = serial_port
+        self.invert_enable_logic = invert_enable_logic
         self._controller = None
         self._position = 0
         self._stepper_id = 0  # Default stepper ID
@@ -319,6 +351,10 @@ class StepperWrapper:
         self._limit_a_triggered = False
         self._limit_b_triggered = False
         self._home_triggered = False
+        
+        # Enable pin timeout timer (5 minutes delay before disable)
+        self._enable_timer = None
+        self._enable_timeout = 300  # 5 minutes in seconds
         
         logging.info(f"StepperWrapper __init__: simulation_mode={simulation_mode}, FORCE_HARDWARE={os.environ.get('FORCE_HARDWARE')}, GPIOCTRL_AVAILABLE={GPIOCTRL_AVAILABLE}")
         # Initialize controller if not in simulation mode
@@ -356,9 +392,15 @@ class StepperWrapper:
             logging.info(f"StepperWrapper initialized in simulation mode (reason: simulation_mode={simulation_mode}, GPIOCTRL_AVAILABLE={GPIOCTRL_AVAILABLE})")
     
     def enable(self):
-        logging.info("StepperWrapper.enable called")
         """Enable the stepper motor."""
+        logging.info("StepperWrapper.enable called")
         with self.lock:
+            # Cancel any pending disable timer
+            if self._enable_timer:
+                self._enable_timer.cancel()
+                self._enable_timer = None
+                logging.info("Cancelled pending enable pin disable timer")
+            
             if self.simulation_mode:
                 logging.debug("Simulation: Stepper motor enabled")
                 self._enabled = True
@@ -366,21 +408,63 @@ class StepperWrapper:
             
             if self._controller:
                 try:
-                    # Explicitly set EN pin HIGH to enable stepper motor
+                    # Set EN pin according to logic setting
                     if self.enable_pin:
-                        self._controller.set_pin(self.enable_pin, 1)  # HIGH=Enable
-                        logging.info(f"Set EN pin {self.enable_pin} HIGH (enable)")
+                        # If inverted logic, LOW=Enable, otherwise HIGH=Enable
+                        pin_state = 0 if self.invert_enable_logic else 1
+                        self._controller.set_pin(self.enable_pin, pin_state)
+                        logic_type = "inverted" if self.invert_enable_logic else "normal"
+                        pin_state_desc = "LOW" if pin_state == 0 else "HIGH"
+                        logging.info(f"Set EN pin {self.enable_pin} {pin_state_desc} (enable - {logic_type} logic)")
+                    else:
+                        logging.warning("No enable pin configured")
                     self._enabled = True
                     logging.info("Stepper motor enabled")
                     return True
                 except Exception as e:
                     logging.error(f"Failed to enable stepper motor: {e}")
                     return False
+            else:
+                logging.warning("No controller available for enable")
             return False
+    
+    def _delayed_disable_enable_pin(self):
+        """Called by timer to disable the enable pin after timeout."""
+        logging.info("Enable pin timeout reached - disabling enable pin")
+        with self.lock:
+            if self._controller and self.enable_pin:
+                try:
+                    # If inverted logic, HIGH=Disable, otherwise LOW=Disable
+                    pin_state = 1 if self.invert_enable_logic else 0
+                    self._controller.set_pin(self.enable_pin, pin_state)
+                    logic_type = "inverted" if self.invert_enable_logic else "normal"
+                    pin_state_desc = "HIGH" if pin_state == 1 else "LOW"
+                    logging.info(f"Set EN pin {self.enable_pin} {pin_state_desc} (disable - {logic_type} logic)")
+                except Exception as e:
+                    logging.error(f"Failed to disable enable pin: {e}")
+            else:
+                if not self._controller:
+                    logging.warning("No controller available for enable pin disable")
+                if not self.enable_pin:
+                    logging.warning("No enable pin configured")
+            self._enable_timer = None
+    
+    def _start_enable_timer(self):
+        """Start or restart the 5-minute timer before disabling enable pin."""
+        with self.lock:
+            # Cancel any existing timer
+            if self._enable_timer:
+                self._enable_timer.cancel()
+                logging.info("Cancelled existing enable pin timer")
+            
+            # Start new timer
+            self._enable_timer = threading.Timer(self._enable_timeout, self._delayed_disable_enable_pin)
+            self._enable_timer.start()
+            logging.info(f"Started enable pin disable timer ({self._enable_timeout} seconds)")
 
-    def disable(self):
-        logging.info("StepperWrapper.disable called")
-        """Disable the stepper motor."""
+    def disable(self, immediate_disable=False):
+        """Disable the stepper motor (with optional immediate enable pin disable)."""
+        logging.info(f"StepperWrapper.disable called (immediate_disable={immediate_disable})")
         with self.lock:
             if self.simulation_mode:
                 logging.debug("Simulation: Stepper motor disabled")
@@ -389,14 +473,33 @@ class StepperWrapper:
             
             if self._controller:
                 try:
-                    # Explicitly set EN pin LOW to disable stepper motor
-                    if self.enable_pin:
-                        self._controller.set_pin(self.enable_pin, 0)  # LOW=Disable
-                        logging.info(f"Set EN pin {self.enable_pin} LOW (disable)")
-                    # Stop the stepper which should release it
+                    # Stop the stepper motor
                     self._controller.stop_stepper(id=self._stepper_id)
                     self._enabled = False
                     logging.info("Stepper motor disabled")
+                    
+                    if self.enable_pin:
+                        if immediate_disable:
+                            # Immediately disable enable pin according to logic
+                            disable_state = 1 if self.invert_enable_logic else 0
+                            self._controller.set_pin(self.enable_pin, disable_state)
+                            logic_type = "inverted" if self.invert_enable_logic else "normal"
+                            pin_state_desc = "HIGH" if disable_state == 1 else "LOW"
+                            logging.info(f"Immediately set EN pin {self.enable_pin} {pin_state_desc} (disable - {logic_type})")
+                            # Cancel any pending timer
+                            if self._enable_timer:
+                                self._enable_timer.cancel()
+                                self._enable_timer = None
+                                logging.info("Cancelled pending enable pin timer")
+                        else:
+                            # Keep enable pin in enabled state during timer period
+                            enable_state = 0 if self.invert_enable_logic else 1
+                            self._controller.set_pin(self.enable_pin, enable_state)
+                            logic_type = "inverted" if self.invert_enable_logic else "normal"
+                            pin_state_desc = "LOW" if enable_state == 0 else "HIGH"
+                            logging.info(f"Keeping EN pin {self.enable_pin} {pin_state_desc} during timer period ({logic_type} logic)")
+                            self._start_enable_timer()
+                    
                     return True
                 except Exception as e:
                     logging.error(f"Failed to disable stepper motor: {e}")
@@ -506,6 +609,11 @@ class StepperWrapper:
                             with self.lock:
                                 self._position = new_position
                             logging.info(f"Position updated to {new_position} for async move")
+                            
+                            # Restart enable pin timer since we're moving
+                            if self.enable_pin:
+                                self._start_enable_timer()
+                            
                             return True
                         except Exception as e:
                             logging.error(f"Failed to start async hardware movement: {e}")
@@ -542,6 +650,10 @@ class StepperWrapper:
                                 with self.lock:
                                     self._position = new_position
                                     self._moving = False
+                                    
+                                # Restart enable pin timer since we moved successfully
+                                if self.enable_pin:
+                                    self._start_enable_timer()
                                     
                                 logging.info(f"Sync HW move complete: new position {new_position}")
                                 return True
@@ -825,7 +937,15 @@ class StepperWrapper:
         logging.info("StepperWrapper.close called")
         """Clean up resources."""
         self.stop()
-        self.disable()
+        self.disable(immediate_disable=True)  # Immediately disable on close
+        
+        # Cancel any pending enable timer
+        with self.lock:
+            if self._enable_timer:
+                self._enable_timer.cancel()
+                self._enable_timer = None
+                logging.info("Cancelled enable pin timer during cleanup")
+        
         if self._controller:
             try:
                 # Release the shared controller reference

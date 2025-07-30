@@ -81,8 +81,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.error('laserFireTime element not found!');
                 }
 
-                // Track session statistics using backend changes
+                // Track session statistics using backend changes AND fetch real session data
                 trackSessionFromTotalStats(data.laser_fire_count || 0, data.total_laser_fire_time || 0);
+                fetchCurrentSessionStats();
             })
             .catch(error => {
                 console.error('Error fetching statistics:', error);
@@ -139,6 +140,45 @@ document.addEventListener('DOMContentLoaded', function() {
             lastTotalCount = currentTotalCount;
             lastTotalTimeMs = currentTotalTimeMs;
         }
+    }
+
+    /**
+     * Fetch current session statistics from the server (real session data)
+     * This replaces the local tracking when available
+     */
+    function fetchCurrentSessionStats() {
+        fetch('/api/sessions/current')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.session) {
+                    const session = data.session;
+                    
+                    // Update session display with real data
+                    if (sessionFireCount) {
+                        sessionFireCount.textContent = session.session_fire_count || 0;
+                        console.log('Updated session fire count from server:', session.session_fire_count);
+                    }
+                    if (sessionFireTime) {
+                        const sessionTimeMs = session.session_fire_time_ms || 0;
+                        sessionFireTime.textContent = formatTime(sessionTimeMs);
+                        console.log('Updated session fire time from server:', formatTime(sessionTimeMs));
+                    }
+                    
+                    // Update local tracking to match server (prevents drift)
+                    sessionFiringCount = session.session_fire_count || 0;
+                    sessionFiringTimeMs = session.session_fire_time_ms || 0;
+                    
+                    console.log('Session stats synced with server:', {
+                        count: sessionFiringCount,
+                        time: formatTime(sessionFiringTimeMs)
+                    });
+                } else {
+                    console.log('No active session found on server');
+                }
+            })
+            .catch(error => {
+                console.warn('Could not fetch current session stats:', error);
+            });
     }
 
     /**

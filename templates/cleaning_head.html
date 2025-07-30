@@ -81,18 +81,18 @@
                                 <label for="acceleration" class="form-label" data-bs-toggle="tooltip" title="Acceleration ramp (steps per second²)">Acceleration:</label>
                                 <input type="range" class="form-range" id="acceleration" min="100" max="8000" value="{{ stepper_config.acceleration|default(800) }}" data-bs-toggle="tooltip" title="Adjust acceleration">
                                 <div class="d-flex justify-content-between">
-                                    <span>Slow</span>
-                                    <span id="acceleration-value">{{ stepper_config.acceleration|default(800) }}</span>
                                     <span>Fast</span>
+                                    <span id="acceleration-value">{{ stepper_config.acceleration|default(800) }}</span>
+                                    <span>Slow</span>
                                 </div>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="deceleration" class="form-label" data-bs-toggle="tooltip" title="Deceleration ramp (steps per second²)">Deceleration:</label>
                                 <input type="range" class="form-range" id="deceleration" min="100" max="8000" value="{{ stepper_config.deceleration|default(800) }}" data-bs-toggle="tooltip" title="Adjust deceleration">
                                 <div class="d-flex justify-content-between">
-                                    <span>Slow</span>
-                                    <span id="deceleration-value">{{ stepper_config.deceleration|default(800) }}</span>
                                     <span>Fast</span>
+                                    <span id="deceleration-value">{{ stepper_config.deceleration|default(800) }}</span>
+                                    <span>Slow</span>
                                 </div>
                                 </div>
                             </div>

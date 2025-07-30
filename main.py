@@ -58,7 +58,7 @@ else:
 # --- CHANGES: Initialize db and login_manager with app here ---
 db.init_app(app)
 login_manager.init_app(app)
-login_manager.login_view = 'login'
+login_manager.login_view = 'main_bp.login'
 
 from models import User
 
@@ -69,11 +69,11 @@ def load_user(user_id):
 # Initialize Shop Suite integration and webhook system
 with app.app_context():
     # First import models to create tables
-    from models import User, RFIDCard, AccessLog, ApiKey, SuiteUser, SuitePermission, SyncEvent
+    from models import User, RFIDCard, AccessLog, ApiKey, SuiteUser, SuitePermission, SyncEvent, UserSession
     
     # For SQLite mode, dynamically adjust the model bindings
     if 'sqlite' in database_url:
-        for model in [SuiteUser, SuitePermission, SyncEvent, User, RFIDCard, AccessLog, ApiKey]:
+        for model in [SuiteUser, SuitePermission, SyncEvent, User, RFIDCard, AccessLog, ApiKey, UserSession]:
             try:
                 # Reset any bind keys for SQLite to use main database
                 if hasattr(model, '__bind_key__'):
@@ -119,6 +119,29 @@ with app.app_context():
         
     except Exception as e:
         logger.error(f"Error setting up webhook system: {e}")
+    
+    # Initialize WS2812B LED status indicator - DISABLED (handled by Flask app)
+    # The LED is now managed by the Flask application in app.py
+    try:
+        logger.info("WS2812B LED management delegated to Flask application")
+        # Old LED initialization code disabled to prevent conflicts
+        # from ws2812bFlash import status_led
+        
+        # if status_led.initialize():
+        #     logger.info("WS2812B LED status indicator initialized")
+        #     
+        #     # Set initial boot state
+        #     status_led.set_booting()
+        #     
+        #     # Schedule transition to idle state after 5 seconds
+        #     import threading
+        #     threading.Timer(5.0, lambda: status_led.set_idle()).start()
+        # else:
+        #     logger.warning("Failed to initialize WS2812B LED status indicator")
+            
+    except Exception as e:
+        logger.error(f"Error initializing WS2812B LED status indicator: {e}")
+        logger.error(f"Error setting up webhook system: {e}")
         logger.warning("Continuing without webhook integration")
 
     # Create API keys if none exist (for first run)
@@ -132,6 +155,62 @@ with app.app_context():
         db.session.add(first_key)
         db.session.commit()
         logger.info(f"Created default API key: {first_key.key}")
+
+    # Create default admin user if none exist (for first run)
+    from models import User
+    if User.query.filter_by(access_level='admin').count() == 0:
+        default_admin = User(
+            username="admin",
+            full_name="Default Administrator",
+            email="admin@laser.local",
+            department="System Administration",
+            access_level="admin",
+            active=True
+        )
+        default_admin.set_password("pigfloors")
+        db.session.add(default_admin)
+        db.session.commit()
+        logger.info("Created default admin user: admin / pigfloors")
+
+    # Create default operator user if none exist (for first run)
+    if User.query.filter_by(username='laser').count() == 0:
+        default_operator = User(
+            username="laser",
+            full_name="Default Operator",
+            email="operator@laser.local",
+            department="Operations",
+            access_level="operator",
+            active=True
+        )
+        default_operator.set_password("piglaser")
+        db.session.add(default_operator)
+        db.session.commit()
+        logger.info("Created default operator user: laser / piglaser")
+
+    # Create default RFID cards if they don't exist
+    admin_user = User.query.filter_by(username='admin').first()
+    laser_user = User.query.filter_by(username='laser').first()
+    
+    if admin_user and not RFIDCard.query.filter_by(card_id='2667607583').first():
+        admin_card = RFIDCard(
+            card_id='2667607583',
+            user_id=admin_user.id,
+            active=True
+        )
+        db.session.add(admin_card)
+        logger.info("Created default admin RFID card: 2667607583")
+    
+    if laser_user and not RFIDCard.query.filter_by(card_id='3743073564').first():
+        laser_card = RFIDCard(
+            card_id='3743073564',
+            user_id=laser_user.id,
+            active=True
+        )
+        db.session.add(laser_card)
+        logger.info("Created default laser RFID card: 3743073564")
+    
+    # Commit any new RFID cards
+    db.session.commit()
 
 # Import and register blueprints and routes
 from api_routes import register_api_routes

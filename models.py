@@ -136,7 +136,7 @@ class User(UserMixin, db.Model, SuiteIntegrationMixin):
     department = db.Column(db.String(64))
     access_level = db.Column(db.String(20), default='operator')  # operator, admin, maintenance
     active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now)  # Use local time for user records
     suite_user_id = db.Column(db.Integer)  # Reference to SuiteUser ID for integration
     
     rfid_cards = db.relationship('RFIDCard', backref='user', lazy='dynamic')
@@ -200,7 +200,7 @@ class RFIDCard(db.Model, SuiteIntegrationMixin):
     card_id = db.Column(db.String(32), unique=True, nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     active = db.Column(db.Boolean, default=True)
-    issue_date = db.Column(db.DateTime, default=datetime.utcnow)
+    issue_date = db.Column(db.DateTime, default=datetime.now)  # Use local time for user-facing dates
     expiry_date = db.Column(db.DateTime, nullable=True)
     
     def __repr__(self):
@@ -227,7 +227,7 @@ class AccessLog(db.Model):
     machine_id = db.Column(db.String(64))
     action = db.Column(db.String(32))  # login, logout, access_denied
     details = db.Column(db.String(256), nullable=True)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, default=datetime.now)  # Use local time for user activity logs
     
     def __repr__(self):
         return f'<AccessLog {self.action} {self.timestamp}>'
@@ -256,3 +256,57 @@ class ApiKey(db.Model):
     
     def __repr__(self):
         return f'<ApiKey {self.description}>'
+
+class UserSession(db.Model):
+    """Track user sessions and performance metrics"""
+    __tablename__ = 'user_session'
+    # Bind key is managed by application, not hardcoded
+    # __bind_key__ is managed by application
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    login_time = db.Column(db.DateTime, default=datetime.now)  # Use local time instead of UTC
+    logout_time = db.Column(db.DateTime, nullable=True)
+    first_fire_time = db.Column(db.DateTime, nullable=True)
+    login_method = db.Column(db.String(20), default='rfid')  # rfid, web, auto_switch
+    switched_from_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # If user switching occurred
+    session_fire_count = db.Column(db.Integer, default=0)
+    session_fire_time_ms = db.Column(db.BigInteger, default=0)
+    performance_score = db.Column(db.Float, nullable=True)  # Total logged in time minus fiber fire time (lower is better)
+    machine_id = db.Column(db.String(64), default='laser_room_1')
+    card_id = db.Column(db.String(32), nullable=True)
+    
+    user = db.relationship('User', foreign_keys=[user_id], backref='sessions')
+    switched_from_user = db.relationship('User', foreign_keys=[switched_from_user_id])
+    
+    def calculate_performance_score(self):
+        """Calculate performance score (total logged in time - fiber fire time in seconds)"""
+        if self.logout_time and self.login_time:
+            # Calculate total session time in seconds
+            session_duration = (self.logout_time - self.login_time).total_seconds()
+            # Convert fiber fire time from milliseconds to seconds
+            fiber_fire_time_seconds = self.session_fire_time_ms / 1000.0
+            # Performance = total session time - fiber fire time (lower is better - less non-productive time)
+            self.performance_score = session_duration - fiber_fire_time_seconds
+            return self.performance_score
+        return None
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'username': self.user.username if self.user else None,
+            'login_time': self.login_time.isoformat() if self.login_time else None,
+            'logout_time': self.logout_time.isoformat() if self.logout_time else None,
+            'first_fire_time': self.first_fire_time.isoformat() if self.first_fire_time else None,
+            'login_method': self.login_method,
+            'switched_from_user_id': self.switched_from_user_id,
+            'session_fire_count': self.session_fire_count,
+            'session_fire_time_ms': self.session_fire_time_ms,
+            'performance_score': self.performance_score,
+            'machine_id': self.machine_id,
+            'card_id': self.card_id
+        }
+    
+    def __repr__(self):
+        return f'<UserSession {self.user.username if self.user else "Unknown"} - {self.login_time}>'

@@ -1,0 +1,399 @@
+{% extends "base.html" %}
+
+{% block title %}User Management{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">User Management</h2>
+    
+    <div class="row">
+        <!-- User List -->
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">System Users</h5>
+                    <button class="btn btn-primary btn-sm" id="add-user-btn">
+                        <i class="fas fa-user-plus"></i> Add New User
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="users-table">
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Full Name</th>
+                                    <th>Access Level</th>
+                                    <th>Status</th>
+                                    <th>RFID Cards</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-tbody">
+                                <!-- Users will be loaded here via JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- User Form -->
+        <div class="col-md-4">
+            <div class="card" id="user-form-card" style="display: none;">
+                <div class="card-header">
+                    <h5 class="card-title mb-0" id="form-title">Add New User</h5>
+                </div>
+                <div class="card-body">
+                    <form id="user-form">
+                        <input type="hidden" id="user-id" name="user_id">
+                        
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Username *</label>
+                            <input type="text" class="form-control" id="username" name="username" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="full_name" class="form-label">Full Name</label>
+                            <input type="text" class="form-control" id="full_name" name="full_name">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" name="email">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="department" class="form-label">Department</label>
+                            <input type="text" class="form-control" id="department" name="department">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="access_level" class="form-label">Access Level *</label>
+                            <select class="form-select" id="access_level" name="access_level" required>
+                                <option value="operator">Operator</option>
+                                <option value="maintenance">Maintenance</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="password" name="password">
+                            <div class="form-text" id="password-help">
+                                Leave blank to keep existing password (when editing)
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="active" name="active" checked>
+                            <label class="form-check-label" for="active">Account Active</label>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success" id="save-user-btn">
+                                <i class="fas fa-save"></i> Save User
+                            </button>
+                            <button type="button" class="btn btn-secondary" id="cancel-btn">
+                                <i class="fas fa-times"></i> Cancel
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Default Accounts Info -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">Default Accounts</h6>
+                </div>
+                <div class="card-body">
+                    <div class="small">
+                        <p><strong>Admin Account:</strong><br>
+                        Username: admin<br>
+                        Password: pigfloors</p>
+                        
+                        <p><strong>Operator Account:</strong><br>
+                        Username: laser<br>
+                        Password: piglaser</p>
+                        
+                        <p class="text-muted">These accounts are created automatically if they don't exist.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm User Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to deactivate this user?</p>
+                <p class="text-warning"><strong id="delete-username"></strong></p>
+                <p class="small text-muted">This will deactivate the user account and all associated RFID cards. This action can be reversed by reactivating the user.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirm-delete-btn">Deactivate User</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="alert-container" class="position-fixed bottom-0 end-0 p-3" style="z-index: 5"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let currentUserId = null;
+    let users = [];
+    
+    // Load users on page load
+    loadUsers();
+    
+    // Add user button
+    document.getElementById('add-user-btn').addEventListener('click', function() {
+        showUserForm();
+    });
+    
+    // Cancel button
+    document.getElementById('cancel-btn').addEventListener('click', function() {
+        hideUserForm();
+    });
+    
+    // User form submission
+    document.getElementById('user-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        saveUser();
+    });
+    
+    // Delete confirmation
+    document.getElementById('confirm-delete-btn').addEventListener('click', function() {
+        if (currentUserId) {
+            deleteUser(currentUserId);
+        }
+    });
+    
+    function loadUsers() {
+        fetch('/api/users')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    users = data.users;
+                    renderUsersTable();
+                } else {
+                    showAlert(data.error || 'Failed to load users', 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error loading users:', error);
+                showAlert('Error loading users', 'danger');
+            });
+    }
+    
+    function renderUsersTable() {
+        const tbody = document.getElementById('users-tbody');
+        tbody.innerHTML = '';
+        
+        users.forEach(user => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>
+                    <strong>${user.username}</strong>
+                    ${user.email ? `<br><small class="text-muted">${user.email}</small>` : ''}
+                </td>
+                <td>${user.full_name || '-'}</td>
+                <td>
+                    <span class="badge bg-${getAccessLevelColor(user.access_level)}">
+                        ${user.access_level.charAt(0).toUpperCase() + user.access_level.slice(1)}
+                    </span>
+                </td>
+                <td>
+                    <span class="badge bg-${user.active ? 'success' : 'secondary'}">
+                        ${user.active ? 'Active' : 'Inactive'}
+                    </span>
+                </td>
+                <td>
+                    ${user.rfid_cards.length > 0 
+                        ? `<span class="badge bg-info">${user.rfid_cards.length} card${user.rfid_cards.length > 1 ? 's' : ''}</span>`
+                        : '<span class="text-muted">No cards</span>'
+                    }
+                </td>
+                <td>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary" onclick="editUser(${user.id})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-outline-danger" onclick="confirmDeleteUser(${user.id}, '${user.username}')" 
+                                ${user.username === 'admin' ? 'disabled title="Cannot delete admin user"' : ''}>
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+    
+    function getAccessLevelColor(level) {
+        switch(level) {
+            case 'admin': return 'danger';
+            case 'maintenance': return 'warning';
+            case 'operator': return 'primary';
+            default: return 'secondary';
+        }
+    }
+    
+    function showUserForm(user = null) {
+        currentUserId = user ? user.id : null;
+        const formCard = document.getElementById('user-form-card');
+        const formTitle = document.getElementById('form-title');
+        const form = document.getElementById('user-form');
+        const passwordHelp = document.getElementById('password-help');
+        
+        if (user) {
+            formTitle.textContent = 'Edit User';
+            passwordHelp.style.display = 'block';
+            // Populate form with user data
+            document.getElementById('user-id').value = user.id;
+            document.getElementById('username').value = user.username;
+            document.getElementById('full_name').value = user.full_name || '';
+            document.getElementById('email').value = user.email || '';
+            document.getElementById('department').value = user.department || '';
+            document.getElementById('access_level').value = user.access_level;
+            document.getElementById('password').value = '';
+            document.getElementById('active').checked = user.active;
+        } else {
+            formTitle.textContent = 'Add New User';
+            passwordHelp.style.display = 'none';
+            form.reset();
+            document.getElementById('active').checked = true;
+        }
+        
+        formCard.style.display = 'block';
+    }
+    
+    function hideUserForm() {
+        document.getElementById('user-form-card').style.display = 'none';
+        document.getElementById('user-form').reset();
+        currentUserId = null;
+    }
+    
+    function saveUser() {
+        const formData = new FormData(document.getElementById('user-form'));
+        const userData = {
+            username: formData.get('username'),
+            full_name: formData.get('full_name'),
+            email: formData.get('email'),
+            department: formData.get('department'),
+            access_level: formData.get('access_level'),
+            active: formData.get('active') === 'on'
+        };
+        
+        // Only include password if it's provided
+        const password = formData.get('password');
+        if (password) {
+            userData.password = password;
+        }
+        
+        const url = currentUserId ? `/api/users/${currentUserId}` : '/api/users/create';
+        const method = currentUserId ? 'PUT' : 'POST';
+        
+        document.getElementById('save-user-btn').disabled = true;
+        
+        fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(userData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert(data.message || 'User saved successfully', 'success');
+                hideUserForm();
+                loadUsers(); // Reload the users table
+            } else {
+                showAlert(data.error || 'Failed to save user', 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error saving user:', error);
+            showAlert('Error saving user', 'danger');
+        })
+        .finally(() => {
+            document.getElementById('save-user-btn').disabled = false;
+        });
+    }
+    
+    function editUser(userId) {
+        const user = users.find(u => u.id === userId);
+        if (user) {
+            showUserForm(user);
+        }
+    }
+    
+    function confirmDeleteUser(userId, username) {
+        currentUserId = userId;
+        document.getElementById('delete-username').textContent = username;
+        new bootstrap.Modal(document.getElementById('deleteModal')).show();
+    }
+    
+    function deleteUser(userId) {
+        fetch(`/api/users/${userId}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert(data.message, 'success');
+                loadUsers(); // Reload the users table
+                bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
+            } else {
+                showAlert(data.error || 'Failed to delete user', 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting user:', error);
+            showAlert('Error deleting user', 'danger');
+        });
+    }
+    
+    function showAlert(message, type) {
+        const alertContainer = document.getElementById('alert-container');
+        const alertId = 'alert-' + Date.now();
+        
+        const alertHTML = `
+            <div class="alert alert-${type} alert-dismissible fade show" id="${alertId}" role="alert">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        
+        alertContainer.insertAdjacentHTML('beforeend', alertHTML);
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+            const alertElement = document.getElementById(alertId);
+            if (alertElement) {
+                const alert = bootstrap.Alert.getOrCreateInstance(alertElement);
+                alert.close();
+            }
+        }, 5000);
+    }
+    
+    // Make functions global for onclick handlers
+    window.editUser = editUser;
+    window.confirmDeleteUser = confirmDeleteUser;
+});
+</script>
+{% endblock %}

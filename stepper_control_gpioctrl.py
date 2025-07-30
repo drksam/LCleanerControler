@@ -68,6 +68,11 @@ class StepperMotor:
         
         # Initialize StepperWrapper
         try:
+            # Check if we need to invert the enable pin logic
+            # Some stepper drivers use LOW=Enable, HIGH=Disable
+            invert_logic = config.get('stepper_config', {}).get('invert_enable_logic', False)
+            logging.info(f"Using stepper enable pin logic: {'INVERTED' if invert_logic else 'NORMAL'}")
+            
             self.stepper = StepperWrapper(
                 step_pin=self.step_pin,
                 dir_pin=self.dir_pin,
@@ -78,7 +83,8 @@ class StepperMotor:
                 limit_b_pin=self.limit_b_pin,
                 home_pin=self.home_pin,
                 simulation_mode=self.simulation_mode,
-                serial_port=serial_port
+                serial_port=serial_port,
+                invert_enable_logic=invert_logic
             )
             
             # Set initial speed

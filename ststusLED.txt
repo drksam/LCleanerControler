@@ -1,0 +1,24 @@
+ESP WS2812B Status Color Table
+Basic Machine Status Colors :
+Blue (CRGB::Blue) - IDLE state (machine ready, waiting for card)
+Green (CRGB::Green) - ACCESS_GRANTED (authorized user active)
+Red (CRGB::Red) - ACCESS_DENIED (unauthorized card)
+Purple (CRGB::Purple) - LOGGED_OUT (transitioning state)
+Extended Status Colors (from ESP32 implementation):
+System Status:
+Blue rotating pattern - Boot sequence
+Purple pulsing - WiFi connecting
+Yellow pulsing - Server connecting
+Slow blue breathing - Ready/Idle state
+White breathing - Configuration mode
+Orange - Accessory IO mode (outputs off)
+Operational Status:
+Solid Green - Connected to WiFi and server / Successful authorization
+Blinking Green - Connected to WiFi, server connection issues
+Solid Blue - Access point mode active (configuration mode)
+Blinking Red - Hardware/initialization error
+Rapid Blue Flash - RFID card detected
+Rapid Green Flash - Successful authorization
+Rapid Red Flash - Access denied
+Yellow flashing - Warning state (before timeout)
+Red SOS pattern - Error state (3 short, 3 long, 3 short flashes)

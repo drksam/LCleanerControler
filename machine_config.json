@@ -3,7 +3,8 @@
     "operation_mode": "hardware",
     "debug_level": "info",
     "bypass_safety": false,
-    "use_gpioctrl": true
+    "use_gpioctrl": true,
+    "esp32_serial_port": "/dev/ttyUSB0"
   },
   "stepper": {
     "max_speed": 3500,

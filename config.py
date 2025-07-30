@@ -23,6 +23,7 @@ DEFAULT_CONFIG = {
         'index_distance': 15842,          # X distance for indexing (steps)
         'jog_speed': 500,                 # Jog speed in steps/sec
         'jog_step_size': 20,              # Steps to move when jogging
+        'invert_enable_logic': False,     # Set to True if your driver needs LOW=Enable, HIGH=Disable
     },
     
     # Servo parameters
@@ -66,6 +67,19 @@ DEFAULT_CONFIG = {
         'total_laser_fire_time': 0,       # Total time laser has been fired (ms)
     },
     
+    # LED status light settings
+    'led_status': {
+        'enabled': True,                  # Enable WS2812B LED status indicator
+        'num_leds': 2,                    # Number of LEDs in the chain (updated for dual LED setup)
+        'brightness': 50,                 # LED brightness (0-100)
+        'idle_color': 'blue',             # Color when machine is idle
+        'authorized_color': 'green',      # Color when user is authorized
+        'denied_color': 'red',            # Color when access is denied
+        'logout_color': 'purple',         # Color during logout transition
+        'warning_color': 'yellow',        # Warning state color
+        'error_color': 'red_sos',         # Error state color pattern
+    },
+    
     # Sequences for automated operations
     'sequences': {
         # Default example sequence
@@ -82,19 +96,16 @@ DEFAULT_CONFIG = {
         }
     },
     
-    # GPIO pin assignments (BCM numbering)
+        # GPIO pin configuration
     'gpio': {
-        # Input pins
-        'button_in_pin': 5,               # Laser Head IN button pin (BCM 5)
-        'button_out_pin': 25,             # Laser Head OUT button pin (BCM 25)
-        'fire_button_pin': 22,            # Fire button pin (BCM 22)
-        'fiber_button_pin': 12,           # Fiber button pin (BCM 12) - repurposed from invert
-
-        # Output pins (Fan and Red Lights)
-        'red_lights_pin': 16,             # Red lights output pin (BCM 16)
-        'fan_pin': 26,                    # Fan output pin (BCM 26)
-
-        # Table control pins
+        # Raspberry Pi GPIO pins
+        'fan_pin': 26,                    # Fan relay pin (BCM 26)
+        'red_lights_pin': 16,             # Red lights relay pin (BCM 16)
+        'in_switch_pin': 5,               # IN switch pin (BCM 5, Pull-Up, LOW=Active)
+        'out_switch_pin': 25,             # OUT switch pin (BCM 25, Pull-Up, LOW=Active)
+        'fire_switch_pin': 22,            # FIRE switch pin (BCM 22, Pull-Up, LOW=Active)
+        'invert_switch_pin': 12,          # INVERT switch pin (BCM 12, Pull-Up, LOW=Active)
+        'estop_pin': 17,                  # Emergency stop pin (BCM 17, Pull-Up, LOW=Active)
         'table_forward_pin': 13,          # Table forward movement relay pin (BCM 13)
         'table_backward_pin': 6,          # Table backward movement relay pin (BCM 6)
         'table_front_switch_pin': 21,     # Table front end switch pin (BCM 21, Pull-Up, LOW=Active)
@@ -109,11 +120,12 @@ DEFAULT_CONFIG = {
         # ESP32 control pins (do not use on Pi)
         'esp_step_pin': 25,               # ESP32 Stepper STEP (GPIO 25)
         'esp_dir_pin': 26,                # ESP32 Stepper DIR (GPIO 26)
-        'esp_enable_pin': 27,             # ESP32 Stepper EN (GPIO 27, LOW=Enable)
+        'esp_enable_pin': 27,             # ESP32 Stepper EN (GPIO 27, HIGH=Enable, normal logic)
         'esp_limit_a_pin': 18,            # ESP32 Stepper Limit A (GPIO 18, Pull-Up, LOW=Active) - CW limit
         'esp_limit_b_pin': 19,            # ESP32 Stepper Limit B (GPIO 19, Pull-Up, LOW=Active) - CCW limit
         'esp_home_pin': 21,               # ESP32 Stepper Home (GPIO 21, Pull-Up, LOW=Active)
         'esp_servo_pwm_pin': 12,          # ESP32 Servo PWM (GPIO 12)
+        'esp_ws2812b_pin': 23,            # ESP32 WS2812B LED Data (GPIO 23)
     }
 }
 
@@ -201,12 +213,7 @@ def get_gpio_config():
     # Map the pin names in the config file to the names expected by the pinout template
     # This ensures backward compatibility if pin naming has changed
     pin_mapping = {
-        'button_in_pin': 'in_button_pin',
-        'button_out_pin': 'out_button_pin',
-        'fiber_button_pin': 'servo_invert_pin',
-        'table_front_switch_pin': 'table_front_limit_pin',
-        'table_back_switch_pin': 'table_back_limit_pin',
-        # ESP32 mappings
+        # ESP32 mappings (these stay the same)
         'esp_step_pin': 'esp_step_pin',
         'esp_dir_pin': 'esp_dir_pin',
         'esp_enable_pin': 'esp_enable_pin',
@@ -287,6 +294,11 @@ def increment_laser_counter():
     if 'statistics' in config and 'laser_fire_count' in config['statistics']:
         config['statistics']['laser_fire_count'] += 1
         save_config(config)
+        
+        # Log the increment for debugging
+        import logging
+        logging.info(f"Global laser fire counter incremented to {config['statistics']['laser_fire_count']}")
+        
         return config['statistics']['laser_fire_count']
     return 0
 
@@ -295,6 +307,27 @@ def add_laser_fire_time(time_ms):
     if 'statistics' in config and 'total_laser_fire_time' in config['statistics']:
         config['statistics']['total_laser_fire_time'] += time_ms
         save_config(config)
+        
+        # Also update the current user session stats if RFID is available
+        try:
+            # Import here to avoid circular imports
+            import sys
+            
+            # Try to get rfid_controller from app module where it's actually initialized
+            if 'app' in sys.modules:
+                app_module = sys.modules['app']
+                rfid_controller = getattr(app_module, 'rfid_controller', None)
+                if rfid_controller and hasattr(rfid_controller, 'current_session') and rfid_controller.current_session:
+                    rfid_controller.update_session_stats(fire_count_increment=1, fire_time_increment_ms=time_ms)
+                    import logging
+                    logging.info(f"Session stats updated: +1 fire, +{time_ms}ms firing time")
+                else:
+                    import logging
+                    logging.debug(f"RFID controller not available or no active session for session stats update")
+        except Exception as e:
+            import logging
+            logging.warning(f"Could not update session stats: {e}")
+        
         return config['statistics']['total_laser_fire_time']
     return 0
 

@@ -23,10 +23,19 @@ PROTOTYPE_MODE = OPERATION_MODE == 'prototype'
 RFID_AVAILABLE = False
 if not SIMULATION_MODE and not PROTOTYPE_MODE:
     try:
-        import mfrc522
+        # Try Pi 5 compatible wrapper first
+        from mfrc522_pi5 import SimpleMFRC522
+        mfrc522 = type('mfrc522', (), {'SimpleMFRC522': SimpleMFRC522})
         RFID_AVAILABLE = True
+        logging.info("Using Pi 5 compatible RFID library")
     except ImportError:
-        logging.warning("MFRC522 module not available, RFID functionality disabled")
+        try:
+            # Fallback to original library
+            import mfrc522
+            RFID_AVAILABLE = True
+            logging.info("Using standard RFID library")
+        except ImportError:
+            logging.warning("MFRC522 module not available, RFID functionality disabled")
 else:
     status_msg = "will be used but not required" if PROTOTYPE_MODE else "will not be used"
     logging.info(f"Running in {OPERATION_MODE} mode - RFID hardware {status_msg}")
@@ -52,6 +61,16 @@ class RFIDController:
         self.running = False
         self.reader_thread = None
         self.operation_mode = OPERATION_MODE
+        
+        # Add debouncing to prevent rapid multiple scans of same card
+        self.last_card_id = None
+        self.last_scan_time = 0
+        self.scan_cooldown = 2.0  # 2 seconds between scans of same card
+        
+        # Track authentication timing for login detection
+        self.last_auth_time = 0
+        self.login_consumed = False  # Flag to track if authentication was used for login
+        self.current_session = None  # Track current user session
         
         # In simulation mode, set up a default authenticated user
         if SIMULATION_MODE:
@@ -79,6 +98,119 @@ class RFIDController:
         # Call the access callback to notify about simulation authentication
         if self.access_callback:
             self.access_callback(True, self.authenticated_user)
+    
+    def _create_user_session(self, user_data, login_method='rfid', switched_from_user_id=None):
+        """Create a new user session and close any existing one"""
+        try:
+            from models import UserSession, User
+            from main import app, db
+            from flask_login import login_user
+            
+            with app.app_context():
+                # Close current session if exists
+                if self.current_session:
+                    self._close_user_session()
+                
+                # Create new session
+                session = UserSession(
+                    user_id=user_data.get('user_id'),
+                    login_time=datetime.now(),  # Use local time instead of UTC
+                    login_method=login_method,
+                    switched_from_user_id=switched_from_user_id,
+                    machine_id=self.config.get('machine_id', 'laser_room_1'),
+                    card_id=user_data.get('card_id')
+                )
+                
+                db.session.add(session)
+                db.session.commit()
+                
+                self.current_session = session
+                
+                # Update Flask-Login current_user for auto-switch and RFID logins
+                if login_method in ['auto_switch', 'rfid']:
+                    user = User.query.get(user_data.get('user_id'))
+                    if user:
+                        login_user(user, remember=False)
+                        logging.info(f"Updated Flask-Login session for {user.username} via {login_method}")
+                
+                logging.info(f"Created new user session for {user_data.get('username')} (ID: {session.id})")
+                
+        except Exception as e:
+            logging.error(f"Error creating user session: {e}")
+    
+    def _close_user_session(self):
+        """Close the current user session"""
+        try:
+            from models import UserSession
+            from main import app, db
+            
+            if not self.current_session:
+                return
+                
+            with app.app_context():
+                # Refresh session from database
+                session = UserSession.query.get(self.current_session.id)
+                if session:
+                    session.logout_time = datetime.utcnow()
+                    session.calculate_performance_score()
+                    db.session.commit()
+                    logging.info(f"Closed user session {session.id} for {session.user.username if session.user else 'Unknown'}")
+                
+                self.current_session = None
+                
+        except Exception as e:
+            logging.error(f"Error closing user session: {e}")
+    
+    def record_first_fire(self):
+        """Record the first fire time for performance tracking"""
+        try:
+            from models import UserSession
+            from main import app, db
+            
+            if not self.current_session:
+                return
+                
+            with app.app_context():
+                session = UserSession.query.get(self.current_session.id)
+                if session and not session.first_fire_time:
+                    session.first_fire_time = datetime.now()  # Use local time for consistency
+                    session.calculate_performance_score()
+                    db.session.commit()
+                    
+                    if session.performance_score:
+                        logging.info(f"First fire recorded for {session.user.username if session.user else 'Unknown'} - Performance: {session.performance_score:.2f}s")
+                
+        except Exception as e:
+            logging.error(f"Error recording first fire: {e}")
+    
+    def update_session_stats(self, fire_count_increment=0, fire_time_increment_ms=0):
+        """Update session statistics"""
+        try:
+            from models import UserSession
+            from main import app, db
+            
+            if not self.current_session:
+                logging.warning("Cannot update session stats: no active session")
+                return
+                
+            with app.app_context():
+                session = UserSession.query.get(self.current_session.id)
+                if session:
+                    old_count = session.session_fire_count or 0
+                    old_time = session.session_fire_time_ms or 0
+                    
+                    session.session_fire_count = old_count + fire_count_increment
+                    session.session_fire_time_ms = old_time + fire_time_increment_ms
+                    db.session.commit()
+                    
+                    logging.info(f"Session stats updated for {session.user.username if session.user else 'Unknown'}: "
+                               f"fire count {old_count} → {session.session_fire_count}, "
+                               f"fire time {old_time}ms → {session.session_fire_time_ms}ms")
+                else:
+                    logging.warning(f"Session {self.current_session.id} not found in database")
+                
+        except Exception as e:
+            logging.error(f"Error updating session stats: {e}")
     
     def _setup_prototype_mode(self):
         """Set up RFID behavior in prototype mode"""
@@ -140,13 +272,36 @@ class RFIDController:
     
     def _reader_loop(self):
         """Background thread to monitor for card reads"""
+        # LED control disabled - handled by Flask app to prevent conflicts
+        # Try to import status LED controller
+        try:
+            # from ws2812bFlash import status_led
+            has_led = False  # Disabled - LED managed by Flask app
+        except ImportError:
+            has_led = False
+            
         while self.running:
             if self.reader:
                 try:
                     # Check if a card is present
                     id, text = self.reader.read_no_block()
                     if id:
+                        # Debouncing: ignore rapid scans of the same card
+                        current_time = time.time()
+                        if (self.last_card_id == id and 
+                            current_time - self.last_scan_time < self.scan_cooldown):
+                            continue  # Skip this scan, too soon after last scan of same card
+                        
+                        self.last_card_id = id
+                        self.last_scan_time = current_time
+                        
                         logging.info(f"Card detected, ID: {id}")
+                        
+                        # Show card detection on LED - disabled (handled by Flask app)
+                        if has_led:
+                            pass  # status_led.set_card_detected()  # LED managed by Flask app
+                            
+                        # Authenticate card
                         self._authenticate_card(id)
                 except Exception as e:
                     logging.error(f"Error reading RFID card: {e}")
@@ -155,6 +310,10 @@ class RFIDController:
             if not SIMULATION_MODE and not PROTOTYPE_MODE and self.authenticated_user and time.time() > self.auth_expiry:
                 logging.info("User authentication expired")
                 self._logout_user()
+                
+                # Set LED back to idle - disabled (handled by Flask app)
+                if has_led:
+                    pass  # status_led.set_idle()  # LED managed by Flask app
             
             # Sleep to prevent CPU overuse
             time.sleep(0.1)
@@ -176,38 +335,75 @@ class RFIDController:
             try:
                 # Try to look up the card in the database for display purposes
                 from models import User, RFIDCard
+                from main import app, db
                 
-                # Look up the card but don't restrict access
-                rfid_card = RFIDCard.query.filter_by(card_id=str(card_id)).first()
-                
-                if rfid_card and rfid_card.user:
-                    user = rfid_card.user
-                    # Store user data for display only
-                    self.authenticated_user = {
-                        'user_id': user.id,
-                        'username': user.username,
-                        'access_level': user.access_level,
-                        'name': f"{user.first_name} {user.last_name}" if user.first_name else user.username
-                    }
-                    # Log the access attempt
-                    self._log_access(card_id, 'login', user.id, 'Prototype mode - access not restricted')
-                    logging.info(f"Prototype mode: Card recognized for user {user.username}, access not restricted")
+                # Use Flask application context for database access
+                with app.app_context():
+                    # Look up the card but don't restrict access
+                    rfid_card = RFIDCard.query.filter_by(card_id=str(card_id)).first()
                     
-                    # Call the access callback with the user data
-                    if self.access_callback:
-                        self.access_callback(True, self.authenticated_user)
-                else:
-                    logging.info(f"Prototype mode: Unknown card {card_id}, access not restricted")
-                    # Log the access attempt
-                    self._log_access(card_id, 'unrecognized_card', None, 'Prototype mode - access not restricted')
+                    if rfid_card and rfid_card.user:
+                        user = rfid_card.user
+                        # Store user data for display only
+                        self.authenticated_user = {
+                            'user_id': user.id,
+                            'username': user.username,
+                            'access_level': user.access_level,
+                            'name': f"{user.first_name} {user.last_name}" if user.first_name else user.username
+                        }
+                        # Log the access attempt
+                        self._log_access(card_id, 'login', user.id, 'Prototype mode - access not restricted')
+                        logging.info(f"Prototype mode: Card recognized for user {user.username}, access not restricted")
+                        
+                        # Call the access callback with the user data
+                        if self.access_callback:
+                            self.access_callback(True, self.authenticated_user)
+                    else:
+                        logging.info(f"Prototype mode: Unknown card {card_id}, access not restricted")
+                        # Log the access attempt
+                        self._log_access(card_id, 'unrecognized_card', None, 'Prototype mode - access not restricted')
                 
                 return True
             except Exception as e:
                 logging.error(f"Error in prototype mode card lookup: {e}")
                 return True  # still allow access in prototype mode
         
-        # Don't re-authenticate if already authenticated
+        # Don't re-authenticate if already authenticated with the same card
+        # But allow user switching if different card is scanned
+        current_user_id = None
         if self.authenticated_user:
+            current_user_id = self.authenticated_user.get('user_id')
+            
+        # Check if this is a different user (user switching scenario)
+        switching_users = False
+        new_user_data = None
+        
+        # Look up the new card to see if it belongs to a different user
+        try:
+            from models import User, RFIDCard, UserSession
+            from main import app, db
+            
+            with app.app_context():
+                rfid_card = RFIDCard.query.filter_by(card_id=str(card_id), active=True).first()
+                if rfid_card and rfid_card.user:
+                    new_user_id = rfid_card.user_id
+                    if current_user_id and current_user_id != new_user_id:
+                        switching_users = True
+                        new_user_data = {
+                            'user_id': rfid_card.user.id,
+                            'username': rfid_card.user.username,
+                            'access_level': rfid_card.user.access_level,
+                            'card_id': card_id
+                        }
+                        logging.info(f"User switching detected: {self.authenticated_user.get('username')} -> {rfid_card.user.username}")
+        except Exception as e:
+            logging.error(f"Error checking for user switching: {e}")
+        
+        # If same user is already authenticated, just update timing
+        if self.authenticated_user and not switching_users:
+            self.last_auth_time = time.time()
+            self.login_consumed = False
+            logging.debug(f"User {self.authenticated_user.get('username')} re-scanned card - updating timing")
             return True
         
         # Normal mode - Full authentication required
@@ -242,12 +438,22 @@ class RFIDController:
                         self.auth_expiry = time.time() + (expiry_hours * 3600)
                         
                         # Store authenticated user
+                        old_user_id = current_user_id if switching_users else None
                         self.authenticated_user = user_data
+                        self.last_auth_time = time.time()
+                        self.login_consumed = False
+                        
+                        # Create user session
+                        login_method = 'auto_switch' if switching_users else 'rfid'
+                        self._create_user_session(user_data, login_method, old_user_id)
                         
                         # Log the access
                         self._log_access(card_id, 'login', user_data.get('user_id'))
                         
-                        logging.info(f"Access granted to {username} (level: {access_level})")
+                        if switching_users:
+                            logging.info(f"User switched to {username} (level: {access_level})")
+                        else:
+                            logging.info(f"Access granted to {username} (level: {access_level})")
                         
                         # Call the access callback
                         if self.access_callback:
@@ -275,71 +481,85 @@ class RFIDController:
             try:
                 # Import models here to avoid circular import
                 from models import User, RFIDCard
-                from main import db
+                from main import app, db
                 
-                # Look up the card in the local database
-                rfid_card = RFIDCard.query.filter_by(card_id=str(card_id), active=True).first()
-                
-                if rfid_card:
-                    # Check if the card is expired
-                    if rfid_card.expiry_date and rfid_card.expiry_date < datetime.utcnow():
-                        reason = "Card has expired"
-                        logging.warning(f"Access denied: {reason}")
-                        
-                        # Log the access attempt
-                        self._log_access(card_id, 'access_denied', rfid_card.user_id, reason)
-                        
-                        # Call the access callback
-                        if self.access_callback:
-                            self.access_callback(False, {'reason': reason})
-                            
-                        return False
+                # Use Flask application context for database access
+                with app.app_context():
+                    # Look up the card in the local database
+                    rfid_card = RFIDCard.query.filter_by(card_id=str(card_id), active=True).first()
                     
-                    # Get the user
-                    user = User.query.get(rfid_card.user_id)
-                    
-                    if user and user.active:
-                        # User is valid
-                        session_hours = self.config.get('session_hours', 8)
-                        self.auth_expiry = time.time() + (session_hours * 3600)
-                        
-                        # Store authenticated user data
-                        self.authenticated_user = user.to_dict()
-                        
-                        # Log the access
-                        self._log_access(card_id, 'login', user.id)
-                        
-                        logging.info(f"Offline access granted to {user.username} (level: {user.access_level})")
-                        
-                        # Call the access callback
-                        if self.access_callback:
-                            self.access_callback(True, self.authenticated_user)
+                    if rfid_card:
+                        # Check if the card is expired
+                        if rfid_card.expiry_date and rfid_card.expiry_date < datetime.utcnow():
+                            reason = "Card has expired"
+                            logging.warning(f"Access denied: {reason}")
                             
-                        return True
+                            # Log the access attempt
+                            self._log_access(card_id, 'access_denied', rfid_card.user_id, reason)
+                            
+                            # Call the access callback
+                            if self.access_callback:
+                                self.access_callback(False, {'reason': reason})
+                                
+                            return False
+                        
+                        # Get the user
+                        user = User.query.get(rfid_card.user_id)
+                        
+                        if user and user.active:
+                            # User is valid
+                            session_hours = self.config.get('session_hours', 8)
+                            self.auth_expiry = time.time() + (session_hours * 3600)
+                            
+                            # Store authenticated user data
+                            old_user_id = current_user_id if switching_users else None
+                            self.authenticated_user = user.to_dict()
+                            self.last_auth_time = time.time()
+                            self.login_consumed = False
+                            
+                            # Create user session
+                            login_method = 'auto_switch' if switching_users else 'rfid'
+                            user_data_with_card = self.authenticated_user.copy()
+                            user_data_with_card['card_id'] = card_id
+                            self._create_user_session(user_data_with_card, login_method, old_user_id)
+                            
+                            # Log the access
+                            self._log_access(card_id, 'login', user.id)
+                            
+                            if switching_users:
+                                logging.info(f"User switched to {user.username} (level: {user.access_level})")
+                            else:
+                                logging.info(f"Offline access granted to {user.username} (level: {user.access_level})")
+                            
+                            # Call the access callback
+                            if self.access_callback:
+                                self.access_callback(True, self.authenticated_user)
+                                
+                            return True
+                        else:
+                            reason = "User account is inactive"
+                            logging.warning(f"Access denied: {reason}")
+                            
+                            # Log the access attempt
+                            self._log_access(card_id, 'access_denied', rfid_card.user_id if rfid_card else None, reason)
+                            
+                            # Call the access callback
+                            if self.access_callback:
+                                self.access_callback(False, {'reason': reason})
+                                
+                            return False
                     else:
-                        reason = "User account is inactive"
+                        reason = "Card not found in local database"
                         logging.warning(f"Access denied: {reason}")
                         
                         # Log the access attempt
-                        self._log_access(card_id, 'access_denied', rfid_card.user_id if rfid_card else None, reason)
+                        self._log_access(card_id, 'access_denied', None, reason)
                         
                         # Call the access callback
                         if self.access_callback:
                             self.access_callback(False, {'reason': reason})
                             
                         return False
-                else:
-                    reason = "Card not found in local database"
-                    logging.warning(f"Access denied: {reason}")
-                    
-                    # Log the access attempt
-                    self._log_access(card_id, 'access_denied', None, reason)
-                    
-                    # Call the access callback
-                    if self.access_callback:
-                        self.access_callback(False, {'reason': reason})
-                        
-                    return False
                 
             except Exception as e:
                 logging.error(f"Local authentication error: {e}")
@@ -365,21 +585,23 @@ class RFIDController:
         try:
             # Import models here to avoid circular import
             from models import AccessLog
-            from main import db
+            from main import db, app
             
             machine_id = self.config.get('machine_id', 'laser_room_1')
             
-            log_entry = AccessLog(
-                user_id=user_id,
-                card_id=str(card_id) if card_id else None,
-                machine_id=machine_id,
-                action=action,
-                details=details,
-                timestamp=datetime.utcnow()
-            )
-            
-            db.session.add(log_entry)
-            db.session.commit()
+            # Use Flask application context for database operations
+            with app.app_context():
+                log_entry = AccessLog(
+                    user_id=user_id,
+                    card_id=str(card_id) if card_id else None,
+                    machine_id=machine_id,
+                    action=action,
+                    details=details,
+                    timestamp=datetime.utcnow()
+                )
+                
+                db.session.add(log_entry)
+                db.session.commit()
             
         except Exception as e:
             logging.error(f"Error logging access: {e}")
@@ -428,6 +650,9 @@ class RFIDController:
             user_id = self.authenticated_user.get('user_id')
             username = self.authenticated_user.get('username', 'Unknown User')
             logging.info(f"User {username} logged out")
+            
+            # Close user session
+            self._close_user_session()
             
             # Log the logout
             if user_id:
@@ -509,6 +734,11 @@ class RFIDController:
                 
                 # Store authenticated user data
                 self.authenticated_user = user.to_dict()
+                self.last_auth_time = time.time()
+                self.login_consumed = False
+                
+                # Create user session for web login
+                self._create_user_session(self.authenticated_user, 'web')
                 
                 # Log the access
                 self._log_access(None, 'login', user.id, 'Web login')
@@ -548,4 +778,29 @@ class RFIDController:
         if self.reader_thread:
             self.reader_thread.join(timeout=1.0)
         logging.info("RFID controller stopped")
-        # Remove any copilot-edited-file or similar artifact lines
+
+# Create a global RFID reader instance for direct card scanning
+rfid_reader = None
+
+def initialize_rfid_reader():
+    """Initialize the global RFID reader for card scanning"""
+    global rfid_reader
+    
+    if SIMULATION_MODE or PROTOTYPE_MODE:
+        logger.info("RFID reader not initialized - running in simulation/prototype mode")
+        return None
+        
+    if not RFID_AVAILABLE:
+        logger.warning("RFID reader not available - mfrc522 library not found")
+        return None
+        
+    try:
+        rfid_reader = mfrc522.SimpleMFRC522()
+        logger.info("Global RFID reader initialized successfully")
+        return rfid_reader
+    except Exception as e:
+        logger.error(f"Failed to initialize global RFID reader: {e}")
+        return None
+
+# Initialize the reader when module is imported
+initialize_rfid_reader()

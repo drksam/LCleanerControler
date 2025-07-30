@@ -4,7 +4,8 @@ Default pinout.txt
 ESP32 
     Stepper 
         Outputs
-            EN 27 (HIGH=Enable)
+            EN 27 (Configurable, default: HIGH=Enable, LOW=Disable)
+                  (Some drivers need inverted logic: LOW=Enable, HIGH=Disable)
             DIR 26
             STEP 25
         Inputs 
@@ -13,6 +14,8 @@ ESP32
             Home 21 (Pull-Up, LOW=Enable)
     Servo
         PWM 12
+    Status LED
+        WS2812B Data 23 (Direct ESP32 pin, not Raspberry Pi)
 
 Raspberry Pi5
     Temp (1-Wire)

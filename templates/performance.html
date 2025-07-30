@@ -1,0 +1,405 @@
+{% extends "base.html" %}
+
+{% block title %}User Performance{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>User Performance Tracking
+                    </h4>
+                    <small>Performance measured by total logged in time minus fiber fire time (lower is better - less non-productive time)</small>
+                </div>
+                <div class="card-body">
+                    
+                    <!-- Current Session Info -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card bg-info text-white">
+                                <div class="card-header">
+                                    <h5 class="mb-0"><i class="fas fa-user-clock me-2"></i>Current Session</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div id="current-session-info">
+                                        <p class="mb-2"><strong>User:</strong> <span id="current-user">No active session</span></p>
+                                        <p class="mb-2"><strong>Login Time:</strong> <span id="current-login-time">-</span></p>
+                                        <p class="mb-2"><strong>Login Method:</strong> <span id="current-login-method">-</span></p>
+                                        <p class="mb-2"><strong>Fire Count:</strong> <span id="current-fire-count">0</span></p>
+                                        <p class="mb-2"><strong>Fire Time:</strong> <span id="current-fire-time">0s</span></p>
+                                        <p class="mb-0"><strong>Performance:</strong> <span id="current-performance">Waiting for first fire...</span></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card bg-success text-white">
+                                <div class="card-header">
+                                    <h5 class="mb-0"><i class="fas fa-trophy me-2"></i>Best Performance Today</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div id="best-performance-today">
+                                        <p class="mb-2"><strong>User:</strong> <span id="best-user">-</span></p>
+                                        <p class="mb-2"><strong>Time:</strong> <span id="best-time">-</span></p>
+                                        <p class="mb-0"><strong>Score:</strong> <span id="best-score">-</span></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Performance Leaderboard -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header bg-warning text-dark">
+                                    <h5 class="mb-0"><i class="fas fa-medal me-2"></i>Performance Leaderboard (Last 30 Days)</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-striped table-hover" id="performance-table">
+                                            <thead class="table-dark">
+                                                <tr>
+                                                    <th><i class="fas fa-hashtag"></i> Rank</th>
+                                                    <th><i class="fas fa-user"></i> User</th>
+                                                    <th><i class="fas fa-stopwatch"></i> Average Performance</th>
+                                                    <th><i class="fas fa-fire"></i> Best Performance</th>
+                                                    <th><i class="fas fa-chart-bar"></i> Total Sessions</th>
+                                                    <th><i class="fas fa-crosshairs"></i> Total Fires</th>
+                                                    <th><i class="fas fa-clock"></i> Total Fire Time</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="performance-tbody">
+                                                <tr>
+                                                    <td colspan="7" class="text-center">
+                                                        <div class="spinner-border" role="status">
+                                                            <span class="visually-hidden">Loading...</span>
+                                                        </div>
+                                                        Loading performance data...
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- User Switching Stats -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-secondary text-white">
+                                    <h5 class="mb-0"><i class="fas fa-exchange-alt me-2"></i>User Switching Activity</h5>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="switchingChart" width="400" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-dark text-white">
+                                    <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Performance Trends</h5>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="performanceChart" width="400" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let switchingChart = null;
+    let performanceChart = null;
+    
+    // Initialize charts
+    function initializeCharts() {
+        const switchingCtx = document.getElementById('switchingChart').getContext('2d');
+        switchingChart = new Chart(switchingCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['RFID Login', 'Auto Switch', 'Web Login'],
+                datasets: [{
+                    data: [0, 0, 0],
+                    backgroundColor: ['#28a745', '#ffc107', '#007bff']
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Login Methods'
+                    }
+                }
+            }
+        });
+        
+        const performanceCtx = document.getElementById('performanceChart').getContext('2d');
+        performanceChart = new Chart(performanceCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Average Non-Productive Time (seconds)',
+                    data: [],
+                    borderColor: '#007bff',
+                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Non-Productive Time (Login Time - Fire Time in seconds)'
+                        }
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Performance Over Time'
+                    }
+                }
+            }
+        });
+    }
+    
+    // Format performance score for display (namespace to avoid conflicts)
+    function formatPerformanceTime(seconds) {
+        if (seconds === null || seconds === undefined) {
+            return 'N/A';
+        }
+        
+        // Handle negative scores (when fire time > login time)
+        const isNegative = seconds < 0;
+        const absSeconds = Math.abs(seconds);
+        
+        let formatted;
+        if (absSeconds < 1) {
+            formatted = (absSeconds * 1000).toFixed(0) + 'ms';
+        } else if (absSeconds < 60) {
+            formatted = absSeconds.toFixed(2) + 's';
+        } else if (absSeconds < 3600) {
+            // For times under 1 hour, show minutes and seconds
+            const mins = Math.floor(absSeconds / 60);
+            const secs = (absSeconds % 60).toFixed(1);
+            formatted = `${mins}m ${secs}s`;
+        } else {
+            // For times over 1 hour, show hours, minutes, and seconds
+            const hours = Math.floor(absSeconds / 3600);
+            const mins = Math.floor((absSeconds % 3600) / 60);
+            const secs = (absSeconds % 60).toFixed(1);
+            formatted = `${hours}h ${mins}m ${secs}s`;
+        }
+        
+        return isNegative ? `-${formatted}` : formatted;
+    }
+    
+    // Keep formatTime for compatibility, but use the improved version
+    function formatTime(seconds) {
+        return formatPerformanceTime(seconds);
+    }
+    
+    // Format date/time for display (convert UTC to local time)
+    function formatDateTime(isoString) {
+        if (!isoString) return '-';
+        const date = new Date(isoString);
+        // Ensure proper timezone conversion
+        return date.toLocaleString('en-US', {
+            year: 'numeric',
+            month: 'numeric', 
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+        });
+    }
+    
+    // Update current session info
+    function updateCurrentSession() {
+        fetch('/api/sessions/current')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.session) {
+                    const session = data.session;
+                    document.getElementById('current-user').textContent = session.username || 'Unknown';
+                    document.getElementById('current-login-time').textContent = formatDateTime(session.login_time);
+                    document.getElementById('current-login-method').textContent = session.login_method.toUpperCase();
+                    
+                    // Display fire statistics
+                    document.getElementById('current-fire-count').textContent = session.session_fire_count || 0;
+                    const fireTimeMs = session.session_fire_time_ms || 0;
+                    document.getElementById('current-fire-time').textContent = formatTime(fireTimeMs / 1000);
+                    
+                    // Check for live performance first (active sessions), then completed performance
+                    if (session.live_performance_score !== undefined) {
+                        document.getElementById('current-performance').textContent = 
+                            formatTime(session.live_performance_score) + ' (live)';
+                    } else if (session.performance_score) {
+                        document.getElementById('current-performance').textContent = formatTime(session.performance_score);
+                    } else if (session.session_fire_count > 0) {
+                        document.getElementById('current-performance').textContent = 'Calculating...';
+                    } else {
+                        document.getElementById('current-performance').textContent = 'Waiting for first fire...';
+                    }
+                } else {
+                    document.getElementById('current-user').textContent = 'No active session';
+                    document.getElementById('current-login-time').textContent = '-';
+                    document.getElementById('current-login-method').textContent = '-';
+                    document.getElementById('current-fire-count').textContent = '0';
+                    document.getElementById('current-fire-time').textContent = '0s';
+                    document.getElementById('current-performance').textContent = '-';
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching current session:', error);
+            });
+    }
+    
+    // Update performance data
+    function updatePerformanceData() {
+        fetch('/api/sessions/performance')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateLeaderboard(data.performance_data);
+                    updateCharts(data.performance_data);
+                    updateBestPerformance(data.performance_data);
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching performance data:', error);
+                document.getElementById('performance-tbody').innerHTML = 
+                    '<tr><td colspan="7" class="text-center text-danger">Error loading performance data</td></tr>';
+            });
+    }
+    
+    // Update leaderboard table
+    function updateLeaderboard(performanceData) {
+        const tbody = document.getElementById('performance-tbody');
+        
+        if (!performanceData || performanceData.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center">No performance data available</td></tr>';
+            return;
+        }
+        
+        // Sort by average performance (lower is better - less non-productive time)
+        performanceData.sort((a, b) => a.average_performance - b.average_performance);
+        
+        tbody.innerHTML = '';
+        performanceData.forEach((user, index) => {
+            // Calculate total fire count and fire time across all sessions
+            let totalFireCount = 0;
+            let totalFireTimeMs = 0;
+            
+            user.sessions.forEach(session => {
+                totalFireCount += session.session_fire_count || 0;
+                // Calculate fire time from performance data if available
+                if (session.session_fire_time_ms) {
+                    totalFireTimeMs += session.session_fire_time_ms;
+                }
+            });
+            
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td><span class="badge bg-${index === 0 ? 'warning' : index === 1 ? 'secondary' : index === 2 ? 'success' : 'primary'}">${index + 1}</span></td>
+                <td><strong>${user.username}</strong><br><small class="text-muted">${user.full_name || 'N/A'}</small></td>
+                <td><span class="badge bg-info">${formatTime(user.average_performance)}</span></td>
+                <td><span class="badge bg-success">${formatTime(user.best_performance)}</span></td>
+                <td><span class="badge bg-primary">${user.total_sessions}</span></td>
+                <td><span class="badge bg-danger">${totalFireCount}</span></td>
+                <td><span class="badge bg-dark">${formatTime(totalFireTimeMs / 1000)}</span></td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+    
+    // Update best performance display
+    function updateBestPerformance(performanceData) {
+        if (!performanceData || performanceData.length === 0) return;
+        
+        let bestUser = null;
+        let bestScore = Infinity;  // Changed back to infinity since lower is better
+        
+        performanceData.forEach(user => {
+            if (user.best_performance < bestScore) {  // Changed back to < since lower is better
+                bestScore = user.best_performance;
+                bestUser = user;
+            }
+        });
+        
+        if (bestUser) {
+            document.getElementById('best-user').textContent = bestUser.username;
+            document.getElementById('best-score').textContent = formatTime(bestScore);
+            
+            // Find the session with the best performance
+            const bestSession = bestUser.sessions.find(s => s.performance_score === bestScore);
+            if (bestSession) {
+                document.getElementById('best-time').textContent = formatDateTime(bestSession.login_time);
+            }
+        }
+    }
+    
+    // Update charts
+    function updateCharts(performanceData) {
+        // Update switching chart
+        const loginMethods = { rfid: 0, auto_switch: 0, web: 0 };
+        
+        performanceData.forEach(user => {
+            user.sessions.forEach(session => {
+                if (loginMethods.hasOwnProperty(session.login_method)) {
+                    loginMethods[session.login_method]++;
+                }
+            });
+        });
+        
+        switchingChart.data.datasets[0].data = [
+            loginMethods.rfid,
+            loginMethods.auto_switch,
+            loginMethods.web
+        ];
+        switchingChart.update();
+        
+        // Update performance trend chart (simplified - showing average per user)
+        const usernames = performanceData.map(u => u.username);
+        const averages = performanceData.map(u => u.average_performance);
+        
+        performanceChart.data.labels = usernames;
+        performanceChart.data.datasets[0].data = averages;
+        performanceChart.update();
+    }
+    
+    // Initialize everything
+    initializeCharts();
+    updateCurrentSession();
+    updatePerformanceData();
+    
+    // Auto-refresh every 5 seconds
+    setInterval(() => {
+        updateCurrentSession();
+        updatePerformanceData();
+    }, 5000);
+});
+</script>
+{% endblock %}

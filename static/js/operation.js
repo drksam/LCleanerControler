@@ -1670,9 +1670,73 @@ document.addEventListener('DOMContentLoaded', function() {
         );
     }
     
+    // Function to check and sync servo toggle states with server
+    function checkAndSyncServoState() {
+        console.log('Checking current servo toggle states...');
+        
+        makeRequest('/servo_status', 'GET', null,
+            function(data) {
+                if (data && data.status === 'success' && data.toggle_states) {
+                    const states = data.toggle_states;
+                    console.log('Server servo states:', states);
+                    
+                    // Sync fiber toggle state
+                    if (states.fiber_toggle_active && !fireFiberToggleActive) {
+                        console.log('Restoring fiber toggle active state');
+                        fireFiberToggleActive = true;
+                        
+                        if (fireFiberToggleButton) {
+                            fireFiberToggleButton.classList.remove('btn-outline-warning');
+                            fireFiberToggleButton.classList.add('active', 'btn-warning');
+                            fireFiberToggleButton.innerHTML = '<i class="fas fa-stop"></i> STOP FIBER';
+                        }
+                        
+                        // Restore firing timer if actively firing
+                        if (states.is_firing && !firingTimerActive) {
+                            console.log('Restoring firing timer');
+                            startFiringTimer();
+                            updateFiringStatus('Active Fiber Firing', 'badge bg-warning text-dark blink');
+                        }
+                        
+                        window.addLogMessage('Restored fiber toggle state from server', false, 'info');
+                    }
+                    
+                    // Sync regular fire toggle state  
+                    if (states.fire_toggle_active && !fireToggleActive) {
+                        console.log('Restoring fire toggle active state');
+                        fireToggleActive = true;
+                        
+                        if (fireToggleButton) {
+                            fireToggleButton.classList.remove('btn-outline-danger');
+                            fireToggleButton.classList.add('active', 'btn-danger');
+                            fireToggleButton.innerHTML = '<i class="fas fa-stop"></i> STOP FIRE';
+                        }
+                        
+                        // Restore firing timer if actively firing
+                        if (states.is_firing && !firingTimerActive) {
+                            console.log('Restoring firing timer');
+                            startFiringTimer();
+                            updateFiringStatus('Active Firing', 'badge bg-danger blink');
+                        }
+                        
+                        window.addLogMessage('Restored fire toggle state from server', false, 'info');
+                    }
+                } else {
+                    console.log('No toggle states found or error in servo status');
+                }
+            },
+            function(error) {
+                console.warn('Could not fetch servo toggle states:', error);
+            }
+        );
+    }
+    
     // Function to sync UI with current system state
     function syncUIWithSystemState() {
         console.log('Syncing UI with current system state...');
+        
+        // Sync servo toggle states first
+        checkAndSyncServoState();
         
         // Sync auto-cycle switch if available
         if (window.AutoCycleManager) {

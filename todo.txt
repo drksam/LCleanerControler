@@ -31,7 +31,7 @@
 - [x] CRITICAL FIX: Servo-table interference deadlock resolved (2025-07-17)
     - [x] Fixed threading lock deadlock in output_control_gpiod.py by changing to RLock and eliminating recursive calls
     - [x] Table controls now work properly after servo operations
-- [ ] E-Stop: Ensure servo is set to position A before turning off other outputs (backend and UI)
+- [ ] E-Stop: Ensure servo is set to position A then set stepper enable pin LOW before turning off other outputs (backend and UI)
 - [ ] E-Stop: Set physical input pin hard code to GPIO17 PIN11 Normaly Closed (HIGH when ESTOP is ON)
 
 ## UI FIXES & IMPROVEMENTS
@@ -511,4 +511,53 @@ All requested stepper motor improvements have been successfully implemented and 
 All stepper motor control issues resolved and acceleration/deceleration support completed. Temperature sensor hardware issue identified with enhanced diagnostic capabilities for troubleshooting.
 
 # End of TODO (2025-07-23 FINAL UPDATE)
+
+# Progress Summary - 2024-12-30
+## Completed Today:
+✅ **PERFORMANCE SCORE DISPLAY FORMATTING FIX (UNTESTED):**
+   - **Issue**: Performance scores showing confusing format like "240m 34.2s" instead of proper hours
+   - **Root Cause**: formatTime() function in templates/performance.html didn't handle values over 60 minutes properly
+   - **Fix Applied**: Enhanced formatTime() function to display hours for values >= 3600 seconds
+   - **Expected Result**: "240m 34.2s" should now display as "4h 0m 34.2s" for better readability
+   - **Status**: ⚠️ UNTESTED - Requires application restart and testing to verify functionality
+
+✅ **AUTO-SWITCH USER DISPLAY FIX (UNTESTED):**
+   - **Issue**: RFID auto-switch updates performance tracking but navbar still shows "admin" instead of switched user
+   - **Root Cause**: RFID _create_user_session() updated session tracking but not Flask-Login current_user state
+   - **Fix Applied**: Added login_user() call to _create_user_session() method in rfid_control.py
+   - **Expected Result**: Top-right navbar should now display actual switched user name after RFID auto-switch
+   - **Technical Details**: Integrated Flask-Login authentication state with RFID session tracking system
+   - **Status**: ⚠️ UNTESTED - Requires application restart and RFID testing to verify functionality
+
+## Technical Implementation Details:
+
+**Files Modified Today:**
+- `templates/performance.html`: Enhanced formatTime() JavaScript function with proper hour formatting
+- `rfid_control.py`: Added Flask-Login integration to _create_user_session() method for auto-switch
+
+**Architecture Improvements:**
+- **Performance Display**: Hours properly displayed for session durations over 1 hour
+- **Authentication Sync**: RFID auto-switch now updates both session tracking and UI display state
+- **User Experience**: Both performance times and user switching should provide clearer visual feedback
+
+## Current System State:
+- **✅ PERFORMANCE FORMATTING**: Enhanced time display logic implemented for better readability
+- **✅ USER SWITCHING**: Flask-Login integration added for consistent navbar user display
+- **⚠️ TESTING REQUIRED**: Both fixes implemented but require restart and testing to verify
+- **🔄 READY FOR VALIDATION**: Performance page and RFID auto-switch functionality ready for testing
+
+## Testing Plan:
+1. **Restart Application**: Required to load updated rfid_control.py changes
+2. **Test Performance Display**: Verify times over 1 hour show proper "Xh Ym Zs" format instead of excessive minutes
+3. **Test RFID Auto-Switch**: Confirm navbar user display updates when switching users via RFID card scan
+4. **Validate Session Tracking**: Ensure both performance tracking and user authentication work together properly
+
+## Session Summary:
+**Started**: User reported two specific issues: performance score format confusion and auto-switch not updating navbar
+**Completed**: Both UI display issues addressed with targeted fixes for time formatting and authentication state sync
+**Impact**: Better user experience with clearer performance times and consistent user display across all interface elements
+
+Both fixes target specific user-reported UI issues and should resolve the confusing performance display and inconsistent user switching behavior.
+
+# End of TODO (2024-12-30)
 

@@ -42,16 +42,16 @@
                                                                     <div class="mb-1"><span class="badge bg-warning">3.3V</span> Pin 1</div>
                                                                     <div class="mb-1"><span class="badge bg-warning">GPIO 2 (1-Wire)</span> Pin 3</div>
                                                                     <div class="mb-1"><span class="badge bg-secondary">GND</span> Pin 9</div>
-                                                                    <div class="mb-1"><span class="badge bg-primary">GPIO {{ gpio_config.enable_pin }} (Stepper Enable)</span> Pin 11</div>
-                                                                    <div class="mb-1"><span class="badge bg-primary">GPIO {{ gpio_config.home_switch_pin }} (Home Switch)</span> Pin 13</div>
-                                                                    <div class="mb-1"><span class="badge bg-danger">GPIO {{ gpio_config.servo_pin }} (Servo PWM)</span> Pin 15</div>
+                                                                    <div class="mb-1"><span class="badge bg-primary">GPIO {{ gpio_config.esp_enable_pin }} (ESP32 Enable)</span> Pin 11</div>
+                                                                    <div class="mb-1"><span class="badge bg-primary">GPIO {{ gpio_config.esp_home_pin }} (ESP32 Home)</span> Pin 13</div>
+                                                                    <div class="mb-1"><span class="badge bg-danger">GPIO {{ gpio_config.esp_servo_pwm_pin }} (ESP32 Servo)</span> Pin 15</div>
                                                                     <div class="mb-1"><span class="badge bg-warning">3.3V</span> Pin 17</div>
-                                                                    <div class="mb-1"><span class="badge bg-info">GPIO 10 (SPI0_MOSI)</span> Pin 19</div>
-                                                                    <div class="mb-1"><span class="badge bg-info">GPIO 9 (SPI0_MISO)</span> Pin 21</div>
-                                                                    <div class="mb-1"><span class="badge bg-info">GPIO 11 (SPI0_SCLK)</span> Pin 23</div>
+                                                                    <div class="mb-1"><span class="badge bg-info">GPIO {{ gpio_config.rfid_mosi_pin }} (RFID MOSI)</span> Pin 19</div>
+                                                                    <div class="mb-1"><span class="badge bg-info">GPIO {{ gpio_config.rfid_miso_pin }} (RFID MISO)</span> Pin 21</div>
+                                                                    <div class="mb-1"><span class="badge bg-info">GPIO {{ gpio_config.rfid_sclk_pin }} (RFID SCLK)</span> Pin 23</div>
                                                                     <div class="mb-1"><span class="badge bg-secondary">GND</span> Pin 25</div>
                                                                     <div class="mb-1"><span class="badge bg-secondary">ID_SD</span> Pin 27</div>
-                                                                    <div class="mb-1"><span class="badge bg-secondary">GPIO {{ gpio_config.servo_invert_pin }} (Servo Invert)</span> Pin 29</div>
+                                                                    <div class="mb-1"><span class="badge bg-secondary">GPIO Reserved</span> Pin 29</div>
                                                                     <div class="mb-1"><span class="badge bg-success">GPIO {{ gpio_config.fan_pin }} (Fan)</span> Pin 31</div>
                                                                     <div class="mb-1"><span class="badge bg-success">GPIO {{ gpio_config.red_lights_pin }} (Red Lights)</span> Pin 33</div>
                                                                     <div class="mb-1"><span class="badge bg-success">GPIO {{ gpio_config.table_forward_pin }} (Table Forward)</span> Pin 35</div>
@@ -64,21 +64,21 @@
                                                                     <div class="mb-1">Pin 6 <span class="badge bg-secondary">GND</span></div>
                                                                     <div class="mb-1">Pin 8 <span class="badge bg-info">GPIO 14 (UART)</span></div>
                                                                     <div class="mb-1">Pin 10 <span class="badge bg-info">GPIO 15 (UART)</span></div>
-                                                                    <div class="mb-1">Pin 12 <span class="badge bg-info">GPIO 18 (SPI0_PWM0)</span></div>
+                                                                    <div class="mb-1">Pin 12 <span class="badge bg-info">GPIO {{ gpio_config.fiber_button_pin }} (Fiber Button)</span></div>
                                                                     <div class="mb-1">Pin 14 <span class="badge bg-secondary">GND</span></div>
-                                                                    <div class="mb-1">Pin 16 <span class="badge bg-secondary">GPIO {{ gpio_config.in_button_pin }} (IN Button)</span></div>
-                                                                    <div class="mb-1">Pin 18 <span class="badge bg-secondary">GPIO {{ gpio_config.out_button_pin }} (OUT Button)</span></div>
+                                                                    <div class="mb-1">Pin 16 <span class="badge bg-secondary">GPIO {{ gpio_config.button_in_pin }} (IN Button)</span></div>
+                                                                    <div class="mb-1">Pin 18 <span class="badge bg-secondary">GPIO {{ gpio_config.button_out_pin }} (OUT Button)</span></div>
                                                                     <div class="mb-1">Pin 20 <span class="badge bg-secondary">GND</span></div>
                                                                     <div class="mb-1">Pin 22 <span class="badge bg-secondary">GPIO {{ gpio_config.fire_button_pin }} (Fire Button)</span></div>
-                                                                    <div class="mb-1">Pin 24 <span class="badge bg-info">GPIO 8 (SPI0_CE0)</span></div>
+                                                                    <div class="mb-1">Pin 24 <span class="badge bg-info">GPIO {{ gpio_config.rfid_ce0_pin }} (RFID CE0)</span></div>
                                                                     <div class="mb-1">Pin 26 <span class="badge bg-info">GPIO 7 (SPI0_CE1)</span></div>
                                                                     <div class="mb-1">Pin 28 <span class="badge bg-secondary">ID_SC</span></div>
                                                                     <div class="mb-1">Pin 30 <span class="badge bg-secondary">GND</span></div>
-                                                                    <div class="mb-1">Pin 32 <span class="badge bg-info">GPIO 12 (RFID IRQ)</span></div>
+                                                                    <div class="mb-1">Pin 32 <span class="badge bg-info">GPIO Reserved</span></div>
                                                                     <div class="mb-1">Pin 34 <span class="badge bg-secondary">GND</span></div>
-                                                                    <div class="mb-1">Pin 36 <span class="badge bg-info">GPIO 16 (RFID RST)</span></div>
-                                                                    <div class="mb-1"><span class="badge bg-warning">GPIO {{ gpio_config.table_back_limit_pin }} (Back Limit)</span> Pin 38</div>
-                                                                    <div class="mb-1"><span class="badge bg-warning">GPIO {{ gpio_config.table_front_limit_pin }} (Front Limit)</span> Pin 40</div>
+                                                                    <div class="mb-1">Pin 36 <span class="badge bg-info">GPIO Reserved</span></div>
+                                                                    <div class="mb-1"><span class="badge bg-warning">GPIO {{ gpio_config.table_back_switch_pin }} (Back Limit)</span> Pin 38</div>
+                                                                    <div class="mb-1"><span class="badge bg-warning">GPIO {{ gpio_config.table_front_switch_pin }} (Front Limit)</span> Pin 40</div>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -109,7 +109,7 @@
                                                     <div class="card bg-secondary text-white mb-2">
                                                         <div class="card-body p-2">
                                                             <h6 class="card-title mb-0">Input Buttons/Switches</h6>
-                                                            <div class="small">Connected to: GPIO {{ gpio_config.servo_invert_pin }}, {{ gpio_config.in_button_pin }}, {{ gpio_config.out_button_pin }}, {{ gpio_config.fire_button_pin }}</div>
+                                                            <div class="small">Connected to: GPIO {{ gpio_config.button_in_pin }}, {{ gpio_config.button_out_pin }}, {{ gpio_config.fire_button_pin }}, {{ gpio_config.fiber_button_pin }}</div>
                                                             <div class="small">Each button has dedicated pin - no pin sharing</div>
                                                         </div>
                                                     </div>
@@ -311,7 +311,7 @@
                                     <td>{{ gpio_config.esp_enable_pin }}</td>
                                     <td>Stepper</td>
                                     <td>EN</td>
-                                    <td>Stepper enable (LOW=Enable)</td>
+                                    <td>Stepper enable (HIGH=Enable)</td>
                                 </tr>
                                 <tr>
                                     <td>{{ gpio_config.esp_limit_a_pin }}</td>
@@ -358,7 +358,7 @@
                                 <!-- Raspberry Pi Pins -->
                                 <tr><td rowspan="16" class="align-middle text-center">Raspberry Pi 5</td><td>GPIO {{ gpio_config.step_pin }}</td><td>25</td><td>Stepper</td><td>STEP</td><td>Step pulse</td></tr>
                                 <tr><td>GPIO {{ gpio_config.dir_pin }}</td><td>26</td><td>Stepper</td><td>DIR</td><td>Direction</td></tr>
-                                <tr><td>GPIO {{ gpio_config.enable_pin }}</td><td>27</td><td>Stepper</td><td>EN</td><td>Enable (LOW=Enable)</td></tr>
+                                <tr><td>GPIO {{ gpio_config.enable_pin }}</td><td>27</td><td>Stepper</td><td>EN</td><td>Enable (HIGH=Enable)</td></tr>
                                 <tr><td>GPIO {{ gpio_config.home_switch_pin }}</td><td>34</td><td>Stepper</td><td>Home</td><td>Home switch</td></tr>
                                 <tr><td>GPIO {{ gpio_config.servo_pin }}</td><td>12</td><td>Servo</td><td>PWM</td><td>Servo PWM</td></tr>
                                 <tr><td>GPIO {{ gpio_config.button_in_pin }}</td><td>5</td><td>Button</td><td>IN</td><td>Pull-Up, LOW=Enable</td></tr>
@@ -375,7 +375,7 @@
                                 <!-- ESP32 Pins -->
                                 <tr><td rowspan="7" class="align-middle text-center">ESP32</td><td>{{ gpio_config.esp_step_pin }}</td><td>25</td><td>Stepper</td><td>STEP</td><td>Step pulse (LOW=Enable)</td></tr>
                                 <tr><td>{{ gpio_config.esp_dir_pin }}</td><td>26</td><td>Stepper</td><td>DIR</td><td>Direction</td></tr>
-                                <tr><td>{{ gpio_config.esp_enable_pin }}</td><td>27</td><td>Stepper</td><td>EN</td><td>Enable (LOW=Enable)</td></tr>
+                                <tr><td>{{ gpio_config.esp_enable_pin }}</td><td>27</td><td>Stepper</td><td>EN</td><td>Enable (HIGH=Enable)</td></tr>
                                 <tr><td>{{ gpio_config.esp_limit_a_pin }}</td><td>32</td><td>Stepper</td><td>Limit A</td><td>Pull-Up, LOW=Enable</td></tr>
                                 <tr><td>{{ gpio_config.esp_limit_b_pin }}</td><td>33</td><td>Stepper</td><td>Limit B</td><td>Pull-Up, LOW=Enable</td></tr>
                                 <tr><td>{{ gpio_config.esp_home_pin }}</td><td>34</td><td>Stepper</td><td>Home</td><td>Pull-Up, LOW=Enable</td></tr>
@@ -913,4 +913,4 @@ sudo modprobe w1-therm</pre>
 {% block scripts %}
 <!-- Include the GPIO testing JavaScript -->
 <script src="{{ url_for('static', filename='js/gpio_test.js') }}"></script>
-{% endblock %
+{% endblock %}

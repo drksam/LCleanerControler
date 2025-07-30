@@ -38,8 +38,8 @@ class OutputController:
         self.red_lights_pin = config.get('red_lights_pin', 16)
         self.table_forward_pin = config.get('table_forward_pin', 13)
         self.table_backward_pin = config.get('table_backward_pin', 6)
-        self.table_front_limit_pin = config.get('table_front_limit_pin', 21)
-        self.table_back_limit_pin = config.get('table_back_limit_pin', 20)
+        self.table_front_switch_pin = config.get('table_front_switch_pin', 21)
+        self.table_back_switch_pin = config.get('table_back_switch_pin', 20)
         
         # Current state tracking
         self.fan_on = False
@@ -82,8 +82,8 @@ class OutputController:
                 self.gpio.setup_output(self.table_backward_pin, 0)
                 
                 # Set up input pins for limit switches with pull-up resistors
-                self.gpio.setup_input(self.table_front_limit_pin, pull_up=True)
-                self.gpio.setup_input(self.table_back_limit_pin, pull_up=True)
+                self.gpio.setup_input(self.table_front_switch_pin, pull_up=True)
+                self.gpio.setup_input(self.table_back_switch_pin, pull_up=True)
                 
                 # Start a monitoring thread for limit switches
                 self.start_monitor_thread()
@@ -116,8 +116,8 @@ class OutputController:
         while self.update_thread_running:
             try:
                 # Read limit switch inputs (inverted logic with pull-up resistors)
-                front_limit = not bool(self.gpio.read(self.table_front_limit_pin))
-                back_limit = not bool(self.gpio.read(self.table_back_limit_pin))
+                front_limit = not bool(self.gpio.read(self.table_front_switch_pin))
+                back_limit = not bool(self.gpio.read(self.table_back_switch_pin))
                 
                 # Handle state changes
                 if front_limit != self.table_at_front_limit:

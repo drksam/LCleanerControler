@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NooyenLaserRoom - Login</title>
+    <title>ShopLaserRoom - Login</title>
     <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         body {
             padding-top: 40px;
@@ -54,9 +55,9 @@
     <div class="container">
         <div class="row">
             <div class="col-md-6 offset-md-3 login-container">
-                <form class="form-signin" method="POST" action="{{ url_for('login') }}">
+                <form class="form-signin" method="POST" action="{{ url_for('main_bp.login') }}">
                     <div class="text-center mb-4">
-                        <h1 class="h3 mb-3 fw-normal">NooyenLaserRoom</h1>
+                        <h1 class="h3 mb-3 fw-normal">ShopLaserRoom</h1>
                         <p class="lead">Laser Cleaning Machine Control System</p>
                     </div>
                     
@@ -90,6 +91,33 @@
                         <button class="btn btn-lg btn-primary" type="submit">Sign In</button>
                     </div>
                     
+                    <div class="text-center my-3">
+                        <span class="text-muted">or</span>
+                    </div>
+                    
+                    <!-- RFID Login Section -->
+                    <div class="rfid-login-section">
+                        <div class="d-grid gap-2 mb-3">
+                            <button class="btn btn-lg btn-outline-success" type="button" id="rfid-login-btn">
+                                <i class="fas fa-credit-card"></i> Login with RFID Card
+                            </button>
+                        </div>
+                        
+                        <div class="form-check text-center mb-3">
+                            <input class="form-check-input" type="checkbox" id="auto-scan-check" checked>
+                            <label class="form-check-label text-muted" for="auto-scan-check">
+                                <small>Auto-scan for RFID cards</small>
+                            </label>
+                        </div>
+                        
+                        <div id="rfid-status" class="text-center mb-3" style="display: none;">
+                            <div class="alert alert-info" id="rfid-message">
+                                <i class="fas fa-spinner fa-spin"></i> 
+                                <span id="rfid-text">Scanning for RFID card...</span>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="mt-4 text-center">
                         <p class="text-muted">Use one of the following default accounts:</p>
                         <div class="row text-center">
@@ -106,13 +134,154 @@
                     
                     <p class="mt-4 text-center text-muted">
                         <small>
-                            Nooyen Laser Room Control System<br>
-                            Part of the Nooyen Machine Suite
+                            Shop Laser Room Control System<br>
+                            Part of the Shop Machine Suite
                         </small>
                     </p>
                 </form>
             </div>
         </div>
     </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const rfidLoginBtn = document.getElementById('rfid-login-btn');
+        const rfidStatus = document.getElementById('rfid-status');
+        const rfidMessage = document.getElementById('rfid-message');
+        const rfidText = document.getElementById('rfid-text');
+        const autoScanCheck = document.getElementById('auto-scan-check');
+        
+        let autoScanInterval = null;
+        let isScanning = false;
+        
+        if (rfidLoginBtn) {
+            rfidLoginBtn.addEventListener('click', function() {
+                if (!isScanning) {
+                    startRFIDLogin();
+                }
+            });
+        }
+        
+        if (autoScanCheck) {
+            // Start auto-scan by default when page loads
+            if (autoScanCheck.checked) {
+                startAutoScan();
+            }
+            
+            autoScanCheck.addEventListener('change', function() {
+                if (this.checked) {
+                    startAutoScan();
+                } else {
+                    stopAutoScan();
+                }
+            });
+        }
+        
+        function startAutoScan() {
+            if (autoScanInterval) clearInterval(autoScanInterval);
+            
+            // Start immediately
+            if (!isScanning) {
+                startRFIDLogin(true);
+            }
+            
+            // Then repeat every 1 second for faster response
+            autoScanInterval = setInterval(() => {
+                if (!isScanning) {
+                    startRFIDLogin(true);
+                }
+            }, 1000);
+        }
+        
+        function stopAutoScan() {
+            if (autoScanInterval) {
+                clearInterval(autoScanInterval);
+                autoScanInterval = null;
+            }
+        }
+        
+        function startRFIDLogin(isAutoScan = false) {
+            if (isScanning) return;
+            
+            isScanning = true;
+            
+            // Show scanning status
+            rfidStatus.style.display = 'block';
+            rfidMessage.className = 'alert alert-info';
+            
+            if (isAutoScan) {
+                rfidText.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Auto-scanning for RFID cards...';
+            } else {
+                rfidText.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Place your RFID card near the reader...';
+                rfidLoginBtn.disabled = true;
+                rfidLoginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scanning...';
+            }
+            
+            fetch('/api/auth/rfid', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Successful login
+                    rfidMessage.className = 'alert alert-success';
+                    rfidText.innerHTML = `<i class="fas fa-check"></i> Welcome, ${data.user}! Redirecting...`;
+                    
+                    // Stop auto-scanning
+                    stopAutoScan();
+                    autoScanCheck.checked = false;
+                    
+                    // Redirect after a short delay
+                    setTimeout(() => {
+                        window.location.href = data.redirect_url;
+                    }, 1500);
+                } else if (data.waiting_for_card) {
+                    // Still waiting for card - this is normal for auto-scan
+                    if (!isAutoScan) {
+                        rfidMessage.className = 'alert alert-info';
+                        rfidText.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Please scan your RFID card...';
+                    }
+                    resetRFIDButton(isAutoScan);
+                } else {
+                    // Authentication failed
+                    rfidMessage.className = 'alert alert-danger';
+                    if (data.card_id) {
+                        rfidText.innerHTML = `<i class="fas fa-times"></i> Access denied. ${data.error} (Card: ${data.card_id})`;
+                    } else {
+                        rfidText.innerHTML = `<i class="fas fa-times"></i> ${data.error}`;
+                    }
+                    setTimeout(() => {
+                        resetRFIDButton(isAutoScan);
+                    }, 3000);
+                }
+            })
+            .catch(error => {
+                console.error('RFID login error:', error);
+                if (!isAutoScan) {
+                    rfidMessage.className = 'alert alert-danger';
+                    rfidText.innerHTML = '<i class="fas fa-exclamation-triangle"></i> RFID scanner error. Please use username/password.';
+                }
+                setTimeout(() => {
+                    resetRFIDButton(isAutoScan);
+                }, 3000);
+            });
+        }
+        
+        function resetRFIDButton(isAutoScan = false) {
+            isScanning = false;
+            rfidLoginBtn.disabled = false;
+            rfidLoginBtn.innerHTML = '<i class="fas fa-credit-card"></i> Login with RFID Card';
+            
+            if (!isAutoScan || !autoScanCheck.checked) {
+                setTimeout(() => {
+                    rfidStatus.style.display = 'none';
+                }, 2000);
+            }
+        }
+    });
+    </script>
 </body>
 </html>

@@ -66,8 +66,8 @@ except ImportError as e:
 # Import models
 from models import User, AccessLog, RFIDCard, ApiKey
 
-# Import the RFID controller
-from rfid_control import RFIDController
+# Import the RFID controller and reader instance
+from rfid_control import RFIDController, rfid_reader
 
 # Import GPIO controllers
 from stepper_control_gpioctrl import StepperMotor
@@ -217,9 +217,19 @@ def servo_callback(action, **kwargs):
 def access_control_callback(granted, user_data):
     """Callback when a user is authenticated or deauthenticated"""
     try:
+        # Add debug logging
+        logging.info(f"Access control callback triggered: granted={granted}, user_data={user_data}")
+        
         # Import webhook integration module to avoid circular imports
         from webhook_integration import handle_login_event, handle_logout_event, handle_status_change_event
         from main import app  # Import the Flask app instance
+        
+        # Import LED states for dual LED control
+        try:
+            from ws2812b_controller import LEDState
+        except ImportError:
+            LEDState = None
+            logging.warning("LEDState not available - LED control disabled")
         
         if granted:
             username = user_data.get('username', 'Unknown')
@@ -227,6 +237,21 @@ def access_control_callback(granted, user_data):
             user_id = user_data.get('user_id', 0)
             card_id = user_data.get('card_id')
             logging.info(f"User {username} authenticated with access level {access_level}")
+            
+            # Update LED status to authorized with admin/user distinction
+            if led_initialized and led_controller:
+                try:
+                    if access_level == 'admin':
+                        # Purple for admin users
+                        led_controller.set_state(LEDState.ADMIN_LOGGED_IN)
+                        logging.info("Status LED set to ADMIN_LOGGED_IN (purple) - admin user logged in")
+                    else:
+                        # Green for normal users
+                        led_controller.set_state(LEDState.ACCESS_GRANTED)
+                        logging.info("Status LED set to ACCESS_GRANTED (green) - normal user logged in")
+                except Exception as e:
+                    logging.error(f"Failed to set LED to authorized: {e}")
+                
             # Send webhook event for user login and machine status change
             if user_id:
                 try:
@@ -242,6 +267,29 @@ def access_control_callback(granted, user_data):
         else:
             reason = user_data.get('reason', 'Unknown reason')
             logging.info(f"Authentication removed: {reason}")
+            
+            # Update LED status based on reason
+            if led_initialized and led_controller:
+                try:
+                    if reason.lower() == "card_denied":
+                        # Flash red for denied access
+                        led_controller.set_state(LEDState.ACCESS_DENIED)
+                        logging.info("Status LED set to ACCESS_DENIED (red flash) - card access denied")
+                        # Schedule return to login screen after 3 seconds
+                        threading.Timer(3.0, lambda: led_controller.set_login_screen_active()).start()
+                    elif reason.lower() == "logged_out" or reason.lower() == "session_expired":
+                        # Set to logout state (purple) briefly then back to login screen
+                        led_controller.set_state(LEDState.LOGGED_OUT)
+                        logging.info("Status LED set to LOGGED_OUT (purple blink) - user logged out")
+                        # Schedule return to login screen after 3 seconds
+                        threading.Timer(3.0, lambda: led_controller.set_login_screen_active()).start()
+                    else:
+                        # Just set back to login screen for other reasons
+                        led_controller.set_login_screen_active()
+                        logging.info("Status LED set to LOGIN_SCREEN - access removed")
+                except Exception as e:
+                    logging.error(f"Failed to set LED status for denied access: {e}")
+            
             # Send webhook event for user logout and machine status change
             user_id = user_data.get('user_id', 0)
             card_id = user_data.get('card_id')
@@ -308,6 +356,7 @@ def init_controllers(app=None):
     global sequence_runner, sequences_initialized
     global current_position, preset_positions
     global servo_position_a, servo_position_b, servo_inverted
+    global led_controller, led_initialized  # Add LED controller globals
     # ...existing code for system_config, operation_mode, debug_level, bypass_safety, log_level, logging.basicConfig, logger...
     # ...existing code for environment variables and FORCE_HARDWARE...
     # ...existing code for controller initializations, callbacks, and background thread startup...
@@ -358,6 +407,31 @@ def init_controllers(app=None):
     except Exception as e:
         temp_initialized = False
         logging.error(f"Failed to initialize TemperatureController: {e}")
+    
+    # Initialize RFID controller with access control callback
+    try:
+        rfid_controller = RFIDController(access_callback=access_control_callback)
+        rfid_initialized = True
+        logging.info("RFIDController initialized successfully with access control callback")
+    except Exception as e:
+        rfid_initialized = False
+        logging.error(f"Failed to initialize RFIDController: {e}")
+    
+    # Initialize LED controller for dual LED status and placement guide
+    try:
+        from ws2812b_controller import WS2812BController, LEDState
+        led_controller = WS2812BController()
+        led_controller.start()
+        led_initialized = True
+        logging.info("WS2812B LED Controller initialized successfully")
+        
+        # Set initial state to login screen (LED2 white placement guide)
+        led_controller.set_login_screen_active()
+        logging.info("LED controller set to login screen state")
+    except Exception as e:
+        led_initialized = False
+        led_controller = None
+        logging.error(f"Failed to initialize LED Controller: {e}")
     # --- End hardware controller initialization ---
 
 # --- Add background thread for automatic fan/lights update logic ---
@@ -394,6 +468,7 @@ start_output_update_thread()
 main_bp = Blueprint('main_bp', __name__)
 
 @main_bp.route('/')
+@login_required
 def index():
     """Render the main operation interface with simplified controls"""
     # Get output controller status for displaying on the main page
@@ -496,7 +571,7 @@ def require_admin_in_normal_mode(view_function):
             return view_function(*args, **kwargs)
         else:
             flash('This page requires admin access in normal mode.', 'danger')
-            return redirect(url_for('index'))
+            return redirect(url_for('main_bp.index'))
     return decorated_function
 
 @main_bp.route('/settings')
@@ -1200,6 +1275,10 @@ def fire():
             # Count laser fire event for statistics
             if result.get("status") == "active":
                 config.increment_laser_counter()
+                
+                # Track first fire for performance monitoring
+                if rfid_initialized and rfid_controller:
+                    rfid_controller.record_first_fire()
             
             return jsonify({
                 "status": "success",
@@ -1215,6 +1294,10 @@ def fire():
             
             if success:
                 config.increment_laser_counter()
+                
+                # Track first fire for performance monitoring
+                if rfid_initialized and rfid_controller:
+                    rfid_controller.record_first_fire()
                 return jsonify({
                     "status": "success", 
                     "position": "B",
@@ -1243,6 +1326,10 @@ def fire_fiber():
         if mode == 'momentary':
             success = servo.fiber_fire_momentary()
             if success:
+                # Track first fire for performance monitoring
+                if rfid_initialized and rfid_controller:
+                    rfid_controller.record_first_fire()
+                    
                 return jsonify({
                     "status": "success", 
                     "mode": "momentary",
@@ -1258,6 +1345,10 @@ def fire_fiber():
             result = servo.fiber_fire_toggle()
             if result.get("status") == "error":
                 return jsonify(result), 500
+            
+            # Track first fire for performance monitoring
+            if rfid_initialized and rfid_controller and result.get("status") == "active":
+                rfid_controller.record_first_fire()
             
             return jsonify({
                 "status": "success", 
@@ -1881,6 +1972,12 @@ def sequence_status():
         logger.error(f"Error getting sequence status: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
+@main_bp.route('/performance')
+@login_required
+def performance():
+    """Render the user performance tracking page"""
+    return render_template('performance.html', page="performance")
+
 @main_bp.route('/statistics')
 def statistics():
     """Render the statistics page"""
@@ -1959,6 +2056,134 @@ def reset_all_stats():
     except Exception as e:
         logger.error(f"Error resetting all statistics: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
+
+# User session and performance tracking routes
+@main_bp.route('/api/sessions/current')
+def get_current_session():
+    """Get current user session information"""
+    try:
+        if rfid_initialized and rfid_controller and rfid_controller.current_session:
+            from models import UserSession
+            from datetime import datetime
+            session = UserSession.query.get(rfid_controller.current_session.id)
+            if session:
+                session_dict = session.to_dict()
+                
+                # Calculate live performance for active sessions
+                if not session.logout_time and session.login_time:
+                    current_time = datetime.now()  # Use local time instead of UTC
+                    session_duration = (current_time - session.login_time).total_seconds()
+                    fiber_fire_time_seconds = session.session_fire_time_ms / 1000.0
+                    live_performance = session_duration - fiber_fire_time_seconds
+                    session_dict['live_performance_score'] = live_performance
+                    session_dict['session_duration'] = session_duration
+                
+                return jsonify({
+                    'success': True,
+                    'session': session_dict
+                })
+        
+        return jsonify({
+            'success': False,
+            'message': 'No active session'
+        })
+    except Exception as e:
+        logger.error(f"Error getting current session: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@main_bp.route('/api/sessions/performance')
+def get_performance_stats():
+    """Get performance statistics for all users"""
+    try:
+        from models import UserSession, User
+        
+        # Get recent sessions (last 30 days) with performance data
+        from datetime import datetime, timedelta
+        thirty_days_ago = datetime.now() - timedelta(days=30)  # Use local time
+        
+        sessions = UserSession.query.filter(
+            UserSession.login_time >= thirty_days_ago,
+            UserSession.performance_score.isnot(None)
+        ).join(User, UserSession.user_id == User.id).all()
+        
+        # Group by user and calculate averages
+        user_performance = {}
+        for session in sessions:
+            username = session.user.username
+            if username not in user_performance:
+                user_performance[username] = {
+                    'username': username,
+                    'full_name': session.user.full_name,
+                    'sessions': [],
+                    'average_performance': 0,
+                    'best_performance': float('inf'),  # Changed back to infinity since lower is better
+                    'total_sessions': 0,
+                    'total_fire_count': 0,
+                    'total_fire_time_ms': 0
+                }
+            
+            user_perf = user_performance[username]
+            
+            # Add session fire time from the session record
+            session_fire_time_ms = session.session_fire_time_ms or 0
+            
+            user_perf['sessions'].append({
+                'login_time': session.login_time.isoformat(),
+                'performance_score': session.performance_score,
+                'session_fire_count': session.session_fire_count or 0,
+                'session_fire_time_ms': session_fire_time_ms,
+                'login_method': session.login_method
+            })
+            user_perf['total_sessions'] += 1
+            user_perf['total_fire_count'] += session.session_fire_count or 0
+            user_perf['total_fire_time_ms'] += session_fire_time_ms
+            
+            if session.performance_score < user_perf['best_performance']:  # Changed back to < since lower is better
+                user_perf['best_performance'] = session.performance_score
+        
+        # Calculate averages
+        for username in user_performance:
+            user_perf = user_performance[username]
+            if user_perf['sessions']:
+                avg_score = sum(s['performance_score'] for s in user_perf['sessions']) / len(user_perf['sessions'])
+                user_perf['average_performance'] = avg_score
+        
+        return jsonify({
+            'success': True,
+            'performance_data': list(user_performance.values())
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting performance stats: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@main_bp.route('/api/sessions/user/<username>')
+def get_user_sessions(username):
+    """Get session history for a specific user"""
+    try:
+        from models import UserSession, User
+        
+        user = User.query.filter_by(username=username).first()
+        if not user:
+            return jsonify({'success': False, 'error': 'User not found'}), 404
+        
+        sessions = UserSession.query.filter_by(user_id=user.id).order_by(UserSession.login_time.desc()).limit(50).all()
+        
+        session_data = [session.to_dict() for session in sessions]
+        
+        return jsonify({
+            'success': True,
+            'user': {
+                'username': user.username,
+                'full_name': user.full_name,
+                'access_level': user.access_level
+            },
+            'sessions': session_data
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting user sessions: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 # Servo sequence routes
 @main_bp.route('/servo/sequence', methods=['POST'])
@@ -2388,8 +2613,23 @@ def server_error(e):
 @main_bp.route('/login', methods=['GET', 'POST'])
 def login():
     """User login page"""
+    # Import LED states for login page
+    try:
+        from ws2812b_controller import LEDState
+    except ImportError:
+        LEDState = None
+        logging.warning("LEDState not available in login route")
+    
+    # Set LED to login screen state when page is accessed (only if not already logged in)
+    if led_initialized and led_controller and not current_user.is_authenticated:
+        try:
+            led_controller.set_login_screen_active()
+            logging.debug("LED set to login screen state")
+        except Exception as e:
+            logging.error(f"Failed to set LED to login screen: {e}")
+    
     if current_user.is_authenticated:
-        return redirect(url_for('index'))
+        return redirect(url_for('main_bp.index'))
     
     error = None
     if request.method == 'POST':
@@ -2406,9 +2646,31 @@ def login():
                     # Login with Flask-Login
                     login_user(user)
                     flash(f'Welcome, {user.username}!', 'success')
-                    return redirect(url_for('index'))
+                    
+                    # Update LED based on user access level
+                    if led_initialized and led_controller:
+                        try:
+                            if user.access_level == 'admin':
+                                led_controller.set_admin_logged_in()
+                                logging.info("LED set to admin logged in state")
+                            else:
+                                led_controller.set_user_logged_in()
+                                logging.info("LED set to user logged in state")
+                        except Exception as e:
+                            logging.error(f"Failed to set LED for logged in user: {e}")
+                    
+                    return redirect(url_for('main_bp.index'))
             else:
                 error = 'Invalid username or password'
+                # Set LED to access denied state for bad login
+                if led_initialized and led_controller:
+                    try:
+                        led_controller.set_state(LEDState.ACCESS_DENIED)
+                        logging.info("LED set to access denied for bad login")
+                        # Schedule return to login screen after 3 seconds
+                        threading.Timer(3.0, lambda: led_controller.set_login_screen_active()).start()
+                    except Exception as e:
+                        logging.error(f"Failed to set LED for bad login: {e}")
         else:
             # Direct database authentication if RFID controller not available
             user = User.query.filter_by(username=username, active=True).first()
@@ -2416,9 +2678,31 @@ def login():
                 # Login with Flask-Login
                 login_user(user)
                 flash(f'Welcome, {user.username}!', 'success')
-                return redirect(url_for('index'))
+                
+                # Update LED based on user access level
+                if led_initialized and led_controller:
+                    try:
+                        if user.access_level == 'admin':
+                            led_controller.set_admin_logged_in()
+                            logging.info("LED set to admin logged in state")
+                        else:
+                            led_controller.set_user_logged_in()
+                            logging.info("LED set to user logged in state")
+                    except Exception as e:
+                        logging.error(f"Failed to set LED for logged in user: {e}")
+                
+                return redirect(url_for('main_bp.index'))
             else:
                 error = 'Invalid username or password'
+                # Set LED to access denied state for bad login
+                if led_initialized and led_controller:
+                    try:
+                        led_controller.set_state(LEDState.ACCESS_DENIED)
+                        logging.info("LED set to access denied for bad login")
+                        # Schedule return to login screen after 3 seconds
+                        threading.Timer(3.0, lambda: led_controller.set_login_screen_active()).start()
+                    except Exception as e:
+                        logging.error(f"Failed to set LED for bad login: {e}")
     
     return render_template('login.html', page="login", error=error)
 
@@ -2426,12 +2710,28 @@ def login():
 @login_required
 def logout():
     """User logout"""
+    # Import LED states for logout
+    try:
+        from ws2812b_controller import LEDState
+    except ImportError:
+        LEDState = None
+    
     if rfid_initialized and rfid_controller:
         rfid_controller.logout()
     
+    # Update LED to logout state
+    if led_initialized and led_controller:
+        try:
+            led_controller.set_state(LEDState.LOGGED_OUT)
+            logging.info("LED set to logout state")
+            # Schedule return to login screen after 3 seconds
+            threading.Timer(3.0, lambda: led_controller.set_login_screen_active()).start()
+        except Exception as e:
+            logging.error(f"Failed to set LED for logout: {e}")
+    
     logout_user()
     flash('You have been logged out.', 'info')
-    return redirect(url_for('login'))
+    return redirect(url_for('main_bp.login'))
     
 @main_bp.route('/api/rfid/status')
 def rfid_status():
@@ -2488,7 +2788,7 @@ def register_rfid_card():
                 card_id=card_id,
                 user_id=user_id,
                 active=active,
-                issue_date=datetime.utcnow()
+                issue_date=datetime.now()  # Use local time
             )
             db.session.add(card)
             
@@ -2498,6 +2798,288 @@ def register_rfid_card():
         db.session.rollback()
         logger.error(f"Error registering RFID card: {e}")
         return jsonify({'error': str(e)}), 500
+
+@main_bp.route('/api/rfid/scan', methods=['POST'])
+@login_required
+def scan_rfid_card():
+    """Scan for an RFID card and return the card ID"""
+    if current_user.access_level != 'admin':
+        return jsonify({'error': 'Access denied. Admin rights required.'}), 403
+        
+    try:
+        # Use the already imported rfid_reader
+        if rfid_reader is None:
+            return jsonify({'error': 'RFID reader not initialized'}), 500
+            
+        logger.info("Starting RFID card scan...")
+        
+        # Try to read a card (timeout after 10 seconds)
+        import time
+        start_time = time.time()
+        timeout = 10  # 10 seconds timeout
+        
+        while time.time() - start_time < timeout:
+            try:
+                card_id, text = rfid_reader.read()
+                if card_id:
+                    logger.info(f"RFID card detected: {card_id}")
+                    
+                    # Check if card is already registered
+                    existing_card = RFIDCard.query.filter_by(card_id=str(card_id)).first()
+                    card_status = "registered" if existing_card else "new"
+                    
+                    return jsonify({
+                        'success': True, 
+                        'card_id': str(card_id),
+                        'status': card_status,
+                        'user': existing_card.user.username if existing_card else None
+                    })
+            except Exception as scan_error:
+                # Continue scanning if individual read fails
+                time.sleep(0.1)
+                continue
+                
+        return jsonify({'error': 'No card detected within timeout period'}), 408
+        
+    except Exception as e:
+        logger.error(f"Error scanning RFID card: {e}")
+        return jsonify({'error': f'Scan error: {str(e)}'}), 500
+
+@main_bp.route('/api/users/create', methods=['POST'])
+@login_required
+def create_user():
+    """Create a new user for RFID assignment"""
+    if current_user.access_level != 'admin':
+        return jsonify({'error': 'Access denied. Admin rights required.'}), 403
+        
+    try:
+        username = request.json.get('username')
+        full_name = request.json.get('full_name')
+        email = request.json.get('email')
+        department = request.json.get('department')
+        access_level = request.json.get('access_level', 'operator')
+        
+        if not username:
+            return jsonify({'error': 'Username is required'}), 400
+            
+        # Check if user already exists
+        existing_user = User.query.filter_by(username=username).first()
+        if existing_user:
+            return jsonify({'error': 'Username already exists'}), 400
+            
+        # Create new user
+        new_user = User(
+            username=username,
+            full_name=full_name,
+            email=email,
+            department=department,
+            access_level=access_level,
+            active=True
+        )
+        
+        db.session.add(new_user)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'user_id': new_user.id,
+            'username': new_user.username
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error creating user: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@main_bp.route('/api/users', methods=['GET'])
+@login_required
+def get_users():
+    """Get all users for management"""
+    if current_user.access_level != 'admin':
+        return jsonify({'error': 'Access denied. Admin rights required.'}), 403
+        
+    try:
+        users = User.query.all()
+        user_list = []
+        
+        for user in users:
+            user_data = {
+                'id': user.id,
+                'username': user.username,
+                'full_name': user.full_name,
+                'email': user.email,
+                'department': user.department,
+                'access_level': user.access_level,
+                'active': user.active,
+                'created_at': user.created_at.isoformat() if user.created_at else None,
+                'rfid_cards': [card.card_id for card in user.rfid_cards if card.active]
+            }
+            user_list.append(user_data)
+        
+        return jsonify({'success': True, 'users': user_list})
+        
+    except Exception as e:
+        logger.error(f"Error getting users: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@main_bp.route('/api/users/<int:user_id>', methods=['PUT'])
+@login_required
+def update_user(user_id):
+    """Update an existing user"""
+    if current_user.access_level != 'admin':
+        return jsonify({'error': 'Access denied. Admin rights required.'}), 403
+        
+    try:
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+            
+        # Don't allow editing the current user's own access level
+        if user.id == current_user.id and 'access_level' in request.json:
+            return jsonify({'error': 'Cannot modify your own access level'}), 400
+            
+        # Update user fields
+        if 'username' in request.json:
+            new_username = request.json['username']
+            if new_username != user.username:
+                # Check if username already exists
+                existing_user = User.query.filter_by(username=new_username).first()
+                if existing_user:
+                    return jsonify({'error': 'Username already exists'}), 400
+                user.username = new_username
+                
+        if 'full_name' in request.json:
+            user.full_name = request.json['full_name']
+        if 'email' in request.json:
+            user.email = request.json['email']
+        if 'department' in request.json:
+            user.department = request.json['department']
+        if 'access_level' in request.json:
+            user.access_level = request.json['access_level']
+        if 'active' in request.json:
+            user.active = bool(request.json['active'])
+            
+        # Update password if provided
+        if 'password' in request.json and request.json['password']:
+            user.set_password(request.json['password'])
+            
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'User {user.username} updated successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating user: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@main_bp.route('/api/users/<int:user_id>', methods=['DELETE'])
+@login_required
+def delete_user(user_id):
+    """Delete a user (soft delete by setting active=False)"""
+    if current_user.access_level != 'admin':
+        return jsonify({'error': 'Access denied. Admin rights required.'}), 403
+        
+    try:
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+            
+        # Don't allow deleting yourself
+        if user.id == current_user.id:
+            return jsonify({'error': 'Cannot delete your own account'}), 400
+            
+        # Soft delete - set active to False instead of actually deleting
+        user.active = False
+        
+        # Also deactivate all RFID cards for this user
+        for card in user.rfid_cards:
+            card.active = False
+            
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'User {user.username} has been deactivated'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error deleting user: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@main_bp.route('/users')
+@require_admin_in_normal_mode
+def users_management():
+    """Render the user management page"""
+    users = User.query.all()
+    return render_template('users.html', 
+                          page="users",
+                          users=users)
+
+@main_bp.route('/api/auth/rfid', methods=['POST'])
+def rfid_login():
+    """Authenticate user via RFID card scan"""
+    try:
+        # Use the RFID controller instead of direct reader for consistency
+        if not rfid_initialized or rfid_controller is None:
+            return jsonify({'error': 'RFID controller not initialized', 'rfid_available': False}), 500
+            
+        logger.info("Starting RFID authentication scan...")
+        
+        # Check if recently authenticated through the RFID controller
+        if rfid_controller.is_authenticated():
+            # Check if this is a fresh authentication (within last 5 seconds and not consumed)
+            current_time = time.time()
+            time_since_auth = current_time - rfid_controller.last_auth_time
+            
+            if time_since_auth <= 5 and not rfid_controller.login_consumed:
+                # This is a fresh authentication, use it for login
+                user_data = rfid_controller.get_authenticated_user()
+                logger.info(f"Fresh RFID authentication detected for user: {user_data.get('username')}")
+                
+                # Mark this authentication as consumed for login
+                rfid_controller.login_consumed = True
+                
+                # Log the user in through Flask-Login
+                user = User.query.get(user_data.get('user_id'))
+                if user and user.active:
+                    login_user(user, remember=True)
+                    logger.info(f"Flask login successful for RFID user: {user.username}")
+                    
+                    return jsonify({
+                        'success': True,
+                        'redirect': url_for('main_bp.index'),
+                        'user': user.username,  # Changed from 'username' to 'user' for frontend compatibility
+                        'username': user.username,  # Keep both for compatibility
+                        'access_level': user.access_level
+                    })
+                else:
+                    return jsonify({
+                        'success': False,
+                        'error': 'User account not found or inactive'
+                    }), 401
+            else:
+                # Old authentication or already consumed, continue scanning
+                logger.debug(f"Existing RFID authentication (age: {time_since_auth:.1f}s, consumed: {rfid_controller.login_consumed})")
+                pass
+        
+        # If not authenticated, return message to scan card
+        return jsonify({
+            'success': False,
+            'message': 'Please scan your RFID card...',
+            'waiting_for_card': True
+        }), 202
+        
+    except Exception as e:
+        logger.error(f"Error in RFID authentication: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'RFID authentication error',
+            'details': str(e)
+        }), 500
 
 @main_bp.route('/api/rfid/config', methods=['POST'])
 @login_required
@@ -2546,13 +3128,12 @@ def get_gpio_inputs():
             # Map the button states to GPIO pins according to config
             gpio_config = config.get_gpio_config()
             input_data = {
-                f"gpio{gpio_config['in_button_pin']}": input_states.get('in_button', False),
-                f"gpio{gpio_config['out_button_pin']}": input_states.get('out_button', False),
+                f"gpio{gpio_config['button_in_pin']}": input_states.get('in_button', False),
+                f"gpio{gpio_config['button_out_pin']}": input_states.get('out_button', False),
                 f"gpio{gpio_config['fire_button_pin']}": input_states.get('fire_button', False),
-                f"gpio{gpio_config['servo_invert_pin']}": input_states.get('servo_invert', False),
-                f"gpio{gpio_config['home_switch_pin']}": input_states.get('home_switch', False),
-                f"gpio{gpio_config['table_back_limit_pin']}": input_states.get('table_back_limit', False),
-                f"gpio{gpio_config['table_front_limit_pin']}": input_states.get('table_front_limit', False),
+                f"gpio{gpio_config['esp_home_pin']}": input_states.get('home_switch', False),
+                f"gpio{gpio_config['table_back_switch_pin']}": input_states.get('table_back_limit', False),
+                f"gpio{gpio_config['table_front_switch_pin']}": input_states.get('table_front_limit', False),
                 "status": "success",
                 "simulated": False
             }
@@ -2569,13 +3150,12 @@ def get_gpio_inputs():
     
     return jsonify({
         "status": "success",
-        f"gpio{gpio_config['in_button_pin']}": random.choice([True, False]),  # IN Button
-        f"gpio{gpio_config['out_button_pin']}": random.choice([True, False]),  # OUT Button
+        f"gpio{gpio_config['button_in_pin']}": random.choice([True, False]),  # IN Button
+        f"gpio{gpio_config['button_out_pin']}": random.choice([True, False]),  # OUT Button
         f"gpio{gpio_config['fire_button_pin']}": random.choice([True, False]),  # FIRE Button
-        f"gpio{gpio_config['servo_invert_pin']}": random.choice([True, False]),   # Servo Invert
-        f"gpio{gpio_config['home_switch_pin']}": random.choice([True, False]),  # Home Switch
-        f"gpio{gpio_config['table_back_limit_pin']}": random.choice([True, False]),  # Table Back Limit
-        f"gpio{gpio_config['table_front_limit_pin']}": random.choice([True, False]),  # Table Front Limit
+        f"gpio{gpio_config['esp_home_pin']}": random.choice([True, False]),  # Home Switch
+        f"gpio{gpio_config['table_back_switch_pin']}": random.choice([True, False]),  # Table Back Limit
+        f"gpio{gpio_config['table_front_switch_pin']}": random.choice([True, False]),  # Table Front Limit
         "simulated": True
     })
 

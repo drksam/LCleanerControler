@@ -14,7 +14,8 @@ Options:
   --simulation       Run in simulation mode for testing
   --port PORT        Specify port to run on (default: 5000)
   --debug            Enable Flask debug mode
-  --temp-db          Use temporary SQLite database (default)
+  --temp-db          Use temporary SQLite database (for testing only)
+  --production-db    Use local production database (recommended)
   --help             Show this help message
 """
 
@@ -34,7 +35,8 @@ def setup_parser():
     parser.add_argument('--simulation', action='store_true', help='Run in simulation mode for testing')
     parser.add_argument('--port', type=int, default=5000, help='Port to run on (default: 5000)')
     parser.add_argument('--debug', action='store_true', help='Enable Flask debug mode')
-    parser.add_argument('--temp-db', action='store_true', default=True, help='Use temporary SQLite database (default)')
+    parser.add_argument('--temp-db', action='store_true', help='Use temporary SQLite database')
+    parser.add_argument('--production-db', action='store_true', help='Use production database')
     parser.add_argument('--debug-level', choices=['debug', 'info', 'warning', 'error'], 
                         default='info', help='Set logging level')
     return parser
@@ -123,9 +125,25 @@ def main():
         print("Mode: HARDWARE (real GPIO control)")
     
     # Setup temporary database
-    if args.temp_db:
+    use_temp_db = args.temp_db  # Only use temp if explicitly requested
+    use_production_db = args.production_db or not args.temp_db  # Default to production
+    
+    if use_temp_db:
         db_path = setup_temporary_database()
         print(f"Database: Temporary SQLite ({db_path})")
+        print("⚠️  Warning: Data will be lost when application stops!")
+    elif use_production_db:
+        # Check if production database exists, if not suggest creating it
+        prod_db_path = 'instance/LCleaner_production.db'
+        if os.path.exists(prod_db_path):
+            # Set environment variable to use production database
+            os.environ['DATABASE_URL'] = f'sqlite:///{os.path.abspath(prod_db_path)}'
+            print(f"Database: Local Production ({os.path.abspath(prod_db_path)})")
+        else:
+            print("❌ Production database not found!")
+            print("Run this first: python setup_local_production_db.py")
+            print("Or use --temp-db for temporary testing")
+            sys.exit(1)
     else:
         print("Database: Using configured database")
     
@@ -192,11 +210,13 @@ def main():
         from main import app
         
         # Initialize database tables if using temporary database
-        if args.temp_db:
+        if use_temp_db:
             with app.app_context():
                 from models import db
                 db.create_all()
                 print("✓ Temporary database tables created")
+        else:
+            print("✓ Using existing production database")
         
         # Run the application
         app.run(
@@ -216,7 +236,7 @@ def main():
         sys.exit(1)
     finally:
         # Cleanup temporary database if created
-        if args.temp_db and 'DATABASE_URL' in os.environ:
+        if use_temp_db and 'DATABASE_URL' in os.environ:
             db_path = os.environ['DATABASE_URL'].replace('sqlite:///', '')
             if os.path.exists(db_path):
                 try:

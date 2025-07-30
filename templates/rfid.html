@@ -18,16 +18,78 @@
                         <form id="card-form" class="mb-4">
                             <div class="mb-3">
                                 <label for="card_id" class="form-label">Card ID</label>
-                                <input type="text" class="form-control" id="card_id" placeholder="Enter RFID card ID">
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="card_id" placeholder="Enter RFID card ID or scan card">
+                                    <button class="btn btn-outline-primary" type="button" id="scan-btn">
+                                        <i class="fas fa-credit-card"></i> Scan Card
+                                    </button>
+                                </div>
+                                <div class="form-text">
+                                    <span id="scan-status" class="text-muted">Click "Scan Card" to read an RFID card</span>
+                                </div>
                             </div>
                             <div class="mb-3">
                                 <label for="user_id" class="form-label">Assign to User</label>
-                                <select class="form-select" id="user_id">
-                                    <option value="" selected disabled>Select User</option>
-                                    {% for user in users %}
-                                        <option value="{{ user.id }}">{{ user.username }} ({{ user.access_level }})</option>
-                                    {% endfor %}
-                                </select>
+                                <div class="input-group">
+                                    <select class="form-select" id="user_id">
+                                        <option value="" selected disabled>Select User</option>
+                                        {% for user in users %}
+                                            <option value="{{ user.id }}">{{ user.username }} ({{ user.access_level }})</option>
+                                        {% endfor %}
+                                    </select>
+                                    <button class="btn btn-outline-success" type="button" id="new-user-btn">
+                                        <i class="fas fa-user-plus"></i> New User
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Quick User Creation Form (Hidden by default) -->
+                            <div id="new-user-form" class="card mb-3" style="display: none;">
+                                <div class="card-header">
+                                    <h6 class="card-title mb-0">Create New User</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="new_username" class="form-label">Username *</label>
+                                                <input type="text" class="form-control" id="new_username" placeholder="Enter username">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="new_full_name" class="form-label">Full Name</label>
+                                                <input type="text" class="form-control" id="new_full_name" placeholder="Enter full name">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="new_email" class="form-label">Email</label>
+                                                <input type="email" class="form-control" id="new_email" placeholder="Enter email">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="new_department" class="form-label">Department</label>
+                                                <input type="text" class="form-control" id="new_department" placeholder="Enter department">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="new_access_level" class="form-label">Access Level</label>
+                                        <select class="form-select" id="new_access_level">
+                                            <option value="operator" selected>Operator</option>
+                                            <option value="maintenance">Maintenance</option>
+                                            <option value="admin">Admin</option>
+                                        </select>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <button type="button" class="btn btn-success" id="create-user-btn">Create User</button>
+                                        <button type="button" class="btn btn-secondary" id="cancel-user-btn">Cancel</button>
+                                    </div>
+                                </div>
                             </div>
                             <div class="mb-3 form-check">
                                 <input type="checkbox" class="form-check-input" id="card_active" checked>
@@ -83,7 +145,7 @@
             <!-- Server Configuration -->
             <div class="card mb-4">
                 <div class="card-header">
-                    <h5 class="card-title mb-0">NooyenMachineMonitor Server</h5>
+                    <h5 class="card-title mb-0">ShopMonitor Server</h5>
                 </div>
                 <div class="card-body">
                     {% if current_user.access_level == 'admin' %}
@@ -225,6 +287,138 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(error => {
                 console.error('Error:', error);
                 showAlert('An error occurred while saving the card', 'danger');
+            });
+        });
+    }
+    
+    // RFID Card Scan functionality
+    const scanBtn = document.getElementById('scan-btn');
+    if (scanBtn) {
+        scanBtn.addEventListener('click', function() {
+            const cardIdInput = document.getElementById('card_id');
+            const scanStatus = document.getElementById('scan-status');
+            const originalBtnText = scanBtn.innerHTML;
+            
+            // Disable button and show scanning status
+            scanBtn.disabled = true;
+            scanBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scanning...';
+            scanStatus.textContent = 'Place RFID card near reader...';
+            scanStatus.className = 'text-warning';
+            
+            fetch('/api/rfid/scan', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    cardIdInput.value = data.card_id;
+                    if (data.status === 'registered') {
+                        scanStatus.textContent = `Card found! Already registered to: ${data.user}`;
+                        scanStatus.className = 'text-info';
+                    } else {
+                        scanStatus.textContent = 'New card detected! Ready to register.';
+                        scanStatus.className = 'text-success';
+                    }
+                    showAlert(`Card scanned: ${data.card_id}`, 'success');
+                } else {
+                    scanStatus.textContent = `Scan failed: ${data.error}`;
+                    scanStatus.className = 'text-danger';
+                    showAlert(`Scan error: ${data.error}`, 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                scanStatus.textContent = 'Scan failed - check console for details';
+                scanStatus.className = 'text-danger';
+                showAlert('An error occurred while scanning', 'danger');
+            })
+            .finally(() => {
+                // Re-enable button
+                scanBtn.disabled = false;
+                scanBtn.innerHTML = originalBtnText;
+            });
+        });
+    }
+    
+    // New User Creation functionality
+    const newUserBtn = document.getElementById('new-user-btn');
+    const newUserForm = document.getElementById('new-user-form');
+    const createUserBtn = document.getElementById('create-user-btn');
+    const cancelUserBtn = document.getElementById('cancel-user-btn');
+    const userSelect = document.getElementById('user_id');
+    
+    if (newUserBtn && newUserForm) {
+        newUserBtn.addEventListener('click', function() {
+            newUserForm.style.display = newUserForm.style.display === 'none' ? 'block' : 'none';
+        });
+        
+        cancelUserBtn.addEventListener('click', function() {
+            newUserForm.style.display = 'none';
+            // Clear form
+            document.getElementById('new_username').value = '';
+            document.getElementById('new_full_name').value = '';
+            document.getElementById('new_email').value = '';
+            document.getElementById('new_department').value = '';
+            document.getElementById('new_access_level').value = 'operator';
+        });
+        
+        createUserBtn.addEventListener('click', function() {
+            const userData = {
+                username: document.getElementById('new_username').value,
+                full_name: document.getElementById('new_full_name').value,
+                email: document.getElementById('new_email').value,
+                department: document.getElementById('new_department').value,
+                access_level: document.getElementById('new_access_level').value
+            };
+            
+            if (!userData.username) {
+                showAlert('Username is required', 'danger');
+                return;
+            }
+            
+            createUserBtn.disabled = true;
+            createUserBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+            
+            fetch('/api/users/create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(userData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert(`User "${data.username}" created successfully`, 'success');
+                    
+                    // Add new user to the select dropdown
+                    const option = document.createElement('option');
+                    option.value = data.user_id;
+                    option.textContent = `${data.username} (${userData.access_level})`;
+                    option.selected = true;
+                    userSelect.appendChild(option);
+                    
+                    // Hide the form and clear it
+                    newUserForm.style.display = 'none';
+                    document.getElementById('new_username').value = '';
+                    document.getElementById('new_full_name').value = '';
+                    document.getElementById('new_email').value = '';
+                    document.getElementById('new_department').value = '';
+                    document.getElementById('new_access_level').value = 'operator';
+                } else {
+                    showAlert(`Error: ${data.error}`, 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('An error occurred while creating the user', 'danger');
+            })
+            .finally(() => {
+                createUserBtn.disabled = false;
+                createUserBtn.innerHTML = 'Create User';
             });
         });
     }
