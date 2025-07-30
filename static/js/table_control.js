@@ -238,6 +238,19 @@ document.addEventListener('DOMContentLoaded', function() {
      * Stop the table movement in both directions
      */
     function stopTable() {
+        console.log('stopTable() called - checking AutoCycleManager state...');
+        console.log('window.AutoCycleManager exists:', !!window.AutoCycleManager);
+        if (window.AutoCycleManager) {
+            console.log('AutoCycleManager.isRunning():', window.AutoCycleManager.isRunning());
+        }
+        
+        // Check if auto cycle is running - if so, don't interfere with it
+        if (window.AutoCycleManager && window.AutoCycleManager.isRunning()) {
+            console.log('Table stop skipped - AutoCycleManager is running');
+            return;
+        }
+        
+        console.log('stopTable() proceeding - AutoCycleManager not running or not available');
         const now = Date.now();
         
         // Debounce rapid stop calls to prevent servo interference

@@ -421,6 +421,61 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // GO to 0 button
+    const goToZeroButton = document.getElementById('go-to-zero');
+    
+    if (goToZeroButton) {
+        goToZeroButton.addEventListener('click', function() {
+            addLogMessage('Moving cleaning head to position 0...', false, 'action');
+            goToZeroButton.disabled = true;
+            clearSimulationWarnings();
+            
+            fetch('/go_to_zero', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    const currentPosition = data.position;
+                    updatePositionDisplay(currentPosition);
+                    
+                    // Handle simulation status based on mode
+                    if (data.simulated) {
+                        // For simulation mode, this is expected
+                        if (currentOperationMode === 'simulation') {
+                            addLogMessage('GO to 0 complete! (simulation mode)', false, 'success');
+                        } 
+                        // For prototype mode, this should NEVER happen
+                        else if (currentOperationMode === 'prototype') {
+                            addLogMessage('ERROR: GO to 0 simulation in PROTOTYPE MODE. Hardware is required!', true);
+                            addSimulationError('HARDWARE ERROR: Receiving simulated values in PROTOTYPE MODE. Check your hardware connections.');
+                        } 
+                        // For normal mode, it's a warning
+                        else {
+                            addLogMessage('WARNING: GO to 0 simulated due to hardware error', false, 'warning');
+                            addSimulationWarning('Hardware error detected - using simulation values');
+                        }
+                    } else {
+                        // Real hardware values - clear any warnings
+                        clearSimulationWarnings();
+                        addLogMessage('GO to 0 complete!', false, 'success');
+                    }
+                } else {
+                    addLogMessage('Error: ' + data.message, true);
+                }
+            })
+            .catch(error => {
+                addLogMessage('Error: ' + error.message, true);
+            })
+            .finally(() => {
+                if (goToZeroButton) goToZeroButton.disabled = false;
+            });
+        });
+    }
+    
     // Global jog interval variable for proper cleanup
     let jogInterval = null;
     let jogHoldTimer = null;

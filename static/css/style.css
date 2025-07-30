@@ -69,11 +69,14 @@
 }
 
 /* Specific styles for table control buttons */
-#run-table-button.active {
-    background-color: #3bf74e !important;
-    border-color: #3bf74e !important;
-    color: #000 !important;
-    animation: pulse-green 2s infinite;
+#run-table-button.active,
+button#run-table-button.active {
+    background-color: #007bff !important;
+    border-color: #007bff !important;
+    color: #fff !important;
+    box-shadow: 0 0 15px rgba(0, 123, 255, 0.8) !important;
+    animation: pulse-blue 2s infinite !important;
+    transform: none !important;
 }
 
 #stop-table-button.active {
@@ -86,13 +89,13 @@
 /* Pulsing animations */
 @keyframes pulse-green {
     0% {
-        box-shadow: 0 0 0 0 rgba(59, 247, 78, 0.7);
+        box-shadow: 0 0 0 0 rgba(50, 168, 80, 0.7);
     }
     70% {
-        box-shadow: 0 0 0 10px rgba(59, 247, 78, 0);
+        box-shadow: 0 0 0 10px rgba(50, 168, 80, 0);
     }
     100% {
-        box-shadow: 0 0 0 0 rgba(59, 247, 78, 0);
+        box-shadow: 0 0 0 0 rgba(50, 168, 80, 0);
     }
 }
 
@@ -137,17 +140,33 @@
     animation: pulse 2s infinite;
 }
 
-#run-table-button.active {
-    background-color: #3bf74e !important;
-    border-color: #3bf74e !important;
+/* Laser control button active states - keep clicked color when active */
+#fire-toggle-button.active,
+#fire-button.active {
+    background-color: #ffa502 !important;
+    border-color: #ffa502 !important;
     color: #000 !important;
-    animation: pulse 1.5s infinite;
+    box-shadow: 0 0 10px #ffa502;
 }
 
-#stop-table-button.active {
+#fire-fiber-toggle-button.active,
+#fire-fiber-button.active {
     background-color: #ff4757 !important;
     border-color: #ff4757 !important;
     color: #fff !important;
+    box-shadow: 0 0 10px #ff4757;
+}
+
+@keyframes pulse-blue {
+    0% {
+        box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(0, 123, 255, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(0, 123, 255, 0);
+    }
 }
 
 @keyframes pulse {
@@ -160,6 +179,79 @@
 .form-switch .form-check-input {
     width: 3em;
     height: 1.5em;
+}
+
+/* Custom toggle switch (more reliable than Bootstrap form-switch) */
+.mobile-toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 34px;
+}
+
+.mobile-toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute; /* Make sure it's completely hidden */
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #6c757d; /* Use explicit color instead of var */
+    transition: all 0.4s ease;
+    border-radius: 34px;
+    z-index: 1; /* Ensure it's clickable */
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 26px;
+    width: 26px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: all 0.4s ease;
+    border-radius: 50%;
+    z-index: 2;
+}
+
+/* More specific selectors for checked state */
+.mobile-toggle-switch input:checked + .toggle-slider {
+    background-color: #007bff !important; /* Brighter blue with !important */
+    box-shadow: 0 0 15px rgba(0, 123, 255, 0.8) !important; /* Add bright glow */
+}
+
+.mobile-toggle-switch input:checked + .toggle-slider:before {
+    transform: translateX(26px) !important;
+    box-shadow: 0 0 8px rgba(0, 123, 255, 0.6) !important; /* Glow on slider knob too */
+}
+
+/* Hover effects */
+.toggle-slider:hover {
+    background-color: #5a6268;
+}
+
+.mobile-toggle-switch input:checked + .toggle-slider:hover {
+    background-color: #0056b3 !important;
+    box-shadow: 0 0 20px rgba(0, 123, 255, 1) !important; /* Even brighter glow on hover */
+}
+
+/* Debug: Show when switch is checked */
+.mobile-toggle-switch input:checked + .toggle-slider:after {
+    content: "ON";
+    position: absolute;
+    color: white;
+    font-size: 10px;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
 }
 
 /* Card header icons */

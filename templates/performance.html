@@ -11,7 +11,7 @@
                     <h4 class="mb-0">
                         <i class="fas fa-chart-line me-2"></i>User Performance Tracking
                     </h4>
-                    <small>Performance measured by total logged in time minus fiber fire time (lower is better - less non-productive time)</small>
+                    <small>Enhanced performance scoring: (Table Cycles × 100) - (Fire Count × 10) - (Session Minutes × 2) + Technique Bonus (higher is better)</small>
                 </div>
                 <div class="card-body">
                     
@@ -29,6 +29,7 @@
                                         <p class="mb-2"><strong>Login Method:</strong> <span id="current-login-method">-</span></p>
                                         <p class="mb-2"><strong>Fire Count:</strong> <span id="current-fire-count">0</span></p>
                                         <p class="mb-2"><strong>Fire Time:</strong> <span id="current-fire-time">0s</span></p>
+                                        <p class="mb-2"><strong>Table Cycles:</strong> <span id="current-table-cycles">0</span></p>
                                         <p class="mb-0"><strong>Performance:</strong> <span id="current-performance">Waiting for first fire...</span></p>
                                     </div>
                                 </div>
@@ -70,11 +71,12 @@
                                                     <th><i class="fas fa-chart-bar"></i> Total Sessions</th>
                                                     <th><i class="fas fa-crosshairs"></i> Total Fires</th>
                                                     <th><i class="fas fa-clock"></i> Total Fire Time</th>
+                                                    <th><i class="fas fa-sync"></i> Total Table Cycles</th>
                                                 </tr>
                                             </thead>
                                             <tbody id="performance-tbody">
                                                 <tr>
-                                                    <td colspan="7" class="text-center">
+                                                    <td colspan="8" class="text-center">
                                                         <div class="spinner-border" role="status">
                                                             <span class="visually-hidden">Loading...</span>
                                                         </div>
@@ -251,13 +253,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     document.getElementById('current-fire-count').textContent = session.session_fire_count || 0;
                     const fireTimeMs = session.session_fire_time_ms || 0;
                     document.getElementById('current-fire-time').textContent = formatTime(fireTimeMs / 1000);
+                    document.getElementById('current-table-cycles').textContent = session.session_table_cycles || 0;
                     
                     // Check for live performance first (active sessions), then completed performance
                     if (session.live_performance_score !== undefined) {
                         document.getElementById('current-performance').textContent = 
-                            formatTime(session.live_performance_score) + ' (live)';
+                            session.live_performance_score.toFixed(2) + ' (live)';
                     } else if (session.performance_score) {
-                        document.getElementById('current-performance').textContent = formatTime(session.performance_score);
+                        document.getElementById('current-performance').textContent = session.performance_score.toFixed(2);
                     } else if (session.session_fire_count > 0) {
                         document.getElementById('current-performance').textContent = 'Calculating...';
                     } else {
@@ -269,6 +272,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     document.getElementById('current-login-method').textContent = '-';
                     document.getElementById('current-fire-count').textContent = '0';
                     document.getElementById('current-fire-time').textContent = '0s';
+                    document.getElementById('current-table-cycles').textContent = '0';
                     document.getElementById('current-performance').textContent = '-';
                 }
             })
@@ -300,21 +304,23 @@ document.addEventListener('DOMContentLoaded', function() {
         const tbody = document.getElementById('performance-tbody');
         
         if (!performanceData || performanceData.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center">No performance data available</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center">No performance data available</td></tr>';
             return;
         }
         
-        // Sort by average performance (lower is better - less non-productive time)
-        performanceData.sort((a, b) => a.average_performance - b.average_performance);
+        // Sort by average performance (higher is better with new scoring system)
+        performanceData.sort((a, b) => b.average_performance - a.average_performance);
         
         tbody.innerHTML = '';
         performanceData.forEach((user, index) => {
             // Calculate total fire count and fire time across all sessions
             let totalFireCount = 0;
             let totalFireTimeMs = 0;
+            let totalTableCycles = 0;
             
             user.sessions.forEach(session => {
                 totalFireCount += session.session_fire_count || 0;
+                totalTableCycles += session.session_table_cycles || 0;
                 // Calculate fire time from performance data if available
                 if (session.session_fire_time_ms) {
                     totalFireTimeMs += session.session_fire_time_ms;
@@ -325,11 +331,12 @@ document.addEventListener('DOMContentLoaded', function() {
             row.innerHTML = `
                 <td><span class="badge bg-${index === 0 ? 'warning' : index === 1 ? 'secondary' : index === 2 ? 'success' : 'primary'}">${index + 1}</span></td>
                 <td><strong>${user.username}</strong><br><small class="text-muted">${user.full_name || 'N/A'}</small></td>
-                <td><span class="badge bg-info">${formatTime(user.average_performance)}</span></td>
-                <td><span class="badge bg-success">${formatTime(user.best_performance)}</span></td>
+                <td><span class="badge bg-info">${user.average_performance ? user.average_performance.toFixed(2) : 'N/A'}</span></td>
+                <td><span class="badge bg-success">${user.best_performance ? user.best_performance.toFixed(2) : 'N/A'}</span></td>
                 <td><span class="badge bg-primary">${user.total_sessions}</span></td>
                 <td><span class="badge bg-danger">${totalFireCount}</span></td>
                 <td><span class="badge bg-dark">${formatTime(totalFireTimeMs / 1000)}</span></td>
+                <td><span class="badge bg-success">${totalTableCycles}</span></td>
             `;
             tbody.appendChild(row);
         });
@@ -351,7 +358,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (bestUser) {
             document.getElementById('best-user').textContent = bestUser.username;
-            document.getElementById('best-score').textContent = formatTime(bestScore);
+            document.getElementById('best-score').textContent = bestScore.toFixed(2);
             
             // Find the session with the best performance
             const bestSession = bestUser.sessions.find(s => s.performance_score === bestScore);

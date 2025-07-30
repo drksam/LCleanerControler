@@ -59,6 +59,20 @@
                     </button>
                 </div>
                 <div class="mt-3">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <button id="run-to-front-limit-button" class="btn btn-outline-success w-100" data-bs-toggle="tooltip" title="Move table forward until front limit switch is reached">
+                                <i class="fas fa-arrow-right me-2"></i> Run to Front Limit
+                            </button>
+                        </div>
+                        <div class="col-md-6">
+                            <button id="run-to-back-limit-button" class="btn btn-outline-danger w-100" data-bs-toggle="tooltip" title="Move table backward until back limit switch is reached">
+                                <i class="fas fa-arrow-left me-2"></i> Run to Back Limit
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-3">
                     <small class="text-muted"><i class="fas fa-info-circle me-1"></i> Manual buttons are momentary - hold to move, release to stop</small>
                 </div>
             </div>
@@ -155,6 +169,96 @@
         
         // Update preset list and initialize tooltips on load
         updatePresetList();
+        
+        // Add event listeners for run to limit switch buttons
+        const runToFrontLimitButton = document.getElementById('run-to-front-limit-button');
+        const runToBackLimitButton = document.getElementById('run-to-back-limit-button');
+        
+        if (runToFrontLimitButton) {
+            runToFrontLimitButton.addEventListener('click', function() {
+                if (window.addLogMessage) {
+                    window.addLogMessage('Running table to front limit switch...', false, 'action');
+                }
+                
+                runToFrontLimitButton.disabled = true;
+                runToFrontLimitButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Running to Front...';
+                
+                fetch('/table/run_to_front_limit', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        if (window.addLogMessage) {
+                            window.addLogMessage(data.message, false, 'success');
+                        }
+                    } else {
+                        if (window.addLogMessage) {
+                            window.addLogMessage(`Error: ${data.message}`, true);
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error running to front limit:', error);
+                    if (window.addLogMessage) {
+                        window.addLogMessage('Error running to front limit switch', true);
+                    }
+                })
+                .finally(() => {
+                    // Re-enable button after a delay
+                    setTimeout(() => {
+                        runToFrontLimitButton.disabled = false;
+                        runToFrontLimitButton.innerHTML = '<i class="fas fa-arrow-right me-2"></i> Run to Front Limit';
+                    }, 2000);
+                });
+            });
+        }
+        
+        if (runToBackLimitButton) {
+            runToBackLimitButton.addEventListener('click', function() {
+                if (window.addLogMessage) {
+                    window.addLogMessage('Running table to back limit switch...', false, 'action');
+                }
+                
+                runToBackLimitButton.disabled = true;
+                runToBackLimitButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Running to Back...';
+                
+                fetch('/table/run_to_back_limit', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        if (window.addLogMessage) {
+                            window.addLogMessage(data.message, false, 'success');
+                        }
+                    } else {
+                        if (window.addLogMessage) {
+                            window.addLogMessage(`Error: ${data.message}`, true);
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error running to back limit:', error);
+                    if (window.addLogMessage) {
+                        window.addLogMessage('Error running to back limit switch', true);
+                    }
+                })
+                .finally(() => {
+                    // Re-enable button after a delay
+                    setTimeout(() => {
+                        runToBackLimitButton.disabled = false;
+                        runToBackLimitButton.innerHTML = '<i class="fas fa-arrow-left me-2"></i> Run to Back Limit';
+                    }, 2000);
+                });
+            });
+        }
         
         function updatePresetList() {
             // Existing presets code

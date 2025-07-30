@@ -856,6 +856,12 @@ class SequenceRunner:
                     success = self._execute_table_forward(step)
                 elif action == 'table_backward':
                     success = self._execute_table_backward(step)
+                elif action == 'table_run_to_front_limit':
+                    success = self._execute_table_run_to_front_limit()
+                elif action == 'table_run_to_back_limit':
+                    success = self._execute_table_run_to_back_limit()
+                elif action == 'go_to_zero':
+                    success = self._execute_go_to_zero()
                 else:
                     error_msg = f"Unknown action: {action}"
                     self._log(
@@ -1728,6 +1734,138 @@ class SequenceRunner:
             duration = step.get('duration', 1000)
             self.execution_log.append(f"Simulated table backward for {duration} ms after error")
             time.sleep(duration / 1000.0)
+            return True
+    
+    def _execute_table_run_to_front_limit(self):
+        """Execute a table run to front limit action"""
+        if not self.output_controller:
+            if not self._handle_missing_hardware("Output controller"):
+                return False
+                
+            # Simulation fallback
+            self.execution_log.append("Simulated table run to front limit")
+            time.sleep(2.0)  # Simulate some time for the operation
+            return True
+        
+        try:
+            # Use the same logic as the API route
+            import requests
+            response = requests.post('http://localhost:5000/table/run_to_front_limit')
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('success'):
+                    self.execution_log.append("Table run to front limit completed")
+                    return True
+                else:
+                    error_msg = data.get('error', 'Unknown error')
+                    self.execution_log.append(f"Error: {error_msg}")
+                    return False
+            else:
+                error_msg = f"HTTP error {response.status_code}"
+                self.execution_log.append(f"Error: {error_msg}")
+                return False
+        except Exception as e:
+            # Hardware error occurred
+            error_msg = f"Error running table to front limit: {e}"
+            logger.error(error_msg)
+            
+            if self.operation_mode != OperationMode.SIMULATION:
+                # In normal or prototype mode, report error
+                self.execution_log.append(f"Error: {error_msg}")
+                return False if self.operation_mode == OperationMode.PROTOTYPE else True
+                
+            # Fall back to simulation in simulation mode
+            self.simulation_used = True
+            self.execution_log.append("Simulated table run to front limit after error")
+            time.sleep(2.0)
+            return True
+    
+    def _execute_table_run_to_back_limit(self):
+        """Execute a table run to back limit action"""
+        if not self.output_controller:
+            if not self._handle_missing_hardware("Output controller"):
+                return False
+                
+            # Simulation fallback
+            self.execution_log.append("Simulated table run to back limit")
+            time.sleep(2.0)  # Simulate some time for the operation
+            return True
+        
+        try:
+            # Use the same logic as the API route
+            import requests
+            response = requests.post('http://localhost:5000/table/run_to_back_limit')
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('success'):
+                    self.execution_log.append("Table run to back limit completed")
+                    return True
+                else:
+                    error_msg = data.get('error', 'Unknown error')
+                    self.execution_log.append(f"Error: {error_msg}")
+                    return False
+            else:
+                error_msg = f"HTTP error {response.status_code}"
+                self.execution_log.append(f"Error: {error_msg}")
+                return False
+        except Exception as e:
+            # Hardware error occurred
+            error_msg = f"Error running table to back limit: {e}"
+            logger.error(error_msg)
+            
+            if self.operation_mode != OperationMode.SIMULATION:
+                # In normal or prototype mode, report error
+                self.execution_log.append(f"Error: {error_msg}")
+                return False if self.operation_mode == OperationMode.PROTOTYPE else True
+                
+            # Fall back to simulation in simulation mode
+            self.simulation_used = True
+            self.execution_log.append("Simulated table run to back limit after error")
+            time.sleep(2.0)
+            return True
+    
+    def _execute_go_to_zero(self):
+        """Execute a go to zero action for cleaning head stepper"""
+        if not self.output_controller:
+            if not self._handle_missing_hardware("Output controller"):
+                return False
+                
+            # Simulation fallback
+            self.execution_log.append("Simulated cleaning head go to zero")
+            time.sleep(1.5)  # Simulate some time for the operation
+            return True
+        
+        try:
+            # Use the same logic as the API route
+            import requests
+            response = requests.post('http://localhost:5000/go_to_zero')
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('success'):
+                    self.execution_log.append("Cleaning head moved to position 0")
+                    return True
+                else:
+                    error_msg = data.get('error', 'Unknown error')
+                    self.execution_log.append(f"Error: {error_msg}")
+                    return False
+            else:
+                error_msg = f"HTTP error {response.status_code}"
+                self.execution_log.append(f"Error: {error_msg}")
+                return False
+        except Exception as e:
+            # Hardware error occurred
+            error_msg = f"Error moving cleaning head to zero: {e}"
+            logger.error(error_msg)
+            
+            if self.operation_mode != OperationMode.SIMULATION:
+                # In normal or prototype mode, report error
+                self.execution_log.append(f"Error: {error_msg}")
+                return False if self.operation_mode == OperationMode.PROTOTYPE else True
+                
+            # Fall back to simulation in simulation mode
+            self.simulation_used = True
+            self.execution_log.append("Simulated cleaning head go to zero after error")
+            time.sleep(1.5)
             return True
     
     def stop(self):

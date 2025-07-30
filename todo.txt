@@ -1,4 +1,23 @@
-# LCleaner Controller Project - TODO (Updated 2025-07-21)
+# LCleaner Controller Project - TODO (Updated 2025-07-30)
+
+## TABLE RUN TO LIMIT SWITCHES & GO TO ZERO - COMPLETED (2025-07-30) ⚠️ UNTESTED
+✓ Added table run to front limit switch functionality
+✓ Added table run to back limit switch functionality  
+✓ Added cleaning head GO to zero functionality
+✓ Backend API routes implemented (/table/run_to_front_limit, /table/run_to_back_limit, /go_to_zero)
+✓ Frontend UI buttons added to table.html and cleaning_head.html pages
+✓ Operation page integration for GO to zero button
+✓ JavaScript event handlers with error handling and simulation support
+✓ Sequence automation integration - all new functions available as sequence steps
+✓ Complete parameter handling for sequence programming interface
+✓ Visual styling and documentation updated
+
+**STATUS: IMPLEMENTATION COMPLETE - REQUIRES TESTING** ⚠️
+- All backend routes implemented with limit switch checking and safety logic
+- UI buttons integrated across table, cleaning head, and operation pages
+- Full sequence automation support added (table_run_to_front_limit, table_run_to_back_limit, go_to_zero)
+- Error handling and simulation mode support included
+- **UNTESTED**: Physical hardware testing required to verify limit switch detection and stepper positioning
 
 ## TRIGGER SERVO PAGE - COMPLETED (2025-07-21) ✓ FULLY FUNCTIONAL
 ✓ Fixed delay timer backend infrastructure (added update_timing_config method)
@@ -25,6 +44,7 @@
 - [x] Deploy to Raspberry Pi and test hardware detection (system currently in simulation mode on Windows)
 - [x] Verify actual GPIO connections on physical hardware and update all config files for consistency (machine_config.json, Default pinout.txt, config.py)
 - [x] Fix any remaining GPIO control fallback issues (ensure hardware mode works, no silent simulation fallback)
+- [ ] **TEST NEW LIMIT SWITCH & GO TO ZERO FEATURES** (2025-07-30): Test table run to limit switches and cleaning head go to zero functionality on physical hardware
 - [x] Remove the servo invert feature completely and repurpose its input as FIRE FIBER (GPIO 12) (DONE)
     - [x] Map FIRE (GPIO 22) and FIRE FIBER (GPIO 12) to momentary UI buttons and remote hardware buttons (DONE)
     - [x] Ensure backend and UI logic for FIRE/FIBER matches requirements (momentary/toggle, stop, visual feedback) (DONE)
@@ -542,6 +562,71 @@ All stepper motor control issues resolved and acceleration/deceleration support 
 
 ## Current System State:
 - **✅ PERFORMANCE FORMATTING**: Enhanced time display logic implemented for better readability
+- **✅ USER SWITCHING**: RFID auto-switch now syncs with Flask-Login for proper UI display
+- **⚠️ PENDING TESTING**: Both fixes require application restart and hardware testing to verify
+
+# Progress Summary - 2025-07-30
+## Completed Today:
+✅ **TABLE RUN TO LIMIT SWITCHES & GO TO ZERO IMPLEMENTATION:**
+   - **Backend API Routes**: Implemented 3 new Flask routes with comprehensive safety logic
+     * `/table/run_to_front_limit` - Runs table forward until front limit switch activated
+     * `/table/run_to_back_limit` - Runs table backward until back limit switch activated  
+     * `/go_to_zero` - Moves cleaning head stepper to position 0 at index speed
+   - **Safety Features**: All routes check limit switch states and prevent operation if already triggered
+   - **Error Handling**: Comprehensive error responses for hardware failures and invalid states
+   - **Simulation Support**: Full simulation mode support for development/testing
+
+✅ **FRONTEND UI INTEGRATION:**
+   - **Table Page**: Added "Run to Front Limit" and "Run to Back Limit" buttons with 2-column layout
+   - **Cleaning Head Page**: Added "GO to 0" button below home button with proper styling
+   - **Operation Page**: Added "GO to 0" button for cleaning head with busy state management
+   - **JavaScript Handlers**: Complete event handling with spinners, error handling, and simulation detection
+   - **Visual Feedback**: Proper button states, loading animations, and error message display
+
+✅ **SEQUENCE AUTOMATION INTEGRATION:**
+   - **Step Types Added**: Extended sequence programming with 3 new step types:
+     * `table_run_to_front_limit` - Table automation to front limit
+     * `table_run_to_back_limit` - Table automation to back limit  
+     * `go_to_zero` - Cleaning head positioning automation
+   - **UI Integration**: Added new step types to both add and edit sequence dropdowns
+   - **Parameter Handling**: Implemented parameter generation (info alerts, no parameters needed)
+   - **Backend Execution**: Added sequence runner methods that call the new API endpoints
+   - **Documentation**: Updated step type documentation with tooltips and visual styling
+
+✅ **CODE ARCHITECTURE IMPROVEMENTS:**
+   - **API Design**: RESTful endpoints following existing pattern consistency
+   - **Error Recovery**: Integrated with existing sequence error handling and retry mechanisms  
+   - **Logging**: Proper execution logging for successful operations and error states
+   - **Testing**: Syntax validation completed - all imports successful
+
+## Technical Implementation Details:
+
+**Files Modified Today:**
+- `app.py`: Added 3 new Flask routes with safety logic and error handling
+- `templates/table.html`: Enhanced with limit switch control buttons
+- `templates/cleaning_head.html`: Added GO to zero button with proper styling
+- `templates/operation.js`: Integrated GO to zero functionality with busy state management
+- `static/js/cleaning_head.js`: Added complete GO to zero event handler
+- `templates/sequences.html`: Complete sequence integration - dropdowns, parameters, documentation
+- `sequence_runner.py`: Added 3 new execution methods with API integration and error handling
+
+**Architecture Improvements:**
+- **Manual Control**: Direct button access for immediate table and stepper operations
+- **Automation Integration**: Full sequence programming support for complex automated workflows  
+- **Safety Logic**: Comprehensive limit switch checking prevents dangerous operations
+- **Error Handling**: Multi-layer error handling from API through UI with proper user feedback
+
+## Current System State After Today's Work:
+- **✅ MANUAL CONTROLS**: Table limit switch and cleaning head zero positioning available via UI buttons
+- **✅ SEQUENCE INTEGRATION**: All new functions available as programmable sequence steps
+- **✅ CODE QUALITY**: Full error handling, simulation support, and consistent architecture
+- **⚠️ REQUIRES TESTING**: Physical hardware testing needed to verify limit switch detection and stepper accuracy
+
+## Next Priority Items:
+- **Hardware Testing**: Test new limit switch and GO to zero functionality on physical Raspberry Pi
+- **Limit Switch Verification**: Confirm front/back table limit switches trigger correctly
+- **Stepper Accuracy**: Verify cleaning head accurately reaches position 0 at index speed
+- **Sequence Testing**: Test new step types in actual sequence execution workflows
 - **✅ USER SWITCHING**: Flask-Login integration added for consistent navbar user display
 - **⚠️ TESTING REQUIRED**: Both fixes implemented but require restart and testing to verify
 - **🔄 READY FOR VALIDATION**: Performance page and RFID auto-switch functionality ready for testing

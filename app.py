@@ -210,6 +210,22 @@ def servo_callback(action, **kwargs):
                 
             logger.debug(f"Switch set invert: servo inversion set to {inverted}")
             
+        elif action == 'emergency_stop':
+            # Physical E-Stop triggered - immediate stop all outputs
+            logger.critical("Emergency stop triggered via physical pin!")
+            try:
+                if outputs_initialized and output_controller is not None:
+                    # Always move servo to position A before stopping outputs
+                    if servo_initialized and servo is not None:
+                        output_controller.stop_all_outputs(servo=servo)
+                    else:
+                        output_controller.stop_all_outputs()
+                    logger.info("All outputs stopped by physical E-Stop")
+                else:
+                    logger.warning("Output controller not available for E-Stop")
+            except Exception as estop_error:
+                logger.error(f"Error executing physical E-Stop: {estop_error}")
+            
     except Exception as e:
         logger.error(f"Error in servo button callback: {e}")
 
@@ -271,8 +287,12 @@ def access_control_callback(granted, user_data):
             # Update LED status based on reason
             if led_initialized and led_controller:
                 try:
-                    if reason.lower() == "card_denied":
-                        # Flash red for denied access
+                    if (reason.lower() == "card_denied" or 
+                        "card not found" in reason.lower() or 
+                        "access denied" in reason.lower() or
+                        "invalid card" in reason.lower() or
+                        "unauthorized" in reason.lower()):
+                        # Flash red for denied access (unregistered cards, etc.)
                         led_controller.set_state(LEDState.ACCESS_DENIED)
                         logging.info("Status LED set to ACCESS_DENIED (red flash) - card access denied")
                         # Schedule return to login screen after 3 seconds
@@ -390,7 +410,7 @@ def init_controllers(app=None):
         logging.error(f"Failed to initialize StepperMotor: {e}")
 
     try:
-        input_controller = InputController()
+        input_controller = InputController(stepper_handler=stepper_callback, servo_handler=servo_callback)
         inputs_initialized = True
         logging.info("InputController initialized successfully")
     except Exception as e:
@@ -456,7 +476,7 @@ def start_output_update_thread():
                     output_controller.update(servo_angle, 0)
             except Exception as e:
                 logging.error(f"Error in output update thread: {e}")
-            time.sleep(0.5)  # Update interval (seconds)
+            time.sleep(0.25)  # Update interval (seconds) - reduced from 0.5 for better responsiveness
     t = threading.Thread(target=update_loop, daemon=True)
     t.start()
 
@@ -872,6 +892,72 @@ def home():
         logger.error(f"Error in homing operation: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
+@main_bp.route('/go_to_zero', methods=['POST'])
+def go_to_zero():
+    """Move the cleaning head to position 0 at index speed"""
+    global current_position
+    
+    if not motor_initialized or stepper is None:
+        # In development mode, simulate going to zero
+        try:
+            import time
+            time.sleep(0.5)  # Simulate movement delay
+            
+            current_position = 0
+            logger.debug("Simulated go to zero completed")
+            
+            return jsonify({
+                "status": "success",
+                "position": current_position,
+                "message": "Moved to position 0 (simulated)",
+                "simulated": True
+            })
+        except Exception as e:
+            logger.error(f"Error in simulated go to zero operation: {e}")
+            return jsonify({"status": "error", "message": str(e)}), 500
+    
+    try:
+        # Get current configuration for speed settings
+        from config import load_config
+        current_config = load_config()
+        
+        # Apply current speed settings before the operation
+        index_speed = current_config['stepper'].get('index_speed', 2000)
+        acceleration = current_config['stepper'].get('acceleration', 1000)
+        deceleration = current_config['stepper'].get('deceleration', 1000)
+        
+        # Apply speed settings to the stepper motor
+        if hasattr(stepper, 'set_speed'):
+            stepper.set_speed(index_speed)
+            logger.debug(f"Set speed to {index_speed} for go to zero")
+            
+        # Apply acceleration settings if supported
+        if hasattr(stepper, 'set_acceleration'):
+            stepper.set_acceleration(acceleration)
+            logger.debug(f"Set acceleration to {acceleration}")
+            
+        # Apply deceleration settings if supported  
+        if hasattr(stepper, 'set_deceleration'):
+            stepper.set_deceleration(deceleration)
+            logger.debug(f"Set deceleration to {deceleration}")
+        
+        # Move to position 0
+        logger.info("Moving cleaning head to position 0")
+        result = stepper.move_to(0, wait=False)  # Don't wait so we can respond immediately
+        
+        if result:
+            return jsonify({
+                "status": "success",
+                "message": "Moving to position 0 at index speed",
+                "position": "moving_to_zero"
+            })
+        else:
+            return jsonify({"status": "error", "message": "Failed to start move to zero"}), 500
+            
+    except Exception as e:
+        logger.error(f"Error in go to zero operation: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @main_bp.route('/move_to', methods=['POST'])
 def move_to():
     """Move to a specific position"""
@@ -1111,6 +1197,34 @@ def set_red_lights_off_delay():
         })
     except Exception as e:
         logger.error(f"Error setting red lights off delay: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@main_bp.route('/settings/estop_timeout', methods=['POST'])
+def set_estop_timeout():
+    """Set the E-Stop confirmation timeout"""
+    try:
+        data = request.get_json()
+        timeout_seconds = data.get('timeout_seconds')
+        
+        if timeout_seconds is None:
+            return jsonify({"status": "error", "message": "timeout_seconds is required"}), 400
+        
+        # Convert seconds to milliseconds and validate range
+        timeout_ms = int(timeout_seconds) * 1000
+        if timeout_ms < 1000 or timeout_ms > 30000:  # 1 second to 30 seconds
+            return jsonify({"status": "error", "message": "Timeout must be between 1 and 30 seconds"}), 400
+        
+        # Update the configuration
+        config.update_config('timing', 'estop_confirmation_timeout', timeout_ms)
+        
+        logger.info(f"E-Stop confirmation timeout updated to {timeout_seconds} seconds ({timeout_ms}ms)")
+        return jsonify({
+            "status": "success", 
+            "timeout_seconds": timeout_seconds,
+            "timeout_ms": timeout_ms
+        })
+    except Exception as e:
+        logger.error(f"Error setting E-Stop timeout: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @main_bp.route('/servo/move_to_a', methods=['POST'])
@@ -1411,19 +1525,78 @@ def stop_fiber():
 
 @main_bp.route('/servo_status', methods=['GET'])
 def servo_status():
-    """Get current servo toggle states and firing status"""
+    """Get current servo toggle states and firing status, plus table and auto cycle status"""
     if not servo_initialized or servo is None:
         return jsonify({"status": "error", "message": "Servo not initialized", "simulated": True}), 500
     try:
         states = servo.get_toggle_states()
         current_pos = "B" if states.get("is_firing") else "A"
         
+        # Get table and auto cycle status
+        table_states = {}
+        if outputs_initialized and output_controller is not None:
+            try:
+                # Get auto cycle status from sequence runner if available
+                auto_cycle_enabled = False
+                table_running = False
+                auto_cycle_running = False
+                cycle_count = 0
+                cycle_progress = 0
+                
+                global sequence_runner
+                if sequence_runner is not None:
+                    try:
+                        auto_cycle_enabled = sequence_runner.auto_cycle_enabled if hasattr(sequence_runner, 'auto_cycle_enabled') else False
+                        auto_cycle_running = sequence_runner.is_running() if hasattr(sequence_runner, 'is_running') else False
+                        
+                        # Check if table is actively running through auto cycle
+                        if auto_cycle_running:
+                            table_running = True
+                            if hasattr(sequence_runner, 'cycle_count'):
+                                cycle_count = sequence_runner.cycle_count
+                            if hasattr(sequence_runner, 'get_progress'):
+                                cycle_progress = sequence_runner.get_progress()
+                        
+                    except Exception as seq_error:
+                        logger.warning(f"Error getting sequence runner status in servo_status: {seq_error}")
+                
+                # Check if table is manually running (not auto cycle)
+                manual_table_running = output_controller.table_moving_forward or output_controller.table_moving_backward
+                if manual_table_running and not auto_cycle_running:
+                    table_running = True
+
+                table_states = {
+                    "table_moving_forward": output_controller.table_moving_forward,
+                    "table_moving_backward": output_controller.table_moving_backward,
+                    "table_at_front_limit": output_controller.table_at_front_limit,
+                    "table_at_back_limit": output_controller.table_at_back_limit,
+                    "auto_cycle_enabled": auto_cycle_enabled,
+                    "auto_cycle_running": auto_cycle_running,
+                    "table_running": table_running,
+                    "cycle_count": cycle_count,
+                    "cycle_progress": cycle_progress
+                }
+            except Exception as table_error:
+                logger.warning(f"Error getting table status in servo_status: {table_error}")
+                table_states = {
+                    "table_moving_forward": False,
+                    "table_moving_backward": False,
+                    "table_at_front_limit": False,
+                    "table_at_back_limit": False,
+                    "auto_cycle_enabled": False,
+                    "auto_cycle_running": False,
+                    "table_running": False,
+                    "cycle_count": 0,
+                    "cycle_progress": 0
+                }
+        
         return jsonify({
             "status": "success",
             "toggle_states": states,
             "current_position": current_pos,
             "position_a": "A",
-            "position_b": "B"
+            "position_b": "B",
+            "table_states": table_states
         })
     except Exception as e:
         logger.error(f"Error getting servo status: {e}")
@@ -2062,10 +2235,16 @@ def reset_all_stats():
 def get_current_session():
     """Get current user session information"""
     try:
-        if rfid_initialized and rfid_controller and rfid_controller.current_session:
+        if rfid_initialized and rfid_controller and rfid_controller.current_session_id:
             from models import UserSession
             from datetime import datetime
-            session = UserSession.query.get(rfid_controller.current_session.id)
+            
+            # Get session ID from current session
+            session_id = rfid_controller.current_session_id
+            
+            # Query for a fresh session object to avoid detached instance issues
+            session = db.session.query(UserSession).filter_by(id=session_id).first()
+            
             if session:
                 session_dict = session.to_dict()
                 
@@ -2116,10 +2295,11 @@ def get_performance_stats():
                     'full_name': session.user.full_name,
                     'sessions': [],
                     'average_performance': 0,
-                    'best_performance': float('inf'),  # Changed back to infinity since lower is better
+                    'best_performance': float('-inf'),  # Changed to -inf since higher is better now
                     'total_sessions': 0,
                     'total_fire_count': 0,
-                    'total_fire_time_ms': 0
+                    'total_fire_time_ms': 0,
+                    'total_table_cycles': 0
                 }
             
             user_perf = user_performance[username]
@@ -2132,13 +2312,16 @@ def get_performance_stats():
                 'performance_score': session.performance_score,
                 'session_fire_count': session.session_fire_count or 0,
                 'session_fire_time_ms': session_fire_time_ms,
+                'session_table_cycles': session.session_table_cycles or 0,
                 'login_method': session.login_method
             })
             user_perf['total_sessions'] += 1
             user_perf['total_fire_count'] += session.session_fire_count or 0
             user_perf['total_fire_time_ms'] += session_fire_time_ms
+            user_perf['total_table_cycles'] = user_perf.get('total_table_cycles', 0) + (session.session_table_cycles or 0)
             
-            if session.performance_score < user_perf['best_performance']:  # Changed back to < since lower is better
+            # Update best performance logic (higher score is better with new formula)
+            if session.performance_score and (user_perf['best_performance'] == float('inf') or session.performance_score > user_perf['best_performance']):
                 user_perf['best_performance'] = session.performance_score
         
         # Calculate averages
@@ -2183,6 +2366,28 @@ def get_user_sessions(username):
         
     except Exception as e:
         logger.error(f"Error getting user sessions: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@main_bp.route('/api/sessions/table-cycle', methods=['POST'])
+def update_table_cycles():
+    """Update table cycle count for the current session"""
+    try:
+        data = request.get_json() or {}
+        cycles_increment = data.get('increment', 1)
+        
+        # Validate increment
+        if not isinstance(cycles_increment, int) or cycles_increment < 0:
+            return jsonify({'success': False, 'error': 'Invalid increment value'}), 400
+        
+        # Update table cycles through RFID controller
+        if rfid_initialized and rfid_controller:
+            rfid_controller.update_table_cycles(cycles_increment)
+            return jsonify({'success': True, 'message': f'Table cycles incremented by {cycles_increment}'})
+        else:
+            return jsonify({'success': False, 'error': 'RFID controller not available'}), 500
+        
+    except Exception as e:
+        logger.error(f"Error updating table cycles: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 # Servo sequence routes
@@ -2232,7 +2437,8 @@ def table_forward():
         # Get state from request data (true = start, false = stop)
         data = request.get_json() or {}
         state = data.get('state', True)  # Default to True for backwards compatibility
-        logger.info(f"table_forward: calling output_controller.set_table_forward({state})")
+        source = data.get('source', 'manual')  # Track request source
+        logger.info(f"table_forward: calling output_controller.set_table_forward({state}) from source: {source}")
         
         output_controller.set_table_forward(state)
         logger.info(f"table_forward: set_table_forward completed successfully")
@@ -2250,6 +2456,7 @@ def table_forward():
 @main_bp.route('/table/backward', methods=['POST'])
 def table_backward():
     """Move the table backward or stop backward movement"""
+    logger.info("table_backward route called")
     if not outputs_initialized or output_controller is None:
         return jsonify({
             "status": "error",
@@ -2259,6 +2466,8 @@ def table_backward():
         # Get state from request data (true = start, false = stop)
         data = request.get_json() or {}
         state = data.get('state', True)  # Default to True for backwards compatibility
+        source = data.get('source', 'manual')  # Track request source
+        logger.info(f"table_backward: calling output_controller.set_table_backward({state}) from source: {source}")
         
         output_controller.set_table_backward(state)
         action = "moving backward" if state else "stopped backward"
@@ -2279,15 +2488,113 @@ def table_status():
             "message": "Output controller not initialized"
         }), 500
     try:
+        # Get auto cycle status from sequence runner if available
+        auto_cycle_enabled = False
+        table_running = False
+        auto_cycle_running = False
+        cycle_count = 0
+        cycle_progress = 0
+        
+        global sequence_runner
+        if sequence_runner is not None:
+            try:
+                auto_cycle_enabled = sequence_runner.auto_cycle_enabled if hasattr(sequence_runner, 'auto_cycle_enabled') else False
+                auto_cycle_running = sequence_runner.is_running() if hasattr(sequence_runner, 'is_running') else False
+                
+                # Check if table is actively running through auto cycle
+                if auto_cycle_running:
+                    table_running = True
+                    if hasattr(sequence_runner, 'cycle_count'):
+                        cycle_count = sequence_runner.cycle_count
+                    if hasattr(sequence_runner, 'get_progress'):
+                        cycle_progress = sequence_runner.get_progress()
+                
+            except Exception as seq_error:
+                logger.warning(f"Error getting sequence runner status: {seq_error}")
+        
+        # Check if table is manually running (not auto cycle)
+        manual_table_running = output_controller.table_moving_forward or output_controller.table_moving_backward
+        if manual_table_running and not auto_cycle_running:
+            table_running = True
+
         return jsonify({
             "status": "success",
             "table_moving_forward": output_controller.table_moving_forward,
             "table_moving_backward": output_controller.table_moving_backward,
             "table_at_front_limit": output_controller.table_at_front_limit,
-            "table_at_back_limit": output_controller.table_at_back_limit
+            "table_at_back_limit": output_controller.table_at_back_limit,
+            "auto_cycle_enabled": auto_cycle_enabled,
+            "auto_cycle_running": auto_cycle_running,
+            "table_running": table_running,
+            "cycle_count": cycle_count,
+            "cycle_progress": cycle_progress
         })
     except Exception as e:
         logger.error(f"Error getting table status: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@main_bp.route('/table/run_to_front_limit', methods=['POST'])
+def table_run_to_front_limit():
+    """Run the table forward until it hits the front limit switch"""
+    logger.info("table_run_to_front_limit route called")
+    if not outputs_initialized or output_controller is None:
+        logger.error("table_run_to_front_limit: Output controller not initialized")
+        return jsonify({
+            "status": "error",
+            "message": "Output controller not initialized"
+        }), 500
+    
+    try:
+        # Check if already at front limit
+        if output_controller.table_at_front_limit:
+            return jsonify({
+                "status": "success",
+                "message": "Table is already at front limit switch"
+            })
+        
+        # Start moving forward
+        logger.info("table_run_to_front_limit: Starting forward movement to front limit")
+        output_controller.set_table_forward(True)
+        
+        return jsonify({
+            "status": "success",
+            "message": "Table moving forward to front limit switch"
+        })
+        
+    except Exception as e:
+        logger.error(f"Error running table to front limit: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@main_bp.route('/table/run_to_back_limit', methods=['POST'])
+def table_run_to_back_limit():
+    """Run the table backward until it hits the back limit switch"""
+    logger.info("table_run_to_back_limit route called")
+    if not outputs_initialized or output_controller is None:
+        logger.error("table_run_to_back_limit: Output controller not initialized")
+        return jsonify({
+            "status": "error",
+            "message": "Output controller not initialized"
+        }), 500
+    
+    try:
+        # Check if already at back limit
+        if output_controller.table_at_back_limit:
+            return jsonify({
+                "status": "success",
+                "message": "Table is already at back limit switch"
+            })
+        
+        # Start moving backward
+        logger.info("table_run_to_back_limit: Starting backward movement to back limit")
+        output_controller.set_table_backward(True)
+        
+        return jsonify({
+            "status": "success",
+            "message": "Table moving backward to back limit switch"
+        })
+        
+    except Exception as e:
+        logger.error(f"Error running table to back limit: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 # Temperature monitoring routes
@@ -3080,6 +3387,17 @@ def rfid_login():
             'error': 'RFID authentication error',
             'details': str(e)
         }), 500
+
+@main_bp.route('/api/config/timing', methods=['GET'])
+@login_required
+def get_timing_config():
+    """Get timing configuration"""
+    try:
+        timing_config = config.get_timing_config()
+        return jsonify(timing_config)
+    except Exception as e:
+        logger.error(f"Error getting timing config: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @main_bp.route('/api/rfid/config', methods=['POST'])
 @login_required

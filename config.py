@@ -39,6 +39,7 @@ DEFAULT_CONFIG = {
         'red_lights_off_delay': 60000,    # Red lights off delay (ms)
         'debounce_delay': 200,            # Button debounce delay (ms)
         'laser_fire_threshold': 2000,     # Time threshold to count a laser firing (ms)
+        'estop_confirmation_timeout': 5000, # E-Stop auto-confirm timeout (ms)
     },
     
     # Temperature sensor parameters
@@ -317,7 +318,7 @@ def add_laser_fire_time(time_ms):
             if 'app' in sys.modules:
                 app_module = sys.modules['app']
                 rfid_controller = getattr(app_module, 'rfid_controller', None)
-                if rfid_controller and hasattr(rfid_controller, 'current_session') and rfid_controller.current_session:
+                if rfid_controller and hasattr(rfid_controller, 'current_session_id') and rfid_controller.current_session_id:
                     rfid_controller.update_session_stats(fire_count_increment=1, fire_time_increment_ms=time_ms)
                     import logging
                     logging.info(f"Session stats updated: +1 fire, +{time_ms}ms firing time")

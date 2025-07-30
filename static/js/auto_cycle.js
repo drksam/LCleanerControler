@@ -5,17 +5,44 @@
 
 class AutoCycleManager {
     constructor() {
-        this.enabled = false;
-        this.running = false;
+        // Try to restore state from localStorage first
+        this.enabled = this.loadState('enabled', false);
+        this.running = false; // Always start as not running for safety
         this.direction = 'forward';
         this.timer = null;
-        this.cycleCount = 0;
-        this.currentDelay = 1000; // Default 1 second
+        this.cycleCount = this.loadState('cycleCount', 0);
+        this.currentDelay = this.loadState('currentDelay', 1000); // Default 1 second
         
         // Callbacks for UI updates
         this.onStateChange = null;
         this.onCycleCountChange = null;
         this.onProgressChange = null;
+        
+        console.log(`AutoCycleManager initialized: enabled=${this.enabled}, cycleCount=${this.cycleCount}, delay=${this.currentDelay}`);
+    }
+    
+    /**
+     * Load state from localStorage
+     */
+    loadState(key, defaultValue) {
+        try {
+            const value = localStorage.getItem(`autoCycle_${key}`);
+            return value !== null ? JSON.parse(value) : defaultValue;
+        } catch (e) {
+            console.warn(`Failed to load auto cycle state for ${key}:`, e);
+            return defaultValue;
+        }
+    }
+    
+    /**
+     * Save state to localStorage
+     */
+    saveState(key, value) {
+        try {
+            localStorage.setItem(`autoCycle_${key}`, JSON.stringify(value));
+        } catch (e) {
+            console.warn(`Failed to save auto cycle state for ${key}:`, e);
+        }
     }
     
     /**
@@ -23,6 +50,23 @@ class AutoCycleManager {
      */
     setEnabled(enabled) {
         this.enabled = enabled;
+        this.saveState('enabled', enabled);
+        if (!enabled && this.running) {
+            this.stop();
+        }
+        if (this.onStateChange) {
+            this.onStateChange();
+        }
+    }
+    
+    /**
+     * Set enabled state from server (authoritative source)
+     * This will update localStorage to match server state
+     */
+    syncEnabledFromServer(enabled) {
+        console.log(`AutoCycleManager: Syncing enabled state from server: ${this.enabled} -> ${enabled}`);
+        this.enabled = enabled;
+        this.saveState('enabled', enabled);
         if (!enabled && this.running) {
             this.stop();
         }
@@ -50,6 +94,7 @@ class AutoCycleManager {
      */
     setDelay(delaySeconds) {
         this.currentDelay = delaySeconds * 1000;
+        this.saveState('currentDelay', this.currentDelay);
     }
     
     /**
@@ -70,6 +115,7 @@ class AutoCycleManager {
         this.running = true;
         this.direction = 'forward';
         this.cycleCount = 0;
+        this.saveState('cycleCount', this.cycleCount);
         
         if (window.addLogMessage) {
             window.addLogMessage('Starting auto cycle...', false, 'action');
@@ -204,7 +250,11 @@ class AutoCycleManager {
                                 console.log('AutoCycle: Completed a full cycle');
                                 // Completed a full cycle
                                 this.cycleCount++;
+                                this.saveState('cycleCount', this.cycleCount);
                                 this.direction = 'forward';
+                                
+                                // Update session table cycles for performance tracking
+                                this.updateSessionTableCycles(1);
                                 
                                 if (this.onCycleCountChange) {
                                     this.onCycleCountChange(this.cycleCount);
@@ -238,17 +288,23 @@ class AutoCycleManager {
     }
     
     /**
-     * Make a table control request
+     * Make a table control request with AutoCycle identifier
      */
     makeTableRequest(url, data, callback) {
         console.log(`AutoCycle: Making request to ${url} with data:`, data);
+        
+        // Add a flag to identify this as an auto cycle request
+        const requestData = {
+            ...data,
+            source: 'auto_cycle'  // Identify this request as coming from auto cycle
+        };
         
         const options = {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(data)
+            body: JSON.stringify(requestData)
         };
         
         fetch(url, options)
@@ -272,6 +328,32 @@ class AutoCycleManager {
                     window.addLogMessage(`Auto cycle error: ${error.message}`, true);
                 }
             });
+    }
+    
+    /**
+     * Update session table cycles for performance tracking
+     */
+    updateSessionTableCycles(increment = 1) {
+        fetch('/api/sessions/table-cycle', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                increment: increment
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log(`AutoCycle: Session table cycles updated by ${increment}`);
+            } else {
+                console.warn('AutoCycle: Failed to update session table cycles:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('AutoCycle: Error updating session table cycles:', error);
+        });
     }
     
     /**

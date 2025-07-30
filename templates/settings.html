@@ -181,6 +181,18 @@
                             </div>
                             <div class="form-text">Minimum time between button presses</div>
                         </div>
+                        <div class="mb-3">
+                            <label for="estop_confirmation_timeout" class="form-label">E-Stop Confirmation Timeout (seconds)</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="estop_confirmation_timeout" name="estop_confirmation_timeout" 
+                                       value="{{ (timing_config.estop_confirmation_timeout or 5000) // 1000 }}" min="1" max="30">
+                                <button class="btn btn-danger" type="button" 
+                                        onclick="updateEstopTimeout(document.getElementById('estop_confirmation_timeout').value)">
+                                    Save
+                                </button>
+                            </div>
+                            <div class="form-text">Time in seconds before E-Stop auto-confirms if no response (1-30 seconds)</div>
+                        </div>
                     </form>
                 </div>
             </div>
@@ -448,5 +460,47 @@
                 });
         }
     });
+    
+    // Function to update E-Stop timeout specifically
+    function updateEstopTimeout(timeoutSeconds) {
+        const requestData = {
+            timeout_seconds: parseInt(timeoutSeconds)
+        };
+        
+        fetch('/settings/estop_timeout', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                document.getElementById('toastMessage').textContent = `E-Stop timeout updated to ${data.timeout_seconds} seconds`;
+                statusToast.classList.remove('bg-danger');
+                statusToast.classList.add('bg-success');
+                
+                const bsToast = new bootstrap.Toast(statusToast);
+                bsToast.show();
+            } else {
+                document.getElementById('toastMessage').textContent = data.message || 'Error updating E-Stop timeout';
+                statusToast.classList.remove('bg-success');
+                statusToast.classList.add('bg-danger');
+                
+                const bsToast = new bootstrap.Toast(statusToast);
+                bsToast.show();
+            }
+        })
+        .catch(error => {
+            console.error("Error updating E-Stop timeout:", error);
+            document.getElementById('toastMessage').textContent = 'Network error updating E-Stop timeout';
+            statusToast.classList.remove('bg-success');
+            statusToast.classList.add('bg-danger');
+            
+            const bsToast = new bootstrap.Toast(statusToast);
+            bsToast.show();
+        });
+    }
 </script>
 {% endblock %}

@@ -41,12 +41,14 @@ class InputController:
         self.out_button_pin = config.get('out_button_pin', 25)
         self.fire_button_pin = config.get('fire_button_pin', 22)
         self.fiber_button_pin = config.get('fiber_button_pin', 12)  # Repurposed from invert
+        self.estop_pin = config.get('estop_pin', 17)  # Emergency stop pin
         
         # Input state tracking
         self.in_button_pressed = False
         self.out_button_pressed = False
         self.fire_button_pressed = False
         self.fiber_button_pressed = False  # New state for fiber
+        self.estop_pressed = False  # E-Stop state
         
         # Multi-press handling
         self.in_button_press_count = 0
@@ -86,6 +88,7 @@ class InputController:
                 self.gpio.setup_input(self.out_button_pin, pull_up=True)
                 self.gpio.setup_input(self.fire_button_pin, pull_up=True)
                 self.gpio.setup_input(self.fiber_button_pin, pull_up=True)  # New for fiber
+                self.gpio.setup_input(self.estop_pin, pull_up=True)  # E-Stop pin (LOW=Active)
                 
                 # Start a monitoring thread for inputs
                 self.setup_event_handlers()
@@ -277,6 +280,7 @@ class InputController:
         previous_out_button = False
         previous_fire_button = False
         previous_fiber_button = False
+        previous_estop = False
         
         while self.monitor_thread_running:
             try:
@@ -285,8 +289,15 @@ class InputController:
                 out_button = not bool(self.gpio.read(self.out_button_pin))
                 fire_button = not bool(self.gpio.read(self.fire_button_pin))
                 fiber_button = not bool(self.gpio.read(self.fiber_button_pin))
+                estop = not bool(self.gpio.read(self.estop_pin))  # LOW=Active (pressed)
                 
-                # Detect edge changes
+                # Check for E-Stop activation (highest priority)
+                if estop != previous_estop:
+                    if estop:
+                        self._on_estop_activated()
+                    previous_estop = estop
+                
+                # Detect edge changes for other buttons
                 if in_button != previous_in_button:
                     if in_button:
                         self._on_in_button_pressed()
@@ -319,6 +330,25 @@ class InputController:
             
             # Check every 20ms for responsive button handling
             time.sleep(0.02)
+    
+    def _on_estop_activated(self):
+        """Handle emergency stop activation - immediate response"""
+        logging.critical("EMERGENCY STOP ACTIVATED - Physical E-Stop pin triggered!")
+        self.estop_pressed = True
+        
+        # Call the servo handler to trigger immediate emergency stop
+        if self.servo_handler:
+            try:
+                # Use servo handler to trigger emergency stop
+                self.servo_handler('emergency_stop')
+                logging.info("Emergency stop called via servo handler")
+            except Exception as e:
+                logging.error(f"Error calling emergency stop via servo handler: {e}")
+        else:
+            logging.warning("No servo handler available for emergency stop")
+        
+        # Note: The servo handler should call the actual emergency stop route
+        # which will stop all outputs and update the UI
     
     def cleanup(self):
         logging.info("InputController.cleanup called")

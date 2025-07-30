@@ -1,6 +1,6 @@
 /**
  * Operation Page JavaScript
- * Handles fire, fire fiber, and index operations on the main operation page
+ * Handles aim (formerly fire), fire (formerly fiber), and index operations on the main operation page
  */
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -42,22 +42,23 @@ document.addEventListener('DOMContentLoaded', function() {
         );
     };
     
-    // Add simple fire test function
-    window.testFireCommand = function() {
-        console.log("Testing fire command...");
-        window.addLogMessage('Testing fire command (toggle mode)...', false, 'info');
+    // Add simple aim test function
+    window.testAimCommand = function() {
+        console.log("Testing aim command...");
+        window.addLogMessage('Testing aim command (toggle mode)...', false, 'info');
         
         makeRequest(
             '/fire',
             'POST',
             { mode: 'toggle' },
+            console.log,
             function(data) {
-                console.log("Fire command response:", data);
-                window.addLogMessage(`Fire test result: ${JSON.stringify(data)}`, false, 'info');
+                console.log("Aim command response:", data);
+                window.addLogMessage(`Aim test result: ${JSON.stringify(data)}`, false, 'info');
             },
             function(error) {
-                console.error("Fire command error:", error);
-                window.addLogMessage(`Fire test error: ${error.message}`, true);
+                console.error("Aim command error:", error);
+                window.addLogMessage(`Aim test error: ${error.message}`, true);
             }
         );
     };
@@ -76,28 +77,26 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Reset all buttons
         if (fireButton) {
-            fireButton.innerHTML = '<i class="fas fa-fire-alt"></i> FIRE';
-            fireButton.classList.remove('btn-warning');
-            fireButton.classList.add('btn-danger');
+            fireButton.innerHTML = '<i class="fas fa-crosshairs"></i> AIM';
+            fireButton.classList.remove('active');
             fireButton.disabled = false;
         }
         
         if (fireFiberButton) {
-            fireFiberButton.innerHTML = '<i class="fas fa-bolt"></i> FIBER';
+            fireFiberButton.innerHTML = '<i class="fas fa-fire-alt"></i> FIRE';
+            fireFiberButton.classList.remove('active');
             fireFiberButton.disabled = false;
         }
         
         if (fireToggleButton) {
-            fireToggleButton.classList.remove('active', 'btn-warning');
-            fireToggleButton.classList.add('btn-danger');
-            fireToggleButton.innerHTML = '<i class="fas fa-fire-alt"></i> FIRE';
+            fireToggleButton.classList.remove('active');
+            fireToggleButton.innerHTML = '<i class="fas fa-crosshairs"></i> AIM';
             fireToggleButton.disabled = false;
         }
         
         if (fireFiberToggleButton) {
-            fireFiberToggleButton.classList.remove('active', 'btn-warning');
-            fireFiberToggleButton.classList.add('btn-outline-warning');
-            fireFiberToggleButton.innerHTML = '<i class="fas fa-bolt"></i> FIBER';
+            fireFiberToggleButton.classList.remove('active');
+            fireFiberToggleButton.innerHTML = '<i class="fas fa-fire-alt"></i> FIRE';
             fireFiberToggleButton.disabled = false;
         }
         
@@ -198,6 +197,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Home and stop cleaning head buttons
     const homeCleaningHeadButton = document.getElementById('home-cleaning-head');
+    const goToZeroCleaningHeadButton = document.getElementById('go-to-zero-cleaning-head');
     const stopCleaningHeadButton = document.getElementById('stop-cleaning-head');
     
     // Table control buttons
@@ -316,14 +316,18 @@ document.addEventListener('DOMContentLoaded', function() {
     
     /**
      * Start the firing timer and update UI elements
+     * @param {number} elapsedMs - Optional elapsed time in milliseconds to start from
      */
-    function startFiringTimer() {
-        console.log('Starting firing timer...');
+    function startFiringTimer(elapsedMs = 0) {
+        console.log(`Starting firing timer... (elapsed: ${elapsedMs}ms)`);
         firingTimerActive = true;
-        firingStartTime = Date.now();
+        firingStartTime = Date.now() - elapsedMs; // Adjust start time to account for elapsed time
         
         // Start the timer interval
         firingTimerInterval = setInterval(updateFiringTimer, 100);
+        
+        // Update display immediately to show correct time
+        updateFiringTimer();
     }
     
     /**
@@ -386,15 +390,14 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             // Start momentary firing immediately
-            console.log("Fire button (momentary) mousedown - starting");
-            window.addLogMessage('FIRING (momentary) - Moving servo to position B...', false, 'action');
+            console.log("Aim button (momentary) mousedown - starting");
+            window.addLogMessage('AIMING (momentary) - Moving servo to position B...', false, 'action');
             
             operationInProgress = true;
             momentaryFireActive = true;
-            fireButton.innerHTML = '<span style="color: yellow;">●</span> FIRING - HOLD BUTTON';
-            fireButton.classList.add('btn-warning');
-            fireButton.classList.remove('btn-danger');
-            updateFiringStatus('Firing (Momentary)', 'badge bg-danger');
+            fireButton.innerHTML = '<span style="color: orange;">●</span> AIMING - HOLD BUTTON';
+            fireButton.classList.add('active');
+            updateFiringStatus('Aiming (Momentary)', 'badge bg-warning text-dark');
             startFiringTimer(); // Start the firing timer
             
             makeRequest(
@@ -405,26 +408,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 function(data) {
                     console.log("Momentary fire success:", data);
                     if (data.status === 'success') {
-                        window.addLogMessage('Momentary firing started - release button to stop', false, 'success');
+                        window.addLogMessage('Momentary aiming started - release button to stop', false, 'success');
                     } else {
-                        window.addLogMessage(`Error initiating firing: ${data.message}`, true);
+                        window.addLogMessage(`Error initiating aiming: ${data.message}`, true);
                         // Reset on error
                         momentaryFireActive = false;
-                        fireButton.innerHTML = '<i class="fas fa-fire-alt"></i> FIRE';
-                        fireButton.classList.remove('btn-warning');
-                        fireButton.classList.add('btn-danger');
+                        fireButton.innerHTML = '<i class="fas fa-crosshairs"></i> AIM';
+                        fireButton.classList.remove('active');
                         resetFiringStatus();
                     }
                     operationInProgress = false;
                 },
                 function(error) {
-                    console.error("Momentary fire error:", error);
-                    window.addLogMessage(`Error in momentary fire operation: ${error.message}`, true);
+                    console.error("Momentary aim error:", error);
+                    window.addLogMessage(`Error in momentary aim operation: ${error.message}`, true);
                     // Reset on error
                     momentaryFireActive = false;
-                    fireButton.innerHTML = '<i class="fas fa-fire-alt"></i> FIRE';
-                    fireButton.classList.remove('btn-warning');
-                    fireButton.classList.add('btn-danger');
+                    fireButton.innerHTML = '<i class="fas fa-crosshairs"></i> AIM';
+                    fireButton.classList.remove('active');
                     resetFiringStatus();
                     operationInProgress = false;
                 }
@@ -442,8 +443,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             // Stop momentary firing on release
-            console.log("Fire button (momentary) mouseup - stopping");
-            window.addLogMessage('STOPPING FIRE - Moving servo to position A...', false, 'action');
+            console.log("Aim button (momentary) mouseup - stopping");
+            window.addLogMessage('STOPPING AIM - Moving servo to position A...', false, 'action');
             
             operationInProgress = true;
             
@@ -455,16 +456,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 function(data) {
                     console.log("Stop firing success:", data);
                     if (data.status === 'success') {
-                        window.addLogMessage('Momentary firing stopped', false, 'success');
+                        window.addLogMessage('Momentary aiming stopped', false, 'success');
                         resetFiringStatus();
                     } else {
-                        window.addLogMessage(`Error stopping firing: ${data.message}`, true);
+                        window.addLogMessage(`Error stopping aiming: ${data.message}`, true);
                     }
                     // Always reset after stop attempt
                     momentaryFireActive = false;
-                    fireButton.innerHTML = '<i class="fas fa-fire-alt"></i> FIRE';
-                    fireButton.classList.remove('btn-warning');
-                    fireButton.classList.add('btn-danger');
+                    fireButton.innerHTML = '<i class="fas fa-crosshairs"></i> AIM';
+                    fireButton.classList.remove('active');
                     operationInProgress = false;
                     
                     // Reset table button states to prevent interference
@@ -477,9 +477,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     window.addLogMessage(`Error stopping momentary fire: ${error.message}`, true);
                     // Always reset after stop attempt
                     momentaryFireActive = false;
-                    fireButton.innerHTML = '<i class="fas fa-fire-alt"></i> FIRE';
-                    fireButton.classList.remove('btn-warning');
-                    fireButton.classList.add('btn-danger');
+                    fireButton.innerHTML = '<i class="fas fa-crosshairs"></i> AIM';
+                    fireButton.classList.remove('active');
                     resetFiringStatus();
                     operationInProgress = false;
                 }
@@ -558,19 +557,17 @@ document.addEventListener('DOMContentLoaded', function() {
                         // Update toggle state based on server response
                         if (data.toggle_state === 'active') {
                             fireToggleActive = true;
-                            fireToggleButton.classList.add('active', 'btn-warning');
-                            fireToggleButton.classList.remove('btn-danger');
-                            fireToggleButton.innerHTML = '<i class="fas fa-stop"></i> STOP FIRE';
-                            updateFiringStatus('Firing (Toggle)', 'badge bg-danger');
+                            fireToggleButton.classList.add('active');
+                            fireToggleButton.innerHTML = '<i class="fas fa-stop"></i> STOP AIM';
+                            updateFiringStatus('Aiming (Toggle)', 'badge bg-warning text-dark');
                             startFiringTimer(); // Start the firing timer
-                            window.addLogMessage('Fire toggle activated - servo at position B', false, 'success');
+                            window.addLogMessage('Aim toggle activated - servo at position B', false, 'success');
                         } else if (data.toggle_state === 'inactive') {
                             fireToggleActive = false;
-                            fireToggleButton.classList.remove('active', 'btn-warning');
-                            fireToggleButton.classList.add('btn-danger');
-                            fireToggleButton.innerHTML = '<i class="fas fa-fire-alt"></i> FIRE';
+                            fireToggleButton.classList.remove('active');
+                            fireToggleButton.innerHTML = '<i class="fas fa-crosshairs"></i> AIM';
                             resetFiringStatus();
-                            window.addLogMessage('Fire toggle deactivated - servo at position A', false, 'success');
+                            window.addLogMessage('Aim toggle deactivated - servo at position A', false, 'success');
                         } else {
                             console.warn("Unknown toggle_state:", data.toggle_state);
                             window.addLogMessage(`Fire toggle: ${data.message}`, false, 'info');
@@ -590,6 +587,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Re-enable button and clear operation lock
                     fireToggleButton.disabled = false;
                     operationInProgress = false;
+                    
+                    // Poll status after fire operation to ensure consistency
+                    setTimeout(() => pollStatusOnDemand('after fire toggle'), 300);
                 },
                 function(error) {
                     clearTimeout(timeoutId);
@@ -624,12 +624,13 @@ document.addEventListener('DOMContentLoaded', function() {
             if (momentaryFiberActive) return; // Prevent double activation
             
             // Start fiber momentary firing immediately
-            console.log("Fiber fire button mousedown - starting");
-            window.addLogMessage('Starting FIBER sequence (momentary A→B→A→B)...', false, 'action');
+            console.log("Fire button mousedown - starting");
+            window.addLogMessage('Starting FIRE sequence (momentary A→B→A→B)...', false, 'action');
             
             momentaryFiberActive = true;
-            fireFiberButton.innerHTML = '<span style="color: yellow;">●</span> FIBER - HOLD BUTTON';
-            updateFiringStatus('Fiber Sequence (Momentary)', 'badge bg-warning text-dark');
+            fireFiberButton.innerHTML = '<span style="color: red;">●</span> FIRE - HOLD BUTTON';
+            fireFiberButton.classList.add('active');
+            updateFiringStatus('Fire Sequence (Momentary)', 'badge bg-danger');
             startFiringTimer(); // Start the firing timer
             
             makeRequest(
@@ -639,20 +640,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log,
                 function(data) {
                     if (data.status === 'success') {
-                        window.addLogMessage('Fiber momentary sequence started - release button to stop', false, 'success');
+                        window.addLogMessage('Fire momentary sequence started - release button to stop', false, 'success');
                     } else {
-                        window.addLogMessage(`Error starting fiber sequence: ${data.message}`, true);
+                        window.addLogMessage(`Error starting fire sequence: ${data.message}`, true);
                         // Reset on error
                         momentaryFiberActive = false;
-                        fireFiberButton.innerHTML = '<i class="fas fa-bolt"></i> FIBER';
+                        fireFiberButton.innerHTML = '<i class="fas fa-fire-alt"></i> FIRE';
+                        fireFiberButton.classList.remove('active');
                         resetFiringStatus();
                     }
                 },
                 function(error) {
-                    window.addLogMessage('Error in fiber momentary operation', true);
+                    window.addLogMessage('Error in fire momentary operation', true);
                     // Reset on error
                     momentaryFiberActive = false;
-                    fireFiberButton.innerHTML = '<i class="fas fa-bolt"></i> FIBER';
+                    fireFiberButton.innerHTML = '<i class="fas fa-fire-alt"></i> FIRE';
+                    fireFiberButton.classList.remove('active');
                     resetFiringStatus();
                 }
             );
@@ -666,8 +669,8 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!momentaryFiberActive) return; // Already stopped
             
             // Stop fiber momentary firing on release
-            console.log("Fiber fire button mouseup - stopping");
-            window.addLogMessage('STOPPING FIBER - Moving servo to position A...', false, 'action');
+            console.log("Fire button mouseup - stopping");
+            window.addLogMessage('STOPPING FIRE - Moving servo to position A...', false, 'action');
             
             makeRequest(
                 '/stop_firing',
@@ -676,20 +679,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log,
                 function(data) {
                     if (data.status === 'success') {
-                        window.addLogMessage('Fiber momentary sequence stopped', false, 'success');
+                        window.addLogMessage('Fire momentary sequence stopped', false, 'success');
                         resetFiringStatus();
                     } else {
-                        window.addLogMessage(`Error stopping fiber sequence: ${data.message}`, true);
+                        window.addLogMessage(`Error stopping fire sequence: ${data.message}`, true);
                     }
                     // Always reset after stop attempt
                     momentaryFiberActive = false;
-                    fireFiberButton.innerHTML = '<i class="fas fa-bolt"></i> FIBER';
+                    fireFiberButton.innerHTML = '<i class="fas fa-fire-alt"></i> FIRE';
+                    fireFiberButton.classList.remove('active');
                 },
                 function(error) {
-                    window.addLogMessage('Error stopping fiber momentary', true);
+                    window.addLogMessage('Error stopping fire momentary', true);
                     // Always reset after stop attempt
                     momentaryFiberActive = false;
-                    fireFiberButton.innerHTML = '<i class="fas fa-bolt"></i> FIBER';
+                    fireFiberButton.innerHTML = '<i class="fas fa-fire-alt"></i> FIRE';
+                    fireFiberButton.classList.remove('active');
                     resetFiringStatus();
                 }
             );
@@ -698,7 +703,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Handle mouseleave to ensure stop if user drags off button
         fireFiberButton.addEventListener('mouseleave', function(e) {
             if (momentaryFiberActive) {
-                console.log("Fiber fire button mouseleave - stopping");
+                console.log("Fire button mouseleave - stopping");
                 fireFiberButton.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
             }
         });
@@ -761,19 +766,17 @@ document.addEventListener('DOMContentLoaded', function() {
                         // Update toggle state based on server response
                         if (data.toggle_state === 'active') {
                             fireFiberToggleActive = true;
-                            fireFiberToggleButton.classList.add('active', 'btn-warning');
-                            fireFiberToggleButton.classList.remove('btn-outline-warning');
-                            fireFiberToggleButton.innerHTML = '<i class="fas fa-stop"></i> STOP FIBER';
-                            updateFiringStatus('Fiber Sequence (Toggle)', 'badge bg-warning text-dark');
+                            fireFiberToggleButton.classList.add('active');
+                            fireFiberToggleButton.innerHTML = '<i class="fas fa-stop"></i> STOP FIRE';
+                            updateFiringStatus('Fire Sequence (Toggle)', 'badge bg-danger');
                             startFiringTimer(); // Start the firing timer when toggle is activated
-                            window.addLogMessage('Fiber toggle activated - sequence: A→B→A→B complete, servo at position B', false, 'success');
+                            window.addLogMessage('Fire toggle activated - sequence: A→B→A→B complete, servo at position B', false, 'success');
                         } else if (data.toggle_state === 'inactive') {
                             fireFiberToggleActive = false;
-                            fireFiberToggleButton.classList.remove('active', 'btn-warning');
-                            fireFiberToggleButton.classList.add('btn-outline-warning');
-                            fireFiberToggleButton.innerHTML = '<i class="fas fa-bolt"></i> FIBER';
+                            fireFiberToggleButton.classList.remove('active');
+                            fireFiberToggleButton.innerHTML = '<i class="fas fa-fire-alt"></i> FIRE';
                             resetFiringStatus(); // This already calls stopFiringTimer()
-                            window.addLogMessage('Fiber toggle deactivated - servo at position A', false, 'success');
+                            window.addLogMessage('Fire toggle deactivated - servo at position A', false, 'success');
                         } else {
                             console.warn("Unknown fiber toggle_state:", data.toggle_state);
                             window.addLogMessage(`Fiber toggle: ${data.message}`, false, 'info');
@@ -788,6 +791,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Re-enable button and clear operation lock
                     fireFiberToggleButton.disabled = false;
                     operationInProgress = false;
+                    
+                    // Poll status after fiber operation to ensure consistency
+                    setTimeout(() => pollStatusOnDemand('after fiber toggle'), 300);
                 },
                 function(error) {
                     clearTimeout(timeoutId);
@@ -812,7 +818,7 @@ document.addEventListener('DOMContentLoaded', function() {
      * Disables all cleaning head control buttons except the stop button
      */
     function disableCleaningHeadButtons() {
-        setButtonState(false, indexButton, indexBackButton, homeCleaningHeadButton);
+        setButtonState(false, indexButton, indexBackButton, homeCleaningHeadButton, goToZeroCleaningHeadButton);
         cleaningHeadBusy = true;
     }
     
@@ -820,7 +826,7 @@ document.addEventListener('DOMContentLoaded', function() {
      * Enables all cleaning head control buttons
      */
     function enableCleaningHeadButtons() {
-        setButtonState(true, indexButton, indexBackButton, homeCleaningHeadButton);
+        setButtonState(true, indexButton, indexBackButton, homeCleaningHeadButton, goToZeroCleaningHeadButton);
         cleaningHeadBusy = false;
     }
     
@@ -946,6 +952,43 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // GO to 0 Cleaning Head button
+    if (goToZeroCleaningHeadButton) {
+        console.log("GO to 0 cleaning head button listener attached");
+        goToZeroCleaningHeadButton.addEventListener('click', function() {
+            // Don't allow multiple operations at once
+            if (cleaningHeadBusy) {
+                window.addLogMessage('Cannot go to 0: cleaning head is busy. Stop current operation first.', true);
+                return;
+            }
+            
+            window.addLogMessage('Moving cleaning head to position 0...', false, 'action');
+            
+            // Disable all cleaning head buttons
+            disableCleaningHeadButtons();
+            
+            makeRequest(
+                '/go_to_zero',
+                'POST',
+                null,
+                console.log,
+                function(data) {
+                    if (data.status === 'success') {
+                        updateCleaningHeadPosition(0);
+                        window.addLogMessage('Cleaning head moved to position 0 successfully', false, 'success');
+                    } else {
+                        window.addLogMessage(`Error moving to position 0: ${data.message}`, true);
+                    }
+                },
+                null,
+                function() {
+                    // Re-enable all buttons in finally
+                    enableCleaningHeadButtons();
+                }
+            );
+        });
+    }
+    
     // Stop Cleaning Head button
     if (stopCleaningHeadButton) {
         console.log("Stop cleaning head button listener attached");
@@ -990,7 +1033,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (runTableButton) {
             runTableButton.disabled = true;
             runTableButton.classList.remove('btn-primary');
-            runTableButton.classList.add('btn-success', 'active');
+            runTableButton.classList.add('active');  // Remove btn-success, just use active
             runTableButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> RUNNING...';
         }
         
@@ -1000,8 +1043,8 @@ document.addEventListener('DOMContentLoaded', function() {
             stopTableButton.classList.add('btn-danger');
         }
         
-        // Show status indicators
-        if (autoCycleStatus) {
+        // Show status indicators if auto-cycle is enabled
+        if (autoCycleStatus && window.AutoCycleManager && window.AutoCycleManager.isEnabled()) {
             autoCycleStatus.style.display = 'block';
         }
     }
@@ -1014,7 +1057,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (runTableButton) {
             runTableButton.disabled = false;
-            runTableButton.classList.remove('btn-success', 'active');
+            runTableButton.classList.remove('active');  // Remove btn-success reference since we're not using it
             runTableButton.classList.add('btn-primary');
             runTableButton.innerHTML = '<i class="fas fa-play-circle me-2"></i> RUN TABLE';
         }
@@ -1025,8 +1068,8 @@ document.addEventListener('DOMContentLoaded', function() {
             stopTableButton.classList.add('btn-secondary');
         }
         
-        // Hide status indicators
-        if (autoCycleStatus) {
+        // Only hide status indicators if auto-cycle is not enabled
+        if (autoCycleStatus && window.AutoCycleManager && !window.AutoCycleManager.isEnabled()) {
             autoCycleStatus.style.display = 'none';
         }
         
@@ -1385,6 +1428,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     updateFanStateDisplay(data.fan_state !== undefined ? data.fan_state : true, 'manual');
                     window.addLogMessage('Fan turned ON (manual)', false, 'action');
                     updateFanButtonStates('on');
+                    
+                    // Poll status immediately after action to ensure UI consistency
+                    setTimeout(() => pollStatusOnDemand('after fan ON'), 200);
                 }, function(error) {
                     console.error('Fan ON request failed:', error);
                     window.addLogMessage('Fan ON failed: ' + error.message, true);
@@ -1406,6 +1452,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     updateFanStateDisplay(data.fan_state !== undefined ? data.fan_state : false, 'manual');
                     window.addLogMessage('Fan turned OFF (manual)', false, 'action');
                     updateFanButtonStates('off');
+                    
+                    // Poll status immediately after action to ensure UI consistency
+                    setTimeout(() => pollStatusOnDemand('after fan OFF'), 200);
                 }, function(error) {
                     console.error('Fan OFF request failed:', error);
                     window.addLogMessage('Fan OFF failed: ' + error.message, true);
@@ -1450,6 +1499,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     updateLightsStateDisplay(data.lights_state !== undefined ? data.lights_state : true, 'manual');
                     window.addLogMessage('Red lights turned ON (manual)', false, 'action');
                     updateLightButtonStates('on');
+                    
+                    // Poll status immediately after action to ensure UI consistency
+                    setTimeout(() => pollStatusOnDemand('after lights ON'), 200);
                 }, function(error) {
                     console.error('Lights ON request failed:', error);
                     window.addLogMessage('Lights ON failed: ' + error.message, true);
@@ -1471,6 +1523,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     updateLightsStateDisplay(data.lights_state !== undefined ? data.lights_state : false, 'manual');
                     window.addLogMessage('Red lights turned OFF (manual)', false, 'action');
                     updateLightButtonStates('off');
+                    
+                    // Poll status immediately after action to ensure UI consistency
+                    setTimeout(() => pollStatusOnDemand('after lights OFF'), 200);
                 }, function(error) {
                     console.error('Lights OFF request failed:', error);
                     window.addLogMessage('Lights OFF failed: ' + error.message, true);
@@ -1504,19 +1559,207 @@ document.addEventListener('DOMContentLoaded', function() {
     // E-Stop button
     if (estopBtn) {
         estopBtn.addEventListener('click', function() {
-            if (confirm('Are you sure you want to EMERGENCY STOP all outputs?')) {
-                makeRequest('/estop', 'POST', null, window.addLogMessage, 
-                    function(data) {
-                        window.addLogMessage('EMERGENCY STOP triggered! All outputs stopped.', false, 'danger');
-                    }
-                );
+            showEmergencyStopDialog();
+        });
+    }
+    
+    /**
+     * Show enhanced E-Stop confirmation dialog with timeout
+     */
+    function showEmergencyStopDialog() {
+        // Get timeout from server configuration
+        fetch('/api/config/timing')
+            .then(response => response.json())
+            .then(config => {
+                const timeoutMs = config.estop_confirmation_timeout || 5000;
+                createEstopDialog(timeoutMs);
+            })
+            .catch(error => {
+                console.warn('Failed to get E-Stop timeout config, using default:', error);
+                createEstopDialog(5000); // Default 5 seconds
+            });
+    }
+    
+    /**
+     * Create the E-Stop dialog with specified timeout
+     */
+    function createEstopDialog(timeoutMs) {
+        // Create modal backdrop
+        const backdrop = document.createElement('div');
+        backdrop.className = 'estop-modal-backdrop';
+        backdrop.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            backdrop-filter: blur(3px);
+        `;
+        
+        // Create modal dialog
+        const modal = document.createElement('div');
+        modal.className = 'estop-modal';
+        modal.style.cssText = `
+            background: #fff;
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            border: 3px solid #dc3545;
+        `;
+        
+        let countdown = Math.ceil(timeoutMs / 1000);
+        
+        // Create dialog content
+        modal.innerHTML = `
+            <div style="margin-bottom: 25px;">
+                <i class="fas fa-exclamation-triangle" style="font-size: 48px; color: #dc3545; margin-bottom: 15px;"></i>
+                <h3 style="color: #dc3545; margin: 0 0 10px 0; font-weight: bold;">EMERGENCY STOP</h3>
+                <p style="font-size: 16px; margin: 0 0 10px 0; color: #333;">This will immediately stop all outputs!</p>
+                <div id="estop-countdown" style="font-size: 14px; color: #666;">Auto-confirm in <span id="countdown-timer">${countdown}</span> seconds</div>
+            </div>
+            <div style="display: flex; gap: 20px; justify-content: center;">
+                <button id="estop-yes-btn" style="
+                    background: #dc3545;
+                    color: white;
+                    border: none;
+                    border-radius: 10px;
+                    padding: 20px 40px;
+                    font-size: 24px;
+                    font-weight: bold;
+                    cursor: pointer;
+                    min-width: 150px;
+                    box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+                    transition: all 0.2s;
+                " onmouseover="this.style.background='#c82333'" onmouseout="this.style.background='#dc3545'">
+                    <i class="fas fa-stop-circle" style="margin-right: 10px;"></i>YES
+                </button>
+                <button id="estop-no-btn" style="
+                    background: #6c757d;
+                    color: white;
+                    border: none;
+                    border-radius: 8px;
+                    padding: 12px 20px;
+                    font-size: 16px;
+                    cursor: pointer;
+                    min-width: 80px;
+                    transition: all 0.2s;
+                " onmouseover="this.style.background='#5a6268'" onmouseout="this.style.background='#6c757d'">
+                    NO
+                </button>
+            </div>
+        `;
+        
+        backdrop.appendChild(modal);
+        document.body.appendChild(backdrop);
+        
+        // Focus on YES button for accessibility
+        const yesBtn = document.getElementById('estop-yes-btn');
+        const noBtn = document.getElementById('estop-no-btn');
+        const countdownDisplay = document.getElementById('countdown-timer');
+        
+        yesBtn.focus();
+        
+        // Countdown timer
+        const countdownInterval = setInterval(() => {
+            countdown--;
+            if (countdownDisplay) {
+                countdownDisplay.textContent = countdown;
+            }
+            
+            if (countdown <= 0) {
+                clearInterval(countdownInterval);
+                executeEmergencyStop();
+                document.body.removeChild(backdrop);
+            }
+        }, 1000);
+        
+        // Execute E-Stop function
+        function executeEmergencyStop() {
+            makeRequest('/estop', 'POST', null, window.addLogMessage, 
+                function(data) {
+                    window.addLogMessage('EMERGENCY STOP triggered! All outputs stopped.', false, 'danger');
+                    // Update UI to reflect stopped state
+                    updateUIAfterEstop();
+                }
+            );
+        }
+        
+        // Button event handlers
+        yesBtn.addEventListener('click', () => {
+            clearInterval(countdownInterval);
+            executeEmergencyStop();
+            document.body.removeChild(backdrop);
+        });
+        
+        noBtn.addEventListener('click', () => {
+            clearInterval(countdownInterval);
+            document.body.removeChild(backdrop);
+        });
+        
+        // Close on Escape key
+        const escapeHandler = (e) => {
+            if (e.key === 'Escape') {
+                clearInterval(countdownInterval);
+                document.body.removeChild(backdrop);
+                document.removeEventListener('keydown', escapeHandler);
+            }
+        };
+        document.addEventListener('keydown', escapeHandler);
+        
+        // Close on backdrop click
+        backdrop.addEventListener('click', (e) => {
+            if (e.target === backdrop) {
+                clearInterval(countdownInterval);
+                document.body.removeChild(backdrop);
             }
         });
+    }
+    
+    /**
+     * Update UI after E-Stop to reflect stopped state
+     */
+    function updateUIAfterEstop() {
+        // Update fan buttons
+        if (fanOnBtn) fanOnBtn.classList.remove('active');
+        if (fanAutoBtn) fanAutoBtn.classList.remove('active');
+        if (fanOffBtn) fanOffBtn.classList.add('active');
+        if (fanStateDisplay) fanStateDisplay.textContent = 'Off';
+        
+        // Update lights buttons
+        if (lightsOnBtn) lightsOnBtn.classList.remove('active');
+        if (lightsAutoBtn) lightsAutoBtn.classList.remove('active');
+        if (lightsOffBtn) lightsOffBtn.classList.add('active');
+        if (lightsStateDisplay) lightsStateDisplay.textContent = 'Off';
+        
+        // Update table buttons
+        if (runTableButton) {
+            runTableButton.disabled = false;
+            runTableButton.textContent = 'RUN TABLE';
+        }
+        if (stopTableButton) {
+            stopTableButton.disabled = true;
+        }
+        
+        // Stop any running auto-cycle
+        if (window.AutoCycleManager && window.AutoCycleManager.isRunning()) {
+            window.AutoCycleManager.stop();
+        }
+        
+        console.log('UI updated after E-Stop');
     }
 
     // Auto-cycle enable switch
     if (autoCycleEnableSwitch) {
         console.log('Adding change listener to auto-cycle enable switch (operation page)');
+        
         autoCycleEnableSwitch.addEventListener('change', function() {
             console.log('Auto-cycle enable switch changed to:', this.checked);
             
@@ -1598,6 +1841,47 @@ document.addEventListener('DOMContentLoaded', function() {
     // Status polling to keep UI in sync
     let pollingInProgress = false;
     
+    // Function to poll status on-demand (replaces constant polling)
+    function pollStatusOnDemand(reason = 'on-demand') {
+        console.log(`Polling status on-demand: ${reason}`);
+        
+        // Poll fan status
+        makeRequest('/fan/status', 'GET', null, window.addLogMessage, 
+            function(data) {
+                if (data && typeof data.fan_state !== 'undefined') {
+                    updateFanStateDisplay(data.fan_state, data.fan_mode || 'manual');
+                }
+            }, 
+            function(error) {
+                console.warn('Failed to poll fan status on-demand:', error);
+            }
+        );
+        
+        // Poll lights status  
+        makeRequest('/lights/status', 'GET', null, window.addLogMessage, 
+            function(data) {
+                if (data && typeof data.lights_state !== 'undefined') {
+                    updateLightsStateDisplay(data.lights_state, data.lights_mode || 'manual');
+                }
+            }, 
+            function(error) {
+                console.warn('Failed to poll lights status on-demand:', error);
+            }
+        );
+        
+        // Poll table status (if needed for UI updates)
+        makeRequest('/table/status', 'GET', null, window.addLogMessage, 
+            function(data) {
+                if (data && data.status === 'success') {
+                    updateTableStateDisplay(data);
+                }
+            }, 
+            function(error) {
+                console.warn('Failed to poll table status on-demand:', error);
+            }
+        );
+    }
+
     function pollFanLightsStatus() {
         // Prevent overlapping polls that can cause flickering
         if (pollingInProgress) {
@@ -1672,61 +1956,224 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Function to check and sync servo toggle states with server
     function checkAndSyncServoState() {
-        console.log('Checking current servo toggle states...');
+        console.log('Checking current servo toggle states and table status...');
         
-        makeRequest('/servo_status', 'GET', null,
+        makeRequest('/servo_status', 'GET', null, console.log,
             function(data) {
-                if (data && data.status === 'success' && data.toggle_states) {
-                    const states = data.toggle_states;
-                    console.log('Server servo states:', states);
+                if (data && data.status === 'success') {
+                    console.log('Server response:', data);
                     
-                    // Sync fiber toggle state
-                    if (states.fiber_toggle_active && !fireFiberToggleActive) {
-                        console.log('Restoring fiber toggle active state');
-                        fireFiberToggleActive = true;
+                    // Sync servo toggle states
+                    if (data.toggle_states) {
+                        const states = data.toggle_states;
+                        console.log('Server servo states:', states);
+                        console.log(`Current UI states - Fire: ${fireToggleActive}, Fiber: ${fireFiberToggleActive}, Timer: ${firingTimerActive}`);
                         
-                        if (fireFiberToggleButton) {
-                            fireFiberToggleButton.classList.remove('btn-outline-warning');
-                            fireFiberToggleButton.classList.add('active', 'btn-warning');
-                            fireFiberToggleButton.innerHTML = '<i class="fas fa-stop"></i> STOP FIBER';
+                        // Sync fiber toggle state
+                        if (states.fiber_toggle_active !== fireFiberToggleActive) {
+                            console.log(`Syncing fiber toggle: ${fireFiberToggleActive} -> ${states.fiber_toggle_active}`);
+                            fireFiberToggleActive = states.fiber_toggle_active;
+                            
+                            if (fireFiberToggleButton) {
+                                if (fireFiberToggleActive) {
+                                    fireFiberToggleButton.classList.remove('btn-outline-warning');
+                                    fireFiberToggleButton.classList.add('active', 'btn-warning');
+                                    fireFiberToggleButton.innerHTML = '<i class="fas fa-stop"></i> STOP FIBER';
+                                    
+                                    // Restore firing timer if actively firing
+                                    if (states.is_firing && !firingTimerActive) {
+                                        console.log('Restoring firing timer for fiber');
+                                        const elapsedMs = states.firing_duration_ms || 0;
+                                        startFiringTimer(elapsedMs); // Pass elapsed time to restore timer
+                                        updateFiringStatus('Fiber Sequence (Toggle)', 'badge bg-warning text-dark');
+                                    }
+                                } else {
+                                    fireFiberToggleButton.classList.remove('active', 'btn-warning');
+                                    fireFiberToggleButton.classList.add('btn-outline-warning');
+                                    fireFiberToggleButton.innerHTML = '<i class="fas fa-bolt"></i> FIBER';
+                                    
+                                    // Stop firing timer if not actively firing
+                                    if (!states.is_firing && firingTimerActive) {
+                                        resetFiringStatus();
+                                    }
+                                }
+                            }
+                            
+                            window.addLogMessage(`Synced fiber toggle state: ${fireFiberToggleActive ? 'active' : 'inactive'}`, false, 'info');
                         }
                         
-                        // Restore firing timer if actively firing
-                        if (states.is_firing && !firingTimerActive) {
-                            console.log('Restoring firing timer');
-                            startFiringTimer();
-                            updateFiringStatus('Active Fiber Firing', 'badge bg-warning text-dark blink');
+                        // Sync regular fire toggle state  
+                        if (states.fire_toggle_active !== fireToggleActive) {
+                            console.log(`Syncing fire toggle: ${fireToggleActive} -> ${states.fire_toggle_active}`);
+                            fireToggleActive = states.fire_toggle_active;
+                            
+                            if (fireToggleButton) {
+                                if (fireToggleActive) {
+                                    fireToggleButton.classList.remove('btn-danger');
+                                    fireToggleButton.classList.add('active', 'btn-warning');
+                                    fireToggleButton.innerHTML = '<i class="fas fa-stop"></i> STOP FIRE';
+                                    
+                                    // Restore firing timer if actively firing
+                                    if (states.is_firing && !firingTimerActive) {
+                                        console.log('Restoring firing timer for fire');
+                                        const elapsedMs = states.firing_duration_ms || 0;
+                                        startFiringTimer(elapsedMs); // Pass elapsed time to restore timer
+                                        updateFiringStatus('Firing (Toggle)', 'badge bg-danger');
+                                    }
+                                } else {
+                                    fireToggleButton.classList.remove('active', 'btn-warning');
+                                    fireToggleButton.classList.add('btn-danger');
+                                    fireToggleButton.innerHTML = '<i class="fas fa-fire-alt"></i> FIRE';
+                                    
+                                    // Stop firing timer if not actively firing
+                                    if (!states.is_firing && firingTimerActive) {
+                                        resetFiringStatus();
+                                    }
+                                }
+                            }
+                            
+                            window.addLogMessage(`Synced fire toggle state: ${fireToggleActive ? 'active' : 'inactive'}`, false, 'info');
                         }
                         
-                        window.addLogMessage('Restored fiber toggle state from server', false, 'info');
+                        // Handle case where neither toggle is active but server is still firing (cleanup)
+                        if (!states.fire_toggle_active && !states.fiber_toggle_active && states.is_firing) {
+                            console.log('Warning: Server reports firing but no toggles active - this may indicate a state inconsistency');
+                            window.addLogMessage('State inconsistency detected - server firing without active toggles', false, 'warning');
+                        }
                     }
                     
-                    // Sync regular fire toggle state  
-                    if (states.fire_toggle_active && !fireToggleActive) {
-                        console.log('Restoring fire toggle active state');
-                        fireToggleActive = true;
+                    // Sync table and auto cycle states
+                    if (data.table_states) {
+                        const tableStates = data.table_states;
+                        console.log('Server table states:', tableStates);
                         
-                        if (fireToggleButton) {
-                            fireToggleButton.classList.remove('btn-outline-danger');
-                            fireToggleButton.classList.add('active', 'btn-danger');
-                            fireToggleButton.innerHTML = '<i class="fas fa-stop"></i> STOP FIRE';
+                        // Sync auto cycle switch state - but don't override user actions
+                        if (autoCycleEnableSwitch && typeof tableStates.auto_cycle_enabled !== 'undefined') {
+                            const serverAutoCycleEnabled = tableStates.auto_cycle_enabled;
+                            const currentSwitchState = autoCycleEnableSwitch.checked;
+                            
+                            // Always prioritize localStorage state over server state for auto-cycle
+                            // BUT if server shows auto-cycle is running, enable the switch
+                            if (window.AutoCycleManager) {
+                                const localStorageState = window.AutoCycleManager.isEnabled();
+                                const serverAutoCycleRunning = tableStates.auto_cycle_running;
+                                const serverTableRunning = tableStates.table_running || tableStates.auto_cycle_running;
+                                
+                                // If server shows auto-cycle is actually running, enable the switch regardless of localStorage
+                                let targetSwitchState = localStorageState;
+                                if (serverAutoCycleRunning) {
+                                    targetSwitchState = true;
+                                    // Update localStorage to match reality
+                                    window.AutoCycleManager.setEnabled(true);
+                                } else if (serverTableRunning && !localStorageState) {
+                                    // Table is running but auto-cycle is disabled in localStorage
+                                    // This means table was started manually, keep switch as disabled
+                                    targetSwitchState = false;
+                                }
+                                
+                                // Update switch to match target state if they differ
+                                if (targetSwitchState !== currentSwitchState) {
+                                    console.log(`Syncing auto cycle switch: ${currentSwitchState} -> ${targetSwitchState} (server auto-cycle running: ${serverAutoCycleRunning}, table running: ${serverTableRunning})`);
+                                    autoCycleEnableSwitch.checked = targetSwitchState;
+                                    
+                                    // Force visual update
+                                    if (targetSwitchState) {
+                                        autoCycleEnableSwitch.setAttribute('checked', 'checked');
+                                    } else {
+                                        autoCycleEnableSwitch.removeAttribute('checked');
+                                    }
+                                    
+                                    // Trigger change event to update AutoCycleManager
+                                    setTimeout(() => {
+                                        autoCycleEnableSwitch.dispatchEvent(new Event('change', { bubbles: true }));
+                                    }, 50);
+                                    
+                                    window.addLogMessage(`Auto cycle switch restored: ${targetSwitchState ? 'enabled' : 'disabled'}`, false, 'info');
+                                }
+                                
+                                // Show auto-cycle status if auto-cycle is enabled (toggle switch is on)
+                                if (autoCycleStatus && targetSwitchState) {
+                                    autoCycleStatus.style.display = 'block';
+                                } else if (autoCycleStatus) {
+                                    autoCycleStatus.style.display = 'none';
+                                }
+                            }
                         }
                         
-                        // Restore firing timer if actively firing
-                        if (states.is_firing && !firingTimerActive) {
-                            console.log('Restoring firing timer');
-                            startFiringTimer();
-                            updateFiringStatus('Active Firing', 'badge bg-danger blink');
+                        // Sync run table button state
+                        if (runTableButton && typeof tableStates.table_running !== 'undefined') {
+                            const serverTableRunning = tableStates.table_running || tableStates.auto_cycle_running;
+                            const currentButtonRunning = runTableButton.disabled; // disabled when running
+                            
+                            if (serverTableRunning !== currentButtonRunning) {
+                                console.log(`Syncing run table button: running ${currentButtonRunning} -> ${serverTableRunning}`);
+                                
+                                if (serverTableRunning) {
+                                    // Table is running - disable run button, show running state
+                                    disableRunTableButton();
+                                    window.addLogMessage('Restored table running state', false, 'info');
+                                    
+                                    // If auto cycle is running, update progress display
+                                    if (tableStates.auto_cycle_running && window.AutoCycleManager) {
+                                        // Restore auto cycle progress - prioritize AutoCycleManager's stored count
+                                        const storedCycleCount = window.AutoCycleManager.cycleCount;
+                                        const serverCycleCount = tableStates.cycle_count || 0;
+                                        const serverProgress = tableStates.cycle_progress || 0;
+                                        
+                                        // Use the higher of stored vs server count (user might have done cycles offline)
+                                        const actualCycleCount = Math.max(storedCycleCount, serverCycleCount);
+                                        updateAutoCycleStatus(actualCycleCount, serverProgress);
+                                        
+                                        // Update AutoCycleManager if server has higher count
+                                        if (serverCycleCount > storedCycleCount) {
+                                            window.AutoCycleManager.cycleCount = serverCycleCount;
+                                            window.AutoCycleManager.saveState('cycleCount', serverCycleCount);
+                                        }
+                                        
+                                        // Restore AutoCycleManager running state
+                                        if (!window.AutoCycleManager.isRunning()) {
+                                            console.log('Restoring AutoCycleManager running state');
+                                            try {
+                                                // Note: This may need adjustment based on AutoCycleManager implementation
+                                                window.AutoCycleManager._isRunning = true; // Direct state restore
+                                                
+                                                // Set up callbacks for continued operation
+                                                window.AutoCycleManager.onProgressChange = function(progress) {
+                                                    updateAutoCycleStatus(window.AutoCycleManager.cycleCount, progress);
+                                                };
+                                                
+                                                window.AutoCycleManager.onCycleCountChange = function(count) {
+                                                    updateAutoCycleStatus(count, 0);
+                                                };
+                                                
+                                                window.AutoCycleManager.onStateChange = function() {
+                                                    if (!window.AutoCycleManager.isRunning()) {
+                                                        enableRunTableButton();
+                                                        // Clear callbacks when stopped
+                                                        window.AutoCycleManager.onProgressChange = null;
+                                                        window.AutoCycleManager.onCycleCountChange = null;
+                                                        window.AutoCycleManager.onStateChange = null;
+                                                    }
+                                                };
+                                            } catch (autoError) {
+                                                console.warn('Could not restore AutoCycleManager state:', autoError);
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    // Table is not running - enable run button, show ready state
+                                    enableRunTableButton();
+                                    window.addLogMessage('Restored table ready state', false, 'info');
+                                }
+                            }
                         }
-                        
-                        window.addLogMessage('Restored fire toggle state from server', false, 'info');
                     }
                 } else {
-                    console.log('No toggle states found or error in servo status');
+                    console.log('No states found or error in servo status');
                 }
             },
             function(error) {
-                console.warn('Could not fetch servo toggle states:', error);
+                console.warn('Could not fetch servo and table states:', error);
             }
         );
     }
@@ -1759,47 +2206,19 @@ document.addEventListener('DOMContentLoaded', function() {
                     autoCycleSwitch.dispatchEvent(new Event('change', { bubbles: true }));
                 }, 100);
                 
-                // Also fetch from server to ensure consistency
-                makeRequest('/table/status', 'GET', null, window.addLogMessage, 
-                    function(data) {
-                        if (data && typeof data.auto_cycle_enabled !== 'undefined') {
-                            const serverState = data.auto_cycle_enabled;
-                            console.log('Server auto-cycle state:', serverState);
-                            
-                            // Update both switch and manager
-                            autoCycleSwitch.checked = serverState;
-                            window.AutoCycleManager.setEnabled(serverState);
-                            
-                            // Force visual update again
-                            if (serverState) {
-                                autoCycleSwitch.setAttribute('checked', 'checked');
-                            } else {
-                                autoCycleSwitch.removeAttribute('checked');
-                            }
-                            
-                            setTimeout(() => {
-                                autoCycleSwitch.dispatchEvent(new Event('change', { bubbles: true }));
-                            }, 100);
-                            
-                            console.log('Auto cycle switch and manager synced with server state:', serverState);
-                        } else {
-                            console.log('No auto_cycle_enabled in server response, using manager state:', currentState);
-                        }
-                    },
-                    function(error) {
-                        console.warn('Could not fetch auto-cycle state from server:', error);
-                        // On error, ensure switch shows manager state
-                        autoCycleSwitch.checked = currentState;
-                        if (currentState) {
-                            autoCycleSwitch.setAttribute('checked', 'checked');
-                        } else {
-                            autoCycleSwitch.removeAttribute('checked');
-                        }
-                        setTimeout(() => {
-                            autoCycleSwitch.dispatchEvent(new Event('change', { bubbles: true }));
-                        }, 100);
-                    }
-                );
+                console.log('Auto cycle switch initialized to localStorage state:', currentState);
+            }
+            
+            // Always restore the cycle count from localStorage, regardless of running state
+            const storedCycleCount = window.AutoCycleManager.cycleCount;
+            if (storedCycleCount > 0) {
+                console.log('Restoring cycle count from localStorage:', storedCycleCount);
+                updateAutoCycleStatus(storedCycleCount, 0);
+                
+                // Show progress indicators if auto-cycle is enabled
+                if (window.AutoCycleManager.isEnabled() && autoCycleStatus) {
+                    autoCycleStatus.style.display = 'block';
+                }
             }
         }
         
@@ -1808,9 +2227,80 @@ document.addEventListener('DOMContentLoaded', function() {
         pollFanLightsStatus();
     }
     
-    // Call sync function after a short delay to ensure all scripts are loaded
-    setTimeout(syncUIWithSystemState, 200);
+    // Call sync function after a short delay to ensure all scripts and CSS are loaded
+    setTimeout(function() {
+        if (window.AutoCycleManager) {
+            console.log('AutoCycleManager available, initial state:', {
+                enabled: window.AutoCycleManager.isEnabled(),
+                running: window.AutoCycleManager.isRunning(),
+                cycleCount: window.AutoCycleManager.cycleCount
+            });
+            
+            // Initialize auto-cycle switch to match localStorage state
+            const autoCycleSwitch = document.getElementById('auto-cycle-enable-switch');
+            if (autoCycleSwitch) {
+                const localStorageState = window.AutoCycleManager.isEnabled();
+                console.log(`Initializing auto-cycle switch to localStorage state: ${localStorageState}`);
+                
+                // Set the input state
+                autoCycleSwitch.checked = localStorageState;
+                
+                // Force DOM attribute updates
+                if (localStorageState) {
+                    autoCycleSwitch.setAttribute('checked', 'checked');
+                } else {
+                    autoCycleSwitch.removeAttribute('checked');
+                }
+                
+                // Add click handler for the slider
+                const toggleSlider = autoCycleSwitch.parentElement.querySelector('.toggle-slider');
+                if (toggleSlider) {
+                    console.log('Adding click handler to toggle slider');
+                    
+                    toggleSlider.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        console.log('Toggle slider clicked, current state:', autoCycleSwitch.checked);
+                        autoCycleSwitch.checked = !autoCycleSwitch.checked;
+                        
+                        // Update checked attribute to trigger CSS changes
+                        if (autoCycleSwitch.checked) {
+                            autoCycleSwitch.setAttribute('checked', 'checked');
+                        } else {
+                            autoCycleSwitch.removeAttribute('checked');
+                        }
+                        
+                        autoCycleSwitch.dispatchEvent(new Event('change', { bubbles: true }));
+                        console.log('Toggle slider changed to:', autoCycleSwitch.checked);
+                    });
+                }
+                
+                // Force a visual update by triggering a change event
+                setTimeout(() => {
+                    autoCycleSwitch.dispatchEvent(new Event('change', { bubbles: true }));
+                }, 100);
+            }
+        } else {
+            console.warn('AutoCycleManager not available during initialization');
+        }
+        syncUIWithSystemState();
+    }, 300);
     
-    // Start status polling every 3 seconds for responsive updates
-    setInterval(pollFanLightsStatus, 3000); // Optimized for better user experience
+    // Sync state when page becomes visible (user returns from another page)
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) {
+            console.log('Page became visible - syncing state');
+            setTimeout(checkAndSyncServoState, 100); // Small delay to ensure page is fully loaded
+        }
+    });
+    
+    // Periodic state sync every 15 seconds for critical states only (reduced frequency)
+    setInterval(checkAndSyncServoState, 15000);
+    
+    // Remove constant fan/lights polling - now handled on-demand only
+    // setInterval(pollFanLightsStatus, 3000); // REMOVED - causing UI sluggishness
+    
+    // Initial status check when page loads
+    setTimeout(() => {
+        pollFanLightsStatus(); // One-time initial poll
+    }, 500);
 });

@@ -3,8 +3,8 @@ RFID controller module for MFRC522 RFID reader.
 Handles card reading and authentication with ShopMachineMonitor server.
 """
 import os
-import logging
 import time
+import logging
 import uuid
 import threading
 from datetime import datetime, timedelta
@@ -70,7 +70,7 @@ class RFIDController:
         # Track authentication timing for login detection
         self.last_auth_time = 0
         self.login_consumed = False  # Flag to track if authentication was used for login
-        self.current_session = None  # Track current user session
+        self.current_session_id = None  # Track current user session ID (not the object itself)
         
         # In simulation mode, set up a default authenticated user
         if SIMULATION_MODE:
@@ -81,6 +81,19 @@ class RFIDController:
         # In normal mode, initialize RFID reader if available
         elif RFID_AVAILABLE:
             self._initialize_rfid_reader()
+    
+    @property
+    def current_session(self):
+        """Backward compatibility property - returns session object or None"""
+        if self.current_session_id:
+            try:
+                from models import UserSession
+                from main import app, db
+                with app.app_context():
+                    return db.session.query(UserSession).filter_by(id=self.current_session_id).first()
+            except:
+                return None
+        return None
     
     def _setup_simulation_user(self):
         """Set up a default authenticated user in simulation mode"""
@@ -108,7 +121,7 @@ class RFIDController:
             
             with app.app_context():
                 # Close current session if exists
-                if self.current_session:
+                if self.current_session_id:
                     self._close_user_session()
                 
                 # Create new session
@@ -124,7 +137,7 @@ class RFIDController:
                 db.session.add(session)
                 db.session.commit()
                 
-                self.current_session = session
+                self.current_session_id = session.id  # Store session ID instead of the object
                 
                 # Update Flask-Login current_user for auto-switch and RFID logins
                 if login_method in ['auto_switch', 'rfid']:
@@ -144,19 +157,22 @@ class RFIDController:
             from models import UserSession
             from main import app, db
             
-            if not self.current_session:
+            if not self.current_session_id:
                 return
                 
             with app.app_context():
-                # Refresh session from database
-                session = UserSession.query.get(self.current_session.id)
+                # Get session ID from current session
+                session_id = self.current_session_id
+                
+                # Query for a fresh session object to avoid detached instance issues
+                session = db.session.query(UserSession).filter_by(id=session_id).first()
                 if session:
-                    session.logout_time = datetime.utcnow()
+                    session.logout_time = datetime.now()  # Use local time for consistency
                     session.calculate_performance_score()
                     db.session.commit()
                     logging.info(f"Closed user session {session.id} for {session.user.username if session.user else 'Unknown'}")
                 
-                self.current_session = None
+                self.current_session_id = None
                 
         except Exception as e:
             logging.error(f"Error closing user session: {e}")
@@ -167,11 +183,15 @@ class RFIDController:
             from models import UserSession
             from main import app, db
             
-            if not self.current_session:
+            if not self.current_session_id:
                 return
                 
             with app.app_context():
-                session = UserSession.query.get(self.current_session.id)
+                # Get session ID from current session
+                session_id = self.current_session_id
+                
+                # Query for a fresh session object to avoid detached instance issues
+                session = db.session.query(UserSession).filter_by(id=session_id).first()
                 if session and not session.first_fire_time:
                     session.first_fire_time = datetime.now()  # Use local time for consistency
                     session.calculate_performance_score()
@@ -183,34 +203,50 @@ class RFIDController:
         except Exception as e:
             logging.error(f"Error recording first fire: {e}")
     
-    def update_session_stats(self, fire_count_increment=0, fire_time_increment_ms=0):
+    def update_session_stats(self, fire_count_increment=0, fire_time_increment_ms=0, table_cycles_increment=0):
         """Update session statistics"""
         try:
             from models import UserSession
             from main import app, db
             
-            if not self.current_session:
+            if not self.current_session_id:
                 logging.warning("Cannot update session stats: no active session")
                 return
                 
             with app.app_context():
-                session = UserSession.query.get(self.current_session.id)
+                # Get session ID from current session
+                session_id = self.current_session_id
+                
+                # Query for a fresh session object to avoid detached instance issues
+                session = db.session.query(UserSession).filter_by(id=session_id).first()
                 if session:
                     old_count = session.session_fire_count or 0
                     old_time = session.session_fire_time_ms or 0
+                    old_cycles = session.session_table_cycles or 0
                     
                     session.session_fire_count = old_count + fire_count_increment
                     session.session_fire_time_ms = old_time + fire_time_increment_ms
+                    session.session_table_cycles = old_cycles + table_cycles_increment
+                    
+                    # Recalculate performance score if cycles are updated
+                    if table_cycles_increment > 0:
+                        session.calculate_performance_score()
+                    
                     db.session.commit()
                     
                     logging.info(f"Session stats updated for {session.user.username if session.user else 'Unknown'}: "
                                f"fire count {old_count} → {session.session_fire_count}, "
-                               f"fire time {old_time}ms → {session.session_fire_time_ms}ms")
+                               f"fire time {old_time}ms → {session.session_fire_time_ms}ms, "
+                               f"table cycles {old_cycles} → {session.session_table_cycles}")
                 else:
-                    logging.warning(f"Session {self.current_session.id} not found in database")
+                    logging.warning(f"Session {session_id} not found in database")
                 
         except Exception as e:
             logging.error(f"Error updating session stats: {e}")
+    
+    def update_table_cycles(self, cycles_increment=1):
+        """Update table cycle count for the current session"""
+        self.update_session_stats(table_cycles_increment=cycles_increment)
     
     def _setup_prototype_mode(self):
         """Set up RFID behavior in prototype mode"""
@@ -377,6 +413,7 @@ class RFIDController:
         # Check if this is a different user (user switching scenario)
         switching_users = False
         new_user_data = None
+        current_user_card_rescan = False
         
         # Look up the new card to see if it belongs to a different user
         try:
@@ -396,11 +433,15 @@ class RFIDController:
                             'card_id': card_id
                         }
                         logging.info(f"User switching detected: {self.authenticated_user.get('username')} -> {rfid_card.user.username}")
+                    elif current_user_id and current_user_id == new_user_id:
+                        # Same user rescanned their own card
+                        current_user_card_rescan = True
+                        logging.debug(f"Current user {rfid_card.user.username} rescanned their own card")
         except Exception as e:
             logging.error(f"Error checking for user switching: {e}")
         
-        # If same user is already authenticated, just update timing
-        if self.authenticated_user and not switching_users:
+        # If same user is already authenticated and rescanned their own card, just update timing
+        if self.authenticated_user and current_user_card_rescan:
             self.last_auth_time = time.time()
             self.login_consumed = False
             logging.debug(f"User {self.authenticated_user.get('username')} re-scanned card - updating timing")
@@ -591,17 +632,46 @@ class RFIDController:
             
             # Use Flask application context for database operations
             with app.app_context():
-                log_entry = AccessLog(
-                    user_id=user_id,
-                    card_id=str(card_id) if card_id else None,
-                    machine_id=machine_id,
-                    action=action,
-                    details=details,
-                    timestamp=datetime.utcnow()
-                )
-                
-                db.session.add(log_entry)
-                db.session.commit()
+                try:
+                    # Try with machine_id first (newer schema)
+                    log_entry = AccessLog(
+                        user_id=user_id,
+                        card_id=str(card_id) if card_id else None,
+                        machine_id=machine_id,
+                        action=action,
+                        details=details,
+                        timestamp=datetime.utcnow()
+                    )
+                    
+                    db.session.add(log_entry)
+                    db.session.commit()
+                    
+                except Exception as schema_error:
+                    # If machine_id column doesn't exist, try without it (fallback for older schema)
+                    if "no column named machine_id" in str(schema_error):
+                        logging.warning("AccessLog table missing machine_id column, logging without it")
+                        try:
+                            db.session.rollback()  # Rollback failed transaction
+                            
+                            # Create log entry without machine_id for older schema compatibility
+                            log_entry = AccessLog(
+                                user_id=user_id,
+                                card_id=str(card_id) if card_id else None,
+                                action=action,
+                                details=details,
+                                timestamp=datetime.utcnow()
+                            )
+                            # Don't set machine_id to avoid column error
+                            
+                            db.session.add(log_entry)
+                            db.session.commit()
+                            
+                        except Exception as fallback_error:
+                            logging.error(f"Failed to log access even without machine_id: {fallback_error}")
+                            db.session.rollback()
+                    else:
+                        # Re-raise if it's a different error
+                        raise schema_error
             
         except Exception as e:
             logging.error(f"Error logging access: {e}")

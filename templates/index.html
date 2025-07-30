@@ -111,34 +111,34 @@
                                 <div class="card h-100">
                                     <div class="card-header bg-danger text-white">Laser Control</div>
                                     <div class="card-body text-center">
-                                        <!-- Standard Fire Controls - Split into toggle/momentary rows -->
+                                        <!-- Standard Aim Controls - Split into toggle/momentary rows -->
                                         <div class="row mb-3">
                                             <div class="col-6">
                                                 <label class="d-block mb-1">Toggle Mode</label>
-                                                <button id="fire-toggle-button" class="btn btn-danger btn-lg w-100">
-                                                    <i class="fas fa-fire-alt"></i> FIRE
+                                                <button id="fire-toggle-button" class="btn btn-warning btn-lg w-100">
+                                                    <i class="fas fa-crosshairs"></i> AIM
                                                 </button>
                                             </div>
                                             <div class="col-6">
                                                 <label class="d-block mb-1">Momentary</label>
-                                                <button id="fire-button" class="btn btn-danger btn-lg w-100">
-                                                    <i class="fas fa-fire-alt"></i> FIRE
+                                                <button id="fire-button" class="btn btn-warning btn-lg w-100">
+                                                    <i class="fas fa-crosshairs"></i> AIM
                                                 </button>
                                             </div>
                                         </div>
                                         
-                                        <!-- Fiber Fire Controls - Split into toggle/momentary rows -->
+                                        <!-- Fire Controls - Split into toggle/momentary rows -->
                                         <div class="row mb-3">
                                             <div class="col-6">
                                                 <label class="d-block mb-1">Toggle Mode</label>
-                                                <button id="fire-fiber-toggle-button" class="btn btn-warning btn-lg w-100">
-                                                    <i class="fas fa-bolt"></i> FIBER
+                                                <button id="fire-fiber-toggle-button" class="btn btn-danger btn-lg w-100">
+                                                    <i class="fas fa-fire-alt"></i> FIRE
                                                 </button>
                                             </div>
                                             <div class="col-6">
                                                 <label class="d-block mb-1">Momentary</label>
-                                                <button id="fire-fiber-button" class="btn btn-warning btn-lg w-100">
-                                                    <i class="fas fa-bolt"></i> FIBER
+                                                <button id="fire-fiber-button" class="btn btn-danger btn-lg w-100">
+                                                    <i class="fas fa-fire-alt"></i> FIRE
                                                 </button>
                                             </div>
                                         </div>
@@ -156,6 +156,9 @@
                                     <div class="card-body text-center">
                                         <button id="home-cleaning-head" class="btn btn-primary btn-lg mb-3 w-100">
                                             <i class="fas fa-home me-2"></i> Home Cleaning Head
+                                        </button>
+                                        <button id="go-to-zero-cleaning-head" class="btn btn-info btn-lg mb-3 w-100">
+                                            <i class="fas fa-crosshairs me-2"></i> GO to 0
                                         </button>
                                         <div class="d-grid gap-2">
                                             <button id="index-button" class="btn btn-info btn-lg mb-2">
@@ -176,11 +179,14 @@
                                     <div class="card-header bg-info text-white">Table Control</div>
                                     <div class="card-body text-center">
                                         <!-- Auto Cycle Controls -->
-                                        <div class="form-check form-switch mb-3">
-                                            <input class="form-check-input" type="checkbox" id="auto-cycle-enable-switch">
-                                            <label class="form-check-label" for="auto-cycle-enable-switch">
+                                        <div class="mb-3 d-flex align-items-center justify-content-center">
+                                            <label class="me-3" for="auto-cycle-enable-switch">
                                                 <strong>Auto Cycle Mode</strong>
                                             </label>
+                                            <div class="mobile-toggle-switch">
+                                                <input type="checkbox" id="auto-cycle-enable-switch">
+                                                <span class="toggle-slider"></span>
+                                            </div>
                                         </div>
                                         <div id="auto-cycle-status" class="mb-3" style="display: none;">
                                             <div class="progress mb-2" style="height: 8px;">
@@ -388,6 +394,7 @@
     <!-- <script src="{{ url_for('static', filename='js/utility.js') }}"></script> -->
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script src="{{ url_for('static', filename='js/table_control.js') }}"></script>
+    <!-- auto_cycle.js already loaded in base.html - removing duplicate to prevent "already declared" error -->
     <script src="{{ url_for('static', filename='js/temperature.js') }}"></script>
     <script src="{{ url_for('static', filename='js/operation.js') }}"></script>
 {% endblock %}

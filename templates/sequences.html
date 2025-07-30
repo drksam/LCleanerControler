@@ -225,6 +225,9 @@
                                     <li class="mb-2" data-bs-toggle="tooltip" title="Controls the workspace illumination"><span class="badge bg-info">lights_on</span> / <span class="badge bg-info">lights_off</span> - Control lights</li>
                                     <li class="mb-2" data-bs-toggle="tooltip" title="Moves the table away from the cleaning head"><span class="badge bg-secondary">table_forward</span> - Move table forward</li>
                                     <li class="mb-2" data-bs-toggle="tooltip" title="Moves the table toward the cleaning head"><span class="badge bg-secondary">table_backward</span> - Move table backward</li>
+                                    <li class="mb-2" data-bs-toggle="tooltip" title="Runs table forward until front limit switch is reached"><span class="badge bg-secondary">table_run_to_front_limit</span> - Run table to front limit</li>
+                                    <li class="mb-2" data-bs-toggle="tooltip" title="Runs table backward until back limit switch is reached"><span class="badge bg-secondary">table_run_to_back_limit</span> - Run table to back limit</li>
+                                    <li class="mb-2" data-bs-toggle="tooltip" title="Moves cleaning head to position 0 at index speed"><span class="badge bg-primary">go_to_zero</span> - GO to zero position</li>
                                 </ul>
                             </div>
                         </div>
@@ -315,6 +318,9 @@
                             <option value="lights_off" data-bs-toggle="tooltip" title="Turns workspace lights off">Lights Off (lights_off)</option>
                             <option value="table_forward" data-bs-toggle="tooltip" title="Moves table away from cleaning head">Table Forward (table_forward)</option>
                             <option value="table_backward" data-bs-toggle="tooltip" title="Moves table toward cleaning head">Table Backward (table_backward)</option>
+                            <option value="table_run_to_front_limit" data-bs-toggle="tooltip" title="Runs table forward until front limit switch is reached">Run Table to Front Limit (table_run_to_front_limit)</option>
+                            <option value="table_run_to_back_limit" data-bs-toggle="tooltip" title="Runs table backward until back limit switch is reached">Run Table to Back Limit (table_run_to_back_limit)</option>
+                            <option value="go_to_zero" data-bs-toggle="tooltip" title="Moves cleaning head to position 0 at index speed">GO to Zero (go_to_zero)</option>
                         </select>
                     </div>
                     
@@ -364,6 +370,9 @@
                             <option value="lights_off" data-bs-toggle="tooltip" title="Turns workspace lights off">Lights Off (lights_off)</option>
                             <option value="table_forward" data-bs-toggle="tooltip" title="Moves table away from cleaning head">Table Forward (table_forward)</option>
                             <option value="table_backward" data-bs-toggle="tooltip" title="Moves table toward cleaning head">Table Backward (table_backward)</option>
+                            <option value="table_run_to_front_limit" data-bs-toggle="tooltip" title="Runs table forward until front limit switch is reached">Run Table to Front Limit (table_run_to_front_limit)</option>
+                            <option value="table_run_to_back_limit" data-bs-toggle="tooltip" title="Runs table backward until back limit switch is reached">Run Table to Back Limit (table_run_to_back_limit)</option>
+                            <option value="go_to_zero" data-bs-toggle="tooltip" title="Moves cleaning head to position 0 at index speed">GO to Zero (go_to_zero)</option>
                         </select>
                     </div>
                     
@@ -604,6 +613,27 @@
                             <label for="${container.attr('id') == 'stepParams' ? 'tableDuration' : 'editTableDuration'}" class="form-label">Duration (ms)</label>
                             <input type="number" class="form-control" id="${container.attr('id') == 'stepParams' ? 'tableDuration' : 'editTableDuration'}" min="100" value="1000" required>
                             <div class="form-text">How long to run the table motor</div>
+                        </div>
+                    `);
+                    break;
+                    
+                case 'table_run_to_front_limit':
+                case 'table_run_to_back_limit':
+                    // No parameters needed for these operations
+                    container.append(`
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            This will run the table motor until the ${stepType === 'table_run_to_front_limit' ? 'front' : 'back'} limit switch is reached
+                        </div>
+                    `);
+                    break;
+                    
+                case 'go_to_zero':
+                    // No parameters needed for this operation
+                    container.append(`
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            This will move the cleaning head to position 0 at index speed
                         </div>
                     `);
                     break;
@@ -870,7 +900,11 @@
                     return 'bg-info';
                 case 'table_forward':
                 case 'table_backward':
+                case 'table_run_to_front_limit':
+                case 'table_run_to_back_limit':
                     return 'bg-secondary';
+                case 'go_to_zero':
+                    return 'bg-primary';
                 default:
                     return 'bg-dark';
             }
@@ -905,6 +939,11 @@
                 case 'table_forward':
                 case 'table_backward':
                     params.duration = parseInt($('#tableDuration').val());
+                    break;
+                case 'table_run_to_front_limit':
+                case 'table_run_to_back_limit':
+                case 'go_to_zero':
+                    // No additional parameters needed
                     break;
             }
             
@@ -941,6 +980,11 @@
                 case 'table_backward':
                     params.duration = parseInt($('#editTableDuration').val());
                     break;
+                case 'table_run_to_front_limit':
+                case 'table_run_to_back_limit':
+                case 'go_to_zero':
+                    // No additional parameters needed
+                    break;
             }
             
             return params;
@@ -976,6 +1020,11 @@
                 case 'table_forward':
                 case 'table_backward':
                     $('#editTableDuration').val(step.duration);
+                    break;
+                case 'table_run_to_front_limit':
+                case 'table_run_to_back_limit':
+                case 'go_to_zero':
+                    // No parameters to set
                     break;
             }
         }

@@ -281,7 +281,7 @@
                     </li>
                     {% endif %}
                     {% if current_user.is_authenticated and current_user.access_level == 'admin' %}
-                    <li class="nav-item">
+                    <li class="nav-item" data-admin-required>
                         <a class="nav-link {% if page == 'statistics' %}active{% endif %}" href="{{ url_for('main_bp.statistics') }}">
                             <i class="fas fa-chart-bar me-1"></i> Statistics
                         </a>
@@ -298,24 +298,24 @@
                         </a>
                     </li>
                     {% if current_user.is_authenticated and current_user.access_level == 'admin' %}
-                    <li class="nav-item">
+                    <li class="nav-item" data-admin-required>
                         <a class="nav-link {% if page == 'settings' %}active{% endif %}" href="{{ url_for('main_bp.settings') }}">
                             <i class="fas fa-sliders-h me-1"></i> Settings
                         </a>
                     </li>
-                    <li class="nav-item">
+                    <li class="nav-item" data-admin-required>
                         <a class="nav-link {% if page == 'pinout' %}active{% endif %}" href="{{ url_for('main_bp.pinout') }}">
                             <i class="fas fa-microchip me-1"></i> Pinout
                         </a>
                     </li>
-                    <li class="nav-item">
+                    <li class="nav-item" data-admin-required>
                         <a class="nav-link {% if page == 'rfid' %}active{% endif %}" href="{{ url_for('main_bp.rfid') }}">
                             <i class="fas fa-id-card me-1"></i> RFID Access
                         </a>
                     </li>
                     {% endif %}
                     {% if current_user.is_authenticated and current_user.access_level == 'admin' %}
-                    <li class="nav-item">
+                    <li class="nav-item" data-admin-required>
                         <a class="nav-link {% if page == 'users' %}active{% endif %}" href="{{ url_for('main_bp.users_management') }}">
                             <i class="fas fa-users me-1"></i> User Management
                         </a>
@@ -1069,6 +1069,68 @@
                         window.addLogMessage('System initialized and ready.', false, 'info');
                     }
                 });
+            
+            // Update user dropdown to show RFID user when active
+            function updateUserDropdown() {
+                fetch('/api/rfid/status')
+                    .then(response => response.json())
+                    .then(data => {
+                        const userDropdown = document.getElementById('userDropdown');
+                        if (userDropdown && data.authenticated && data.user) {
+                            const user = data.user;
+                            
+                            // Update dropdown to show RFID user
+                            userDropdown.innerHTML = `
+                                <i class="fas fa-user me-1"></i> ${user.username} 
+                                <span class="badge ${user.access_level === 'admin' ? 'bg-danger' : 'bg-primary'}">
+                                    ${user.access_level}
+                                </span>
+                                <span class="badge bg-success ms-1">
+                                    <i class="fas fa-id-card"></i> RFID
+                                </span>
+                            `;
+                            
+                            // Update admin visibility based on RFID user access level
+                            const adminElements = document.querySelectorAll('[data-admin-required]');
+                            adminElements.forEach(element => {
+                                if (user.access_level === 'admin') {
+                                    element.style.display = '';
+                                } else {
+                                    element.style.display = 'none';
+                                }
+                            });
+                        } else if (userDropdown) {
+                            // Restore original Flask user info when no RFID user is active
+                            {% if current_user.is_authenticated %}
+                            userDropdown.innerHTML = `
+                                <i class="fas fa-user me-1"></i> {{ current_user.username }} 
+                                <span class="badge {% if current_user.access_level == 'admin' %}bg-danger{% else %}bg-primary{% endif %}">
+                                    {{ current_user.access_level }}
+                                </span>
+                            `;
+                            
+                            // Restore admin visibility based on Flask user access level
+                            const adminElements = document.querySelectorAll('[data-admin-required]');
+                            adminElements.forEach(element => {
+                                {% if current_user.access_level == 'admin' %}
+                                element.style.display = '';
+                                {% else %}
+                                element.style.display = 'none';
+                                {% endif %}
+                            });
+                            {% endif %}
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error checking RFID status:', error);
+                    });
+            }
+            
+            // Update user dropdown every 2 seconds
+            setInterval(updateUserDropdown, 2000);
+            
+            // Initial update
+            updateUserDropdown();
         });
     </script>
     

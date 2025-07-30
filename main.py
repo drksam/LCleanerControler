@@ -2,7 +2,7 @@ import os
 import logging
 import sys
 import secrets
-from flask import Flask
+from flask import Flask, redirect, url_for, flash
 # --- CHANGES: Use extensions.py for db and login_manager ---
 from extensions import db, login_manager
 
@@ -59,12 +59,19 @@ else:
 db.init_app(app)
 login_manager.init_app(app)
 login_manager.login_view = 'main_bp.login'
+login_manager.login_message = 'Please log in to access this page.'
 
 from models import User
 
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+
+@login_manager.unauthorized_handler
+def unauthorized():
+    """Handle unauthorized access attempts"""
+    flash('You must be logged in to access this page.', 'error')
+    return redirect(url_for('main_bp.login'))
 
 # Initialize Shop Suite integration and webhook system
 with app.app_context():

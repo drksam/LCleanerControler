@@ -272,7 +272,8 @@ class UserSession(db.Model):
     switched_from_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # If user switching occurred
     session_fire_count = db.Column(db.Integer, default=0)
     session_fire_time_ms = db.Column(db.BigInteger, default=0)
-    performance_score = db.Column(db.Float, nullable=True)  # Total logged in time minus fiber fire time (lower is better)
+    session_table_cycles = db.Column(db.Integer, default=0)  # Track table cycles for performance
+    performance_score = db.Column(db.Float, nullable=True)  # Enhanced performance score with cycles (higher is better)
     machine_id = db.Column(db.String(64), default='laser_room_1')
     card_id = db.Column(db.String(32), nullable=True)
     
@@ -280,22 +281,66 @@ class UserSession(db.Model):
     switched_from_user = db.relationship('User', foreign_keys=[switched_from_user_id])
     
     def calculate_performance_score(self):
-        """Calculate performance score (total logged in time - fiber fire time in seconds)"""
+        """Calculate enhanced performance score that rewards efficiency
+        
+        Formula: (session_table_cycles * 100) - (session_fire_count * 10) - (session_duration_minutes * 2) + (optimal_fire_ratio * 50)
+        
+        - More table cycles = better (batch processing efficiency)
+        - Fewer fires = better (precision/quality)
+        - Less time = better (speed efficiency)
+        - Optimal fire time ratio = better (skill/technique)
+        
+        Higher score is better (opposite of old system)
+        """
         if self.logout_time and self.login_time:
-            # Calculate total session time in seconds
-            session_duration = (self.logout_time - self.login_time).total_seconds()
+            # Calculate total session time in minutes for more readable scoring
+            session_duration = (self.logout_time - self.login_time).total_seconds() / 60.0
+            
             # Convert fiber fire time from milliseconds to seconds
-            fiber_fire_time_seconds = self.session_fire_time_ms / 1000.0
-            # Performance = total session time - fiber fire time (lower is better - less non-productive time)
-            self.performance_score = session_duration - fiber_fire_time_seconds
+            fiber_fire_time_seconds = (self.session_fire_time_ms or 0) / 1000.0
+            
+            # Calculate optimal fire time ratio (sweet spot around 30-60 seconds per fire)
+            fires = max(self.session_fire_count or 0, 1)  # Avoid division by zero
+            avg_fire_time = fiber_fire_time_seconds / fires
+            
+            # Optimal fire time bonus (peak efficiency around 45 seconds per fire)
+            optimal_fire_ratio = 1.0
+            if 30 <= avg_fire_time <= 60:
+                # Reward optimal fire times
+                optimal_fire_ratio = 1.5 - abs(avg_fire_time - 45) / 30
+            elif avg_fire_time < 30:
+                # Penalize rushed fires (quality concern)
+                optimal_fire_ratio = avg_fire_time / 30
+            else:
+                # Penalize overly long fires (efficiency concern)
+                optimal_fire_ratio = max(0.2, 60 / avg_fire_time)
+            
+            # Enhanced performance formula (higher is better)
+            table_cycles_score = (self.session_table_cycles or 0) * 100  # Major efficiency factor
+            fire_count_penalty = (self.session_fire_count or 0) * 10      # Quality factor
+            time_penalty = session_duration * 2                          # Speed factor
+            technique_bonus = optimal_fire_ratio * 50                     # Skill factor
+            
+            self.performance_score = table_cycles_score - fire_count_penalty - time_penalty + technique_bonus
             return self.performance_score
         return None
     
     def to_dict(self):
+        try:
+            username = self.user.username if self.user else None
+        except:
+            # If user relationship is not accessible, try to get it directly
+            try:
+                from models import User
+                user = User.query.get(self.user_id)
+                username = user.username if user else None
+            except:
+                username = None
+                
         return {
             'id': self.id,
             'user_id': self.user_id,
-            'username': self.user.username if self.user else None,
+            'username': username,
             'login_time': self.login_time.isoformat() if self.login_time else None,
             'logout_time': self.logout_time.isoformat() if self.logout_time else None,
             'first_fire_time': self.first_fire_time.isoformat() if self.first_fire_time else None,
@@ -303,10 +348,15 @@ class UserSession(db.Model):
             'switched_from_user_id': self.switched_from_user_id,
             'session_fire_count': self.session_fire_count,
             'session_fire_time_ms': self.session_fire_time_ms,
+            'session_table_cycles': self.session_table_cycles,
             'performance_score': self.performance_score,
             'machine_id': self.machine_id,
             'card_id': self.card_id
         }
     
     def __repr__(self):
-        return f'<UserSession {self.user.username if self.user else "Unknown"} - {self.login_time}>'
+        try:
+            username = self.user.username if self.user else "Unknown"
+        except:
+            username = f"User{self.user_id}" if self.user_id else "Unknown"
+        return f'<UserSession {username} - {self.login_time}>'

@@ -721,9 +721,14 @@ class ServoController:
         Get the current toggle states for fire and fiber operations.
         This is called by the web API to check button states.
         """
+        current_time = int(time.time() * 1000)
+        firing_duration = current_time - self.fire_start_time if self.is_firing and self.fire_start_time > 0 else 0
+        
         return {
             "fire_toggle_active": self.fire_toggle_active,
             "fiber_toggle_active": self.fiber_toggle_active,
             "is_firing": self.is_firing,
-            "sequence_mode": self.sequence_mode
+            "sequence_mode": self.sequence_mode,
+            "fire_start_time": self.fire_start_time,
+            "firing_duration_ms": firing_duration
         }
