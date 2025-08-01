@@ -20,10 +20,19 @@ DEFAULT_CONFIG = {
     'stepper': {
         'max_speed': 3500,                # Maximum speed in steps/sec
         'acceleration': 2000,             # Acceleration in steps/sec^2
+        'deceleration': 2000,             # Deceleration in steps/sec^2
+        'enable_timeout': 300,            # Enable pin timeout in seconds (5 minutes)
         'index_distance': 15842,          # X distance for indexing (steps)
         'jog_speed': 500,                 # Jog speed in steps/sec
         'jog_step_size': 20,              # Steps to move when jogging
-        'invert_enable_logic': False,     # Set to True if your driver needs LOW=Enable, HIGH=Disable
+        'invert_enable_logic': True,      # Set to True if your driver needs LOW=Enable, HIGH=Disable
+        'steps_per_mm': 200,              # Steps per millimeter for position calculations
+        # Position bar display settings
+        'position_bar_min': -10000,       # Minimum position for progress bar (steps)
+        'position_bar_max': 25000,        # Maximum position for progress bar (steps)
+        'home_position': 0,               # Home position marker (steps)
+        'limit_switch_a_position': -8000,  # Limit switch A position marker (steps)
+        'limit_switch_b_position': 20000,  # Limit switch B position marker (steps)
     },
     
     # Servo parameters
@@ -121,7 +130,7 @@ DEFAULT_CONFIG = {
         # ESP32 control pins (do not use on Pi)
         'esp_step_pin': 25,               # ESP32 Stepper STEP (GPIO 25)
         'esp_dir_pin': 26,                # ESP32 Stepper DIR (GPIO 26)
-        'esp_enable_pin': 27,             # ESP32 Stepper EN (GPIO 27, HIGH=Enable, normal logic)
+        'esp_enable_pin': 27,             # ESP32 Stepper EN (GPIO 27, LOW=Enable, inverted logic)
         'esp_limit_a_pin': 18,            # ESP32 Stepper Limit A (GPIO 18, Pull-Up, LOW=Active) - CW limit
         'esp_limit_b_pin': 19,            # ESP32 Stepper Limit B (GPIO 19, Pull-Up, LOW=Active) - CCW limit
         'esp_home_pin': 21,               # ESP32 Stepper Home (GPIO 21, Pull-Up, LOW=Active)
@@ -281,6 +290,8 @@ def delete_sequence(sequence_id):
 
 def update_config(section, key, value):
     """Update a specific configuration value"""
+    global config
+    
     # Create the section if it doesn't exist
     if section not in config:
         config[section] = {}
@@ -288,6 +299,9 @@ def update_config(section, key, value):
     # Update the value
     config[section][key] = value
     save_config(config)
+    
+    # Reload the config to ensure consistency
+    config = load_config()
     return True
 
 def increment_laser_counter():

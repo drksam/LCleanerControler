@@ -824,12 +824,18 @@ long calculateAccelSteps(int id, long totalSteps) {
   
   // Calculate steps based on speed difference and acceleration setting
   int speedDiff = steppers[id].maxDelay - steppers[id].speed;
-  long calculatedSteps = (speedDiff / 50) * steppers[id].acceleration; // More gradual
+  if (speedDiff <= 0) return 0;
   
-  // Limit acceleration to reasonable portion of total steps
-  long maxAccelSteps = min((long)(totalSteps * 0.3), (long)200); // Max 30% or 200 steps
+  // More generous acceleration calculation - scale with acceleration parameter
+  long calculatedSteps = (speedDiff * steppers[id].acceleration) / 5000; // Scale by acceleration value
+  
+  // Limit acceleration to reasonable portion of total steps, but allow larger values
+  long maxAccelSteps = min((long)(totalSteps * 0.4), (long)1000); // Max 40% or 1000 steps (increased)
   long finalSteps = min(maxAccelSteps, calculatedSteps);
-  return max(finalSteps, (long)20); // Minimum 20 steps for smooth acceleration
+  
+  // Minimum steps based on total movement size
+  long minSteps = min((long)10, totalSteps / 10);
+  return max(finalSteps, minSteps);
 }
 
 long calculateDecelSteps(int id, long totalSteps) {
@@ -837,12 +843,18 @@ long calculateDecelSteps(int id, long totalSteps) {
   
   // Calculate steps based on speed difference and deceleration setting
   int speedDiff = steppers[id].maxDelay - steppers[id].speed;
-  long calculatedSteps = (speedDiff / 50) * steppers[id].deceleration; // More gradual
+  if (speedDiff <= 0) return 0;
   
-  // Limit deceleration to reasonable portion of total steps
-  long maxDecelSteps = min((long)(totalSteps * 0.3), (long)200); // Max 30% or 200 steps
+  // More generous deceleration calculation - scale with deceleration parameter
+  long calculatedSteps = (speedDiff * steppers[id].deceleration) / 5000; // Scale by deceleration value
+  
+  // Limit deceleration to reasonable portion of total steps, but allow larger values
+  long maxDecelSteps = min((long)(totalSteps * 0.4), (long)1000); // Max 40% or 1000 steps (increased)
   long finalSteps = min(maxDecelSteps, calculatedSteps);
-  return max(finalSteps, (long)20); // Minimum 20 steps for smooth deceleration
+  
+  // Minimum steps based on total movement size
+  long minSteps = min((long)10, totalSteps / 10);
+  return max(finalSteps, minSteps);
 }
 
 int calculateAccelDelay(int id, long currentStep, long totalAccelSteps, int startDelay, int endDelay) {

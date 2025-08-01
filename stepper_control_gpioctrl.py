@@ -87,8 +87,29 @@ class StepperMotor:
                 invert_enable_logic=invert_logic
             )
             
-            # Set initial speed
+            # Set initial speed, acceleration, and deceleration from config
             self.stepper.set_speed(self.speed)
+            
+            # Set acceleration and deceleration from config if available
+            acceleration = config.get('acceleration', 5000)
+            deceleration = config.get('deceleration', 5000)
+            
+            # Give ESP32 a moment to process the speed setting
+            import time
+            time.sleep(0.1)
+            
+            # Now set acceleration and deceleration
+            if self.stepper.set_acceleration(acceleration):
+                logging.info(f"Successfully applied initial acceleration: {acceleration}")
+            else:
+                logging.warning(f"Failed to apply initial acceleration: {acceleration}")
+                
+            time.sleep(0.1)
+            
+            if self.stepper.set_deceleration(deceleration):
+                logging.info(f"Successfully applied initial deceleration: {deceleration}")
+            else:
+                logging.warning(f"Failed to apply initial deceleration: {deceleration}")
             
             # Auto-enable the stepper on initialization
             if self.stepper.enable():
@@ -156,7 +177,10 @@ class StepperMotor:
         with self.lock:
             if self.stepper:
                 result = self.stepper.set_acceleration(acceleration)
-                logging.info(f"Stepper acceleration set to {acceleration}")
+                if result:
+                    logging.info(f"Stepper acceleration successfully set to {acceleration}")
+                else:
+                    logging.error(f"Failed to set stepper acceleration to {acceleration}")
                 return result
             else:
                 logging.error("Cannot set acceleration: Stepper not initialized")
@@ -168,7 +192,10 @@ class StepperMotor:
         with self.lock:
             if self.stepper:
                 result = self.stepper.set_deceleration(deceleration)
-                logging.info(f"Stepper deceleration set to {deceleration}")
+                if result:
+                    logging.info(f"Stepper deceleration successfully set to {deceleration}")
+                else:
+                    logging.error(f"Failed to set stepper deceleration to {deceleration}")
                 return result
             else:
                 logging.error("Cannot set deceleration: Stepper not initialized")
@@ -509,13 +536,17 @@ class StepperMotor:
             steps: Number of steps to move
         
         Returns:
-            True if jogging started successfully, False otherwise
+            dict: Contains success status and any warning messages for UI display
         """
+        warnings = []  # Collect warnings to send to UI
+        
         # Check enabled state and calculate new position without holding the lock for too long
         with self.lock:
             if not self.enabled:
-                logging.warning("Cannot jog: Stepper motor is disabled")
-                return False
+                warning_msg = "Cannot jog: Stepper motor is disabled"
+                logging.warning(warning_msg)
+                warnings.append(warning_msg)
+                return {"success": False, "warnings": warnings}
             
             try:
                 current_position = self.get_position()
@@ -530,42 +561,58 @@ class StepperMotor:
             
             # Safety check: Prevent movement into negative positions
             if new_position < 0:
-                logging.warning(f"Cannot jog to negative position: {new_position}. Limiting to position 0.")
+                warning_msg = f"Cannot jog to negative position: {new_position}. Limiting to position 0."
+                logging.warning(warning_msg)
+                warnings.append(warning_msg)
                 new_position = 0
                 step_change = 0 - current_position
                 if step_change <= 0:
-                    logging.warning("Cannot jog: Already at position 0 or negative")
-                    return False
+                    warning_msg = "Cannot jog: Already at position 0 or negative"
+                    logging.warning(warning_msg)
+                    warnings.append(warning_msg)
+                    return {"success": False, "warnings": warnings}
             
             # Safety check: If home switch is triggered and trying to move backward, stop
             if self.stepper and self.stepper.get_home_state() and direction == 0:  # direction 0 = backward
-                logging.warning("Home switch is triggered - cannot jog backward")
-                return False
+                warning_msg = "Home switch is triggered - cannot jog backward"
+                logging.warning(warning_msg)
+                warnings.append(warning_msg)
+                return {"success": False, "warnings": warnings}
             
             # Check hardware position limits
             if new_position > self.max_position:
                 new_position = self.max_position
                 step_change = self.max_position - current_position
                 if step_change <= 0:
-                    logging.warning("Cannot jog: Already at maximum position")
-                    return False
-                logging.warning(f"Jog adjusted to {step_change} steps due to max limit")
+                    warning_msg = "Cannot jog: Already at maximum position"
+                    logging.warning(warning_msg)
+                    warnings.append(warning_msg)
+                    return {"success": False, "warnings": warnings}
+                warning_msg = f"Jog adjusted to {step_change} steps due to max limit"
+                logging.warning(warning_msg)
+                warnings.append(warning_msg)
             elif new_position < self.min_position:
                 new_position = self.min_position
                 step_change = current_position - self.min_position
                 if step_change <= 0:
-                    logging.warning("Cannot jog: Already at minimum position")
-                    return False
-                logging.warning(f"Jog adjusted to {step_change} steps due to min limit")
+                    warning_msg = "Cannot jog: Already at minimum position"
+                    logging.warning(warning_msg)
+                    warnings.append(warning_msg)
+                    return {"success": False, "warnings": warnings}
+                warning_msg = f"Jog adjusted to {step_change} steps due to min limit"
+                logging.warning(warning_msg)
+                warnings.append(warning_msg)
             
             logging.info(f"Jogging {'forward' if direction == 1 else 'backward'} {abs(step_change)} steps")
         
         # Release the lock before calling move_to to avoid deadlock
         try:
-            return self.move_to(new_position)
+            result = self.move_to(new_position)
+            return {"success": result, "warnings": warnings}
         except Exception as e:
             logging.error(f"Error in move_to during jog: {e}")
-            return False
+            warnings.append(f"Error during jog: {str(e)}")
+            return {"success": False, "warnings": warnings}
     
     def move_index(self, direction=1):
         logging.info(f"StepperMotor.move_index called: direction={direction}")

@@ -61,15 +61,18 @@
                                 <!-- Direct Angle Control -->
                                 <div class="mt-4">
                                     <label for="servo-direct-angle" class="form-label">Direct Angle Control:</label>
-                                    <div class="d-flex">
+                                    <div class="d-flex align-items-center">
                                         <input type="range" class="form-range me-2" id="servo-direct-angle" 
                                                min="0" max="180" value="0">
-                                        <span id="servo-direct-angle-value" class="badge bg-secondary">0</span>
+                                        <span id="servo-direct-angle-value" class="badge bg-primary">0°</span>
+                                    </div>
+                                    <div class="text-muted mt-1">
+                                        <small>Current servo position: <span id="current-servo-position" class="fw-bold">--°</span></small>
                                     </div>
                                 </div>
                                 <div class="d-grid mt-2">
                                     <button id="move-to-angle" class="btn btn-outline-primary">
-                                        Move to Angle
+                                        <i class="fas fa-crosshairs me-2"></i>Move to <span id="target-angle-display">0</span>°
                                     </button>
                                     
                                     <div class="d-flex justify-content-between mt-3">
@@ -84,68 +87,6 @@
                                         <small>Detach to prevent jitter at rest position</small>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Delay Settings Section -->
-    <div class="col-md-12 mb-4">
-        <div class="card">
-            <div class="card-header bg-warning text-dark">
-                <h5 class="card-title mb-0">Output Delay Settings</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <!-- Fan Off Delay -->
-                    <div class="col-md-6 mb-3">
-                        <div class="card">
-                            <div class="card-header bg-light">
-                                <i class="fas fa-fan me-2"></i>Fan Auto-Off Delay
-                            </div>
-                            <div class="card-body">
-                                <label for="fan-off-delay" class="form-label">
-                                    Delay after firing stops (seconds):
-                                </label>
-                                <div class="d-flex align-items-center">
-                                    <input type="range" class="form-range me-2" id="fan-off-delay" 
-                                           min="10" max="1800" step="10" value="{{ fan_off_delay // 1000 }}">
-                                    <span id="fan-off-delay-value" class="badge bg-secondary">{{ fan_off_delay // 1000 }}s</span>
-                                </div>
-                                <div class="text-muted mt-2">
-                                    <small>Fan will turn off automatically after this delay when firing stops</small>
-                                </div>
-                                <button id="save-fan-delay" class="btn btn-outline-primary btn-sm mt-2">
-                                    <i class="fas fa-save me-1"></i> Save Fan Delay
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Red Light Off Delay -->
-                    <div class="col-md-6 mb-3">
-                        <div class="card">
-                            <div class="card-header bg-light">
-                                <i class="fas fa-lightbulb me-2"></i>Red Light Auto-Off Delay
-                            </div>
-                            <div class="card-body">
-                                <label for="red-light-off-delay" class="form-label">
-                                    Delay after firing stops (seconds):
-                                </label>
-                                <div class="d-flex align-items-center">
-                                    <input type="range" class="form-range me-2" id="red-light-off-delay" 
-                                           min="5" max="300" step="5" value="{{ red_lights_off_delay // 1000 }}">
-                                    <span id="red-light-off-delay-value" class="badge bg-secondary">{{ red_lights_off_delay // 1000 }}s</span>
-                                </div>
-                                <div class="text-muted mt-2">
-                                    <small>Red warning lights will turn off automatically after this delay when firing stops</small>
-                                </div>
-                                <button id="save-red-light-delay" class="btn btn-outline-primary btn-sm mt-2">
-                                    <i class="fas fa-save me-1"></i> Save Light Delay
-                                </button>
                             </div>
                         </div>
                     </div>

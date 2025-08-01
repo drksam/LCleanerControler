@@ -594,6 +594,11 @@ function initServoControls() {
                 null,
                 function(data) {
                     if (data.status === 'success') {
+                        // Update current position display
+                        if (window.updateServoPosition && data.angle !== undefined) {
+                            window.updateServoPosition(data.angle);
+                        }
+                        
                         // Use handleSimulationResponse utility
                         if (!handleSimulationResponse(data, 'Move servo to position A')) {
                             // This is a real hardware response
@@ -620,6 +625,11 @@ function initServoControls() {
                 null,
                 function(data) {
                     if (data.status === 'success') {
+                        // Update current position display
+                        if (window.updateServoPosition && data.angle !== undefined) {
+                            window.updateServoPosition(data.angle);
+                        }
+                        
                         // Use handleSimulationResponse utility
                         if (!handleSimulationResponse(data, 'Move servo to position B')) {
                             // This is a real hardware response
@@ -635,9 +645,42 @@ function initServoControls() {
     
     // Direct angle slider
     if (servoDirectAngleSlider && servoDirectAngleValue) {
+        const targetAngleDisplay = document.getElementById('target-angle-display');
+        const currentServoPosition = document.getElementById('current-servo-position');
+        
         servoDirectAngleSlider.addEventListener('input', function() {
-            servoDirectAngleValue.textContent = this.value;
+            const angle = this.value;
+            servoDirectAngleValue.textContent = angle + '°';
+            
+            // Update the target angle display in the button
+            if (targetAngleDisplay) {
+                targetAngleDisplay.textContent = angle;
+            }
         });
+        
+        // Initialize the display values
+        const initialAngle = servoDirectAngleSlider.value;
+        servoDirectAngleValue.textContent = initialAngle + '°';
+        if (targetAngleDisplay) {
+            targetAngleDisplay.textContent = initialAngle;
+        }
+        
+        // Function to update current servo position display
+        function updateCurrentServoPosition(angle) {
+            if (currentServoPosition) {
+                currentServoPosition.textContent = angle + '°';
+            }
+        }
+        
+        // Try to get initial servo position
+        makeRequest('/servo/get_position', 'GET', {}, function(data) {
+            if (data.status === 'success' && data.position !== undefined) {
+                updateCurrentServoPosition(data.position);
+            }
+        });
+        
+        // Update current position after successful moves
+        window.updateServoPosition = updateCurrentServoPosition;
     }
     
     // Move to Angle button
@@ -654,6 +697,11 @@ function initServoControls() {
                 { angle: angle },
                 function(data) {
                     if (data.status === 'success') {
+                        // Update current position display
+                        if (window.updateServoPosition) {
+                            window.updateServoPosition(angle);
+                        }
+                        
                         // Use handleSimulationResponse utility
                         if (!handleSimulationResponse(data, `Move servo to ${angle}°`)) {
                             // This is a real hardware response
@@ -781,8 +829,10 @@ function initServoControls() {
 
         // Handle mouseleave to ensure stop if user drags off button
         fireButtonTest.addEventListener('mouseleave', function(e) {
-            console.log('Fire test button mouseleave - triggering mouseup');
-            fireButtonTest.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+            if (isFireTestRunning) {
+                console.log('Fire test button mouseleave - stopping fire test');
+                stopFireTest();
+            }
         });
     }
 

@@ -29,6 +29,7 @@
         
         .main-content {
             margin-left: 90px; /* Increased margin to prevent overlap */
+            margin-right: 20px; /* Add right margin to prevent content cutoff */
             flex: 1;
             padding-bottom: 20px; /* Add padding at bottom for better spacing */
         }
@@ -448,7 +449,7 @@
         const DB_NAME = 'ShopLaserRoomDB';
         const DB_VERSION = 1;
         const LOG_STORE = 'systemLogs';
-        const LOGS_PER_PAGE = 10;
+        const LOGS_PER_PAGE = 50; // Increased from 10 to 50 to show more entries
         const MAX_LOG_ITEMS = 1000; // Much higher limit with IndexedDB
         
         let db;

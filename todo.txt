@@ -1,6 +1,6 @@
 # LCleaner Controller Project - TODO (Updated 2025-07-30)
 
-## TABLE RUN TO LIMIT SWITCHES & GO TO ZERO - COMPLETED (2025-07-30) ⚠️ UNTESTED
+## TABLE RUN TO LIMIT SWITCHES & GO TO ZERO - COMPLETED (2025-07-30) ⚠️ TESTING IN PROGRESS
 ✓ Added table run to front limit switch functionality
 ✓ Added table run to back limit switch functionality  
 ✓ Added cleaning head GO to zero functionality
@@ -11,13 +11,20 @@
 ✓ Sequence automation integration - all new functions available as sequence steps
 ✓ Complete parameter handling for sequence programming interface
 ✓ Visual styling and documentation updated
+✓ **NEW (2025-07-31)**: Fixed GO to zero position display update - cleaning head position now resets to 0 when operation completes
+✓ **NEW (2025-07-31)**: Added cleaning head position display to operation page - shows current position in real-time
+✓ **NEW (2025-07-31)**: Fixed session protection - added @login_required to cleaning_head, trigger_servo, and table routes
+✓ **NEW (2025-07-31)**: Enhanced position indicator bar with configurable markers for home and limit switches
+✓ **NEW (2025-07-31)**: Added position bar configuration settings to settings page
 
-**STATUS: IMPLEMENTATION COMPLETE - REQUIRES TESTING** ⚠️
+**STATUS: IMPLEMENTATION COMPLETE - POSITION DISPLAY FIXES APPLIED** ⚠️
 - All backend routes implemented with limit switch checking and safety logic
 - UI buttons integrated across table, cleaning head, and operation pages
 - Full sequence automation support added (table_run_to_front_limit, table_run_to_back_limit, go_to_zero)
 - Error handling and simulation mode support included
-- **UNTESTED**: Physical hardware testing required to verify limit switch detection and stepper positioning
+- **FIXED**: Position display now properly updates to 0 after GO to zero operation
+- **ADDED**: Operation page now shows cleaning head position in real-time
+- **TESTING**: Physical hardware testing in progress to verify limit switch detection and stepper positioning
 
 ## TRIGGER SERVO PAGE - COMPLETED (2025-07-21) ✓ FULLY FUNCTIONAL
 ✓ Fixed delay timer backend infrastructure (added update_timing_config method)
@@ -51,7 +58,10 @@
 - [x] CRITICAL FIX: Servo-table interference deadlock resolved (2025-07-17)
     - [x] Fixed threading lock deadlock in output_control_gpiod.py by changing to RLock and eliminating recursive calls
     - [x] Table controls now work properly after servo operations
-- [ ] E-Stop: Ensure servo is set to position A then set stepper enable pin LOW before turning off other outputs (backend and UI)
+- [x] E-Stop: Ensure servo is set to position A then set stepper enable pin LOW before turning off other outputs (backend and UI) - COMPLETED (2025-07-31)
+    - [x] Fixed emergency_stop function to include stepper.disable() call
+    - [x] Corrected enable pin polarity: HIGH=Enable, LOW=Disable (normal logic)
+    - [x] E-Stop sequence now: Servo→A, then stepper enable pin→LOW, then other outputs OFF
 - [ ] E-Stop: Set physical input pin hard code to GPIO17 PIN11 Normaly Closed (HIGH when ESTOP is ON)
 
 ## UI FIXES & IMPROVEMENTS
@@ -64,6 +74,10 @@
 - [x] Fixed RUN TABLE button color to show bright green when running (matches clicked state) (2025-07-15)
 - [x] Fixed cycle counter not incrementing by adding proper AutoCycleManager callbacks (2025-07-15)
 - [x] Operations page status polling: Fixed flickering between Auto(On)/Auto(Off) states by eliminating overlapping polls and implementing smart state comparison (2025-07-21)
+- [x] **NEW (2025-07-31)**: Fixed session protection - server restart no longer causes logged out state on open pages
+- [x] **NEW (2025-07-31)**: Enhanced position indicator with home marker and limit switch markers - configurable via settings page
+- [x] **NEW (2025-07-31)**: Fixed position bar display - progress bar now correctly shows actual position relative to home instead of center
+- [x] **NEW (2025-07-31)**: Fixed TypeError in configuration updates - improved type conversion for position bar settings
 
 ## SERVO & FIRE/FIBER CONTROLS
 - [x] Trigger Servo page: Added fan off delay and red light off delay sliders with backend integration (2025-07-17)

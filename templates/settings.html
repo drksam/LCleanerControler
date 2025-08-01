@@ -79,6 +79,75 @@
                             </div>
                             <div class="form-text">Conversion factor for displaying distances in mm</div>
                         </div>
+                        
+                        <!-- Position Bar Display Settings -->
+                        <hr class="my-4">
+                        <h6 class="mb-3"><i class="fas fa-chart-bar me-2"></i>Position Bar Display Settings</h6>
+                        
+                        <div class="mb-3">
+                            <label for="position_bar_min" class="form-label">Position Bar Minimum (mm)</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="position_bar_min" name="position_bar_min" 
+                                       value="{{ (stepper_config.position_bar_min|default(-10000) / stepper_config.steps_per_mm)|round(1) }}" min="-500" max="0" step="0.1">
+                                <button class="btn btn-primary" type="button" 
+                                        onclick="updateConfigMm('stepper', 'position_bar_min', document.getElementById('position_bar_min').value)">
+                                    Save
+                                </button>
+                            </div>
+                            <div class="form-text">Leftmost position on the progress bar</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="position_bar_max" class="form-label">Position Bar Maximum (mm)</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="position_bar_max" name="position_bar_max" 
+                                       value="{{ (stepper_config.position_bar_max|default(25000) / stepper_config.steps_per_mm)|round(1) }}" min="10" max="1000" step="0.1">
+                                <button class="btn btn-primary" type="button" 
+                                        onclick="updateConfigMm('stepper', 'position_bar_max', document.getElementById('position_bar_max').value)">
+                                    Save
+                                </button>
+                            </div>
+                            <div class="form-text">Rightmost position on the progress bar</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="home_position" class="form-label">Home Position (mm)</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="home_position" name="home_position" 
+                                       value="{{ (stepper_config.home_position|default(0) / stepper_config.steps_per_mm)|round(1) }}" min="-500" max="500" step="0.1">
+                                <button class="btn btn-primary" type="button" 
+                                        onclick="updateConfigMm('stepper', 'home_position', document.getElementById('home_position').value)">
+                                    Save
+                                </button>
+                            </div>
+                            <div class="form-text">Position of the home marker (usually 0)</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="limit_switch_a_position" class="form-label">Limit Switch A Position (mm)</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="limit_switch_a_position" name="limit_switch_a_position" 
+                                       value="{{ (stepper_config.limit_switch_a_position|default(-8000) / stepper_config.steps_per_mm)|round(1) }}" min="-500" max="500" step="0.1">
+                                <button class="btn btn-primary" type="button" 
+                                        onclick="updateConfigMm('stepper', 'limit_switch_a_position', document.getElementById('limit_switch_a_position').value)">
+                                    Save
+                                </button>
+                            </div>
+                            <div class="form-text">Position marker for limit switch A</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="limit_switch_b_position" class="form-label">Limit Switch B Position (mm)</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="limit_switch_b_position" name="limit_switch_b_position" 
+                                       value="{{ (stepper_config.limit_switch_b_position|default(20000) / stepper_config.steps_per_mm)|round(1) }}" min="-500" max="500" step="0.1">
+                                <button class="btn btn-primary" type="button" 
+                                        onclick="updateConfigMm('stepper', 'limit_switch_b_position', document.getElementById('limit_switch_b_position').value)">
+                                    Save
+                                </button>
+                            </div>
+                            <div class="form-text">Position marker for limit switch B</div>
+                        </div>
                     </form>
                 </div>
             </div>
@@ -416,6 +485,18 @@
             // Re-throw the error for the Promise chain
             throw error;
         });
+    }
+    
+    // Function to update configuration with mm to steps conversion
+    function updateConfigMm(section, key, mmValue) {
+        // Get steps per mm from the input field
+        const stepsPerMm = parseFloat(document.getElementById('steps_per_mm').value) || 100;
+        
+        // Convert mm to steps
+        const stepsValue = Math.round(parseFloat(mmValue) * stepsPerMm);
+        
+        // Call the original updateConfig function with steps value
+        return updateConfig(section, key, stepsValue);
     }
     
     // System settings save handler

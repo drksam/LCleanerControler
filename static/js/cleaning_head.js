@@ -161,23 +161,92 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         if (positionProgress) {
-            // Calculate percentage for progress bar (scale to MAX_POSITION)
-            const MAX_POSITION = 1000;
-            let percentage = (position / MAX_POSITION) * 100;
+            // Get position bar range from progress bar attributes or use defaults
+            const minPosition = parseInt(positionProgress.getAttribute('aria-valuemin')) || -10000;
+            const maxPosition = parseInt(positionProgress.getAttribute('aria-valuemax')) || 25000;
+            
+            // Calculate percentage for progress bar based on configurable range
+            let percentage = ((position - minPosition) / (maxPosition - minPosition)) * 100;
             
             // Ensure percentage is between 0 and 100
             percentage = Math.max(0, Math.min(100, percentage));
             
             positionProgress.style.width = `${percentage}%`;
-            positionProgress.setAttribute('aria-valuenow', percentage);
+            positionProgress.setAttribute('aria-valuenow', position);
         }
     }
 
     // Index Distance Update button
     const updateIndexDistanceBtn = document.getElementById('update-index-distance');
+    const saveIndexDistanceBtn = document.getElementById('save-index-distance');
     const indexDistanceMmInput = document.getElementById('index-distance-mm');
+    const indexDistanceInput = document.getElementById('index-distance');
     const indexDistanceStepsDisplay = document.getElementById('index-distance-steps-display');
     
+    // Handler for the new save-index-distance button (uses 'index-distance' input)
+    if (saveIndexDistanceBtn && indexDistanceInput) {
+        saveIndexDistanceBtn.addEventListener('click', function() {
+            const indexDistanceMm = parseFloat(indexDistanceInput.value);
+            
+            if (isNaN(indexDistanceMm) || indexDistanceMm <= 0) {
+                addLogMessage('Please enter a valid index distance in millimeters.', true);
+                return;
+            }
+            
+            // Convert mm to steps
+            const stepsPerMm = getStepsPerMm();
+            const indexDistanceSteps = Math.round(indexDistanceMm * stepsPerMm);
+            
+            // Log the action
+            addLogMessage(`Saving index distance to ${indexDistanceMm.toFixed(2)} mm...`, false, 'config');
+            
+            // Use makeRequest utility if available, otherwise use existing fetch
+            if (typeof makeRequest === 'function') {
+                makeRequest(
+                    '/update_config',
+                    'POST',
+                    {
+                        section: 'stepper',
+                        key: 'index_distance',
+                        value: indexDistanceSteps
+                    },
+                    function(data) {
+                        if (data.status === 'success') {
+                            addLogMessage(`Index distance saved to ${indexDistanceMm.toFixed(2)} mm (${indexDistanceSteps} steps).`, false, 'success');
+                        } else {
+                            addLogMessage('Error: ' + data.message, true);
+                        }
+                    }
+                );
+            } else {
+                // Original implementation as fallback
+                fetch('/update_config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        section: 'stepper',
+                        key: 'index_distance',
+                        value: indexDistanceSteps
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        addLogMessage(`Index distance saved to ${indexDistanceMm.toFixed(2)} mm (${indexDistanceSteps} steps).`, false, 'success');
+                    } else {
+                        addLogMessage('Error: ' + data.message, true);
+                    }
+                })
+                .catch(error => {
+                    addLogMessage('Error: ' + error.message, true);
+                });
+            }
+        });
+    }
+    
+    // Handler for the old update-index-distance button (if it exists)
     if (updateIndexDistanceBtn && indexDistanceMmInput) {
         updateIndexDistanceBtn.addEventListener('click', function() {
             const indexDistanceMm = parseFloat(indexDistanceMmInput.value);
@@ -608,6 +677,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 const currentPosition = data.position;
                 updatePositionDisplay(currentPosition);
                 
+                // Display any warnings from the backend
+                if (data.warnings && data.warnings.length > 0) {
+                    data.warnings.forEach(warning => {
+                        addLogMessage('WARNING: ' + warning, false, 'warning');
+                    });
+                }
+                
                 // Handle simulation status based on mode
                 if (data.simulated) {
                     // For simulation mode, this is expected
@@ -631,6 +707,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             } else {
                 addLogMessage('Error: ' + data.message, true);
+                
+                // Display any warnings even for failed operations
+                if (data.warnings && data.warnings.length > 0) {
+                    data.warnings.forEach(warning => {
+                        addLogMessage('WARNING: ' + warning, false, 'warning');
+                    });
+                }
             }
         })
         .catch(error => {
@@ -677,8 +760,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.status === 'success') {
                     const currentPosition = data.position;
                     updatePositionDisplay(currentPosition);
+                    
+                    // Display any warnings from the backend
+                    if (data.warnings && data.warnings.length > 0) {
+                        data.warnings.forEach(warning => {
+                            addLogMessage('WARNING: ' + warning, false, 'warning');
+                        });
+                        // Stop continuous jog if there are warnings (position limits, etc.)
+                        stopJogHold();
+                    }
                 } else if (data.status === 'error') {
                     addLogMessage('Jog error: ' + data.message, true);
+                    
+                    // Display any warnings even for failed operations
+                    if (data.warnings && data.warnings.length > 0) {
+                        data.warnings.forEach(warning => {
+                            addLogMessage('WARNING: ' + warning, false, 'warning');
+                        });
+                    }
+                    
                     stopJogHold();
                 }
             })
@@ -893,7 +993,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     position: position
                 })
             })
-            .then(response => response.json())
+            .then(response => {
+                console.log('Move to position response status:', response.status);
+                console.log('Move to position response headers:', response.headers);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.status === 'success') {
                     const currentPosition = data.position;
@@ -925,7 +1033,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(error => {
-                addLogMessage('Error: ' + error.message, true);
+                console.error('Move to position error:', error);
+                addLogMessage('Network/Connection Error: ' + error.message, true);
             })
             .finally(() => {
                 if (moveToPositionButton) moveToPositionButton.disabled = false;
@@ -970,6 +1079,45 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // Function to save speed settings to configuration
+    function saveSpeedSetting(setting, value) {
+        console.log(`saveSpeedSetting called: ${setting} = ${value} (type: ${typeof value})`);
+        addLogMessage(`Updating ${setting} to ${value}...`, false, 'config');
+        
+        const requestData = {
+            section: 'stepper',
+            key: setting,
+            value: parseInt(value)
+        };
+        
+        console.log('Request data:', requestData);
+        
+        fetch('/update_config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestData)
+        })
+        .then(response => {
+            console.log('Response status:', response.status);
+            return response.json();
+        })
+        .then(data => {
+            console.log('Response data:', data);
+            if (data.status === 'success') {
+                addLogMessage(`${setting} updated to ${value}`, false, 'success');
+            } else {
+                addLogMessage(`Error updating ${setting}: ${data.message}`, true);
+            }
+        })
+        .catch(error => {
+            console.error('Fetch error:', error);
+            addLogMessage(`Error updating ${setting}: ${error.message}`, true);
+        });
+    }
+
+    // Acceleration Input Control
     const accelerationInput = document.getElementById('acceleration');
     const accelerationDisplay = document.getElementById('acceleration-value');
     
@@ -988,6 +1136,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // Deceleration Input Control
     const decelerationInput = document.getElementById('deceleration');
     const decelerationDisplay = document.getElementById('deceleration-value');
     
@@ -1003,34 +1152,6 @@ document.addEventListener('DOMContentLoaded', function() {
             decelerationTimer = setTimeout(() => {
                 saveSpeedSetting('deceleration', decelerationInput.value);
             }, 500);
-        });
-    }
-    
-    // Function to save speed settings to configuration
-    function saveSpeedSetting(setting, value) {
-        addLogMessage(`Updating ${setting} to ${value}...`, false, 'config');
-        
-        fetch('/update_config', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                section: 'stepper',
-                key: setting,
-                value: parseInt(value)
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                addLogMessage(`${setting} updated to ${value}`, false, 'success');
-            } else {
-                addLogMessage(`Error updating ${setting}: ${data.message}`, true);
-            }
-        })
-        .catch(error => {
-            addLogMessage(`Error updating ${setting}: ${error.message}`, true);
         });
     }
     
@@ -1188,47 +1309,54 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
-
-    // Speed Control Handlers
-    document.addEventListener('DOMContentLoaded', function() {
-        // Jog Speed Control
-        const jogSpeedSlider = document.getElementById('jog-speed');
-        const jogSpeedValue = document.getElementById('jog-speed-value');
-        
-        if (jogSpeedSlider && jogSpeedValue) {
-            jogSpeedSlider.addEventListener('input', function() {
-                jogSpeedValue.textContent = this.value;
-            });
-        }
-        
-        // Index Speed Control
-        const indexSpeedSlider = document.getElementById('index-speed');
-        const indexSpeedValue = document.getElementById('index-speed-value');
-        
-        if (indexSpeedSlider && indexSpeedValue) {
-            indexSpeedSlider.addEventListener('input', function() {
-                indexSpeedValue.textContent = this.value;
-            });
-        }
-        
-        // Acceleration Control
-        const accelerationSlider = document.getElementById('acceleration');
-        const accelerationValue = document.getElementById('acceleration-value');
-        
-        if (accelerationSlider && accelerationValue) {
-            accelerationSlider.addEventListener('input', function() {
-                accelerationValue.textContent = this.value;
-            });
-        }
-        
-        // Deceleration Control
-        const decelerationSlider = document.getElementById('deceleration');
-        const decelerationValue = document.getElementById('deceleration-value');
-        
-        if (decelerationSlider && decelerationValue) {
-            decelerationSlider.addEventListener('input', function() {
-                decelerationValue.textContent = this.value;
-            });
-        }
-    });
 });
+
+// Local Action Log Functions for Cleaning Head Page
+function addActionLog(message, isError = false, logType = 'info') {
+    const logContainer = document.getElementById('log-container');
+    if (!logContainer) return;
+    
+    const timestamp = new Date().toLocaleTimeString();
+    const logEntry = document.createElement('div');
+    logEntry.className = `log-entry ${isError ? 'text-danger' : 'text-light'} mb-1`;
+    
+    let badgeClass = 'bg-primary';
+    if (logType === 'error') badgeClass = 'bg-danger';
+    else if (logType === 'warning') badgeClass = 'bg-warning text-dark';
+    else if (logType === 'success') badgeClass = 'bg-success';
+    else if (logType === 'action') badgeClass = 'bg-info';
+    else if (logType === 'config') badgeClass = 'bg-secondary';
+    
+    logEntry.innerHTML = `
+        <span class="badge ${badgeClass} me-2">${timestamp}</span>
+        <span>${message}</span>
+    `;
+    
+    logContainer.appendChild(logEntry);
+    logContainer.scrollTop = logContainer.scrollHeight;
+    
+    // Keep only last 100 entries
+    while (logContainer.children.length > 100) {
+        logContainer.removeChild(logContainer.firstChild);
+    }
+}
+
+function clearActionLog() {
+    const logContainer = document.getElementById('log-container');
+    if (logContainer) {
+        logContainer.innerHTML = '';
+        addActionLog('Action log cleared', false, 'info');
+    }
+}
+
+// Override the addLogMessage function for this page to use local action log
+const originalAddLogMessage = window.addLogMessage;
+window.addLogMessage = function(message, isError = false, logType = 'info') {
+    // Add to local action log
+    addActionLog(message, isError, logType);
+    
+    // Also add to global system log
+    if (originalAddLogMessage) {
+        originalAddLogMessage(message, isError, logType);
+    }
+};

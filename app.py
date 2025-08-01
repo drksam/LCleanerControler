@@ -547,10 +547,19 @@ def index():
                            page="operation")
 
 @main_bp.route('/cleaning_head')
+@login_required
 def cleaning_head():
     """Render the cleaning head control page"""
     # Get stepper config for steps per mm conversion
     stepper_config = config.get_stepper_config()
+    
+    # Debug: Log the stepper config to see what's actually being passed
+    logger.info(f"Stepper config being passed to template: {stepper_config}")
+    
+    # Specifically check acceleration and deceleration values
+    acceleration = stepper_config.get('acceleration', 'NOT_SET')
+    deceleration = stepper_config.get('deceleration', 'NOT_SET')
+    logger.info(f"Acceleration in config: {acceleration}, Deceleration in config: {deceleration}")
     
     return render_template('cleaning_head.html', 
                            motor_initialized=motor_initialized,
@@ -560,6 +569,7 @@ def cleaning_head():
                            page="cleaning_head")
 
 @main_bp.route('/trigger_servo')
+@login_required
 def trigger_servo():
     """Render the trigger servo setup page"""
     timing_config = config.get_timing_config()
@@ -573,6 +583,7 @@ def trigger_servo():
                            page="trigger_servo")
 
 @main_bp.route('/table')
+@login_required
 def table():
     """Render the table control page"""
     return render_template('table.html', 
@@ -708,7 +719,19 @@ def jog():
             # Use last known position
             pass
         
-        if result:
+        # Handle new response format with warnings
+        if isinstance(result, dict):
+            response = {
+                "status": "success" if result.get("success") else "error",
+                "position": current_position,
+                "warnings": result.get("warnings", [])
+            }
+            if result.get("success"):
+                response["message"] = f"Jog {'forward' if direction_int == 1 else 'backward'} {steps} steps started"
+            else:
+                response["message"] = "Jog operation failed"
+            return jsonify(response)
+        elif result:
             return jsonify({
                 "status": "success", 
                 "position": current_position,
@@ -946,10 +969,14 @@ def go_to_zero():
         result = stepper.move_to(0, wait=False)  # Don't wait so we can respond immediately
         
         if result:
+            # Update the current position to 0 since we're moving there
+            current_position = 0
+            logger.debug("Updated current_position to 0 after go_to_zero command")
+            
             return jsonify({
                 "status": "success",
                 "message": "Moving to position 0 at index speed",
-                "position": "moving_to_zero"
+                "position": current_position
             })
         else:
             return jsonify({"status": "error", "message": "Failed to start move to zero"}), 500
@@ -963,10 +990,25 @@ def move_to():
     """Move to a specific position"""
     global current_position
     
+    # Debug logging
+    logger.debug(f"move_to called - Content-Type: {request.content_type}")
+    logger.debug(f"move_to called - Raw data: {request.get_data()}")
+    logger.debug(f"move_to called - JSON data: {request.json}")
+    
+    # Validate request data
+    if not request.json:
+        logger.error("No JSON data in request")
+        return jsonify({"status": "error", "message": "No JSON data provided"}), 400
+    
+    if 'position' not in request.json:
+        logger.error("No position field in JSON data")
+        return jsonify({"status": "error", "message": "Position field required"}), 400
+    
     if not motor_initialized or stepper is None:
         # In development mode, simulate movement without actual hardware
         try:
             target_position = int(request.json.get('position', 0))
+            logger.debug(f"Simulating move to position: {target_position}")
             
             # Simulate some delay for movement
             import time
@@ -992,20 +1034,53 @@ def move_to():
     
     try:
         target_position = int(request.json.get('position', 0))
+        logger.debug(f"Attempting to move to position: {target_position}")
         
         # Use GPIOController move_to implementation
         result = stepper.move_to(target_position)
+        logger.debug(f"Move operation result: {result}")
+        
         if result:
             current_position = stepper.get_position()
+            logger.debug(f"Move successful, new position: {current_position}")
         else:
+            logger.error(f"Move operation failed for position: {target_position}")
             return jsonify({"status": "error", "message": "Move operation failed"}), 500
         
         return jsonify({
             "status": "success", 
             "position": current_position
         })
+    except ValueError as e:
+        logger.error(f"Invalid position value: {e}")
+        return jsonify({"status": "error", "message": f"Invalid position value: {e}"}), 400
     except Exception as e:
-        logger.error(f"Error in move operation: {e}")
+        logger.error(f"Error in move operation: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@main_bp.route('/stepper_status', methods=['GET'])
+def stepper_status():
+    """Get current stepper motor position and status"""
+    global current_position
+    
+    if not motor_initialized or stepper is None:
+        # In development mode, return simulated position
+        return jsonify({
+            "status": "success",
+            "position": current_position,
+            "simulated": True
+        })
+    
+    try:
+        # Get current position from stepper motor
+        current_position = stepper.get_position()
+        
+        return jsonify({
+            "status": "success",
+            "position": current_position
+        })
+    except Exception as e:
+        logger.error(f"Error getting stepper status: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @main_bp.route('/enable_motor', methods=['POST'])
@@ -1619,10 +1694,11 @@ def update_config():
         
         # Convert value to appropriate type
         if isinstance(value, str):
-            if value.isdigit():
+            # Handle negative numbers
+            if value.lstrip('-').isdigit():
                 value = int(value)
-            elif '.' in value and all(part.isdigit() for part in value.split('.')):
-                # Handle floating point numbers
+            elif '.' in value and value.replace('-', '').replace('.', '').isdigit():
+                # Handle floating point numbers (including negative)
                 value = float(value)
             elif value.lower() in ['true', 'false']:
                 value = value.lower() == 'true'
@@ -1632,6 +1708,26 @@ def update_config():
         
         if success:
             logger.info(f"Updated config {section}.{key} to {value}")
+            
+            # Update stepper motor settings if they changed
+            if section == 'stepper' and motor_initialized:
+                try:
+                    logger.info(f"Stepper motor is initialized, updating {key} to {value}")
+                    if key == 'acceleration':
+                        result = stepper.set_acceleration(value)
+                        logger.info(f"Applied new acceleration {value} to stepper motor, result: {result}")
+                    elif key == 'deceleration':
+                        result = stepper.set_deceleration(value)
+                        logger.info(f"Applied new deceleration {value} to stepper motor, result: {result}")
+                    else:
+                        logger.info(f"Setting {key} is not acceleration or deceleration, no stepper update needed")
+                except Exception as e:
+                    logger.error(f"Failed to update stepper motor {key}: {e}")
+            elif section == 'stepper' and not motor_initialized:
+                logger.warning(f"Stepper motor not initialized, cannot update {key} to {value}")
+            elif section != 'stepper':
+                logger.debug(f"Updated non-stepper config: {section}.{key} = {value}")
+            
             # Restart the system if GPIO pins or system settings have changed
             restart_needed = section == 'gpio' or section == 'system'
             
@@ -1939,6 +2035,7 @@ def set_lights():
 # Statistics page routes
 # Sequences routes
 @main_bp.route('/sequences')
+@login_required
 def sequences():
     """Render the sequence programming page"""
     try:
@@ -3572,14 +3669,21 @@ def emergency_stop():
             "message": "E-Stop simulated (no hardware)"
         })
     try:
-        # Always move servo to position A before stopping outputs
+        # E-Stop sequence following safety requirements:
+        # 1. Move servo to position A
         if servo_initialized and servo is not None:
             output_controller.stop_all_outputs(servo=servo)
         else:
             output_controller.stop_all_outputs()
+        
+        # 2. Disable stepper motor (set enable pin LOW) for safety
+        if motor_initialized and stepper is not None:
+            stepper.disable()
+            logger.info("Stepper motor disabled for E-Stop safety")
+        
         return jsonify({
             "status": "success",
-            "message": "All outputs stopped by E-Stop"
+            "message": "All outputs stopped by E-Stop (including stepper disable)"
         })
     except Exception as e:
         logger.error(f"Error in E-Stop: {e}")

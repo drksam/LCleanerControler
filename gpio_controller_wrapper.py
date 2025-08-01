@@ -749,13 +749,14 @@ class StepperWrapper:
         # Send acceleration command to ESP32 if hardware is available
         if not self.simulation_mode and self._controller:
             try:
+                logging.info(f"Sending acceleration command to ESP32: stepper_id={self._stepper_id}, acceleration={acceleration}")
                 self._controller.set_stepper_acceleration(id=self._stepper_id, acceleration=acceleration)
-                logging.debug(f"Sent acceleration {acceleration} to ESP32 stepper {self._stepper_id}")
+                logging.info(f"Successfully sent acceleration {acceleration} to ESP32 stepper {self._stepper_id}")
             except Exception as e:
                 logging.error(f"Failed to send acceleration to ESP32: {e}")
                 return False
         else:
-            logging.debug(f"Stepper acceleration set to {acceleration} (simulation mode)")
+            logging.debug(f"Stepper acceleration set to {acceleration} (simulation mode={self.simulation_mode})")
         
         return True
     
@@ -767,13 +768,14 @@ class StepperWrapper:
         # Send deceleration command to ESP32 if hardware is available
         if not self.simulation_mode and self._controller:
             try:
+                logging.info(f"Sending deceleration command to ESP32: stepper_id={self._stepper_id}, deceleration={deceleration}")
                 self._controller.set_stepper_deceleration(id=self._stepper_id, deceleration=deceleration)
-                logging.debug(f"Sent deceleration {deceleration} to ESP32 stepper {self._stepper_id}")
+                logging.info(f"Successfully sent deceleration {deceleration} to ESP32 stepper {self._stepper_id}")
             except Exception as e:
                 logging.error(f"Failed to send deceleration to ESP32: {e}")
                 return False
         else:
-            logging.debug(f"Stepper deceleration set to {deceleration} (simulation mode)")
+            logging.debug(f"Stepper deceleration set to {deceleration} (simulation mode={self.simulation_mode})")
         
         return True
     

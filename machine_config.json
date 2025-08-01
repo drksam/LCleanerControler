@@ -10,12 +10,20 @@
     "max_speed": 3500,
     "index_speed": 2800,
     "acceleration": 5000,
+    "deceleration": 5000,
+    "enable_timeout": 300,
     "index_distance": 5500,
     "jog_speed": 500,
     "jog_step_size": 20,
     "steps_per_mm": 100,
     "max_position": 50000,
-    "min_position": -50000
+    "min_position": -50000,
+    "invert_enable_logic": true,
+    "position_bar_min": -10000,
+    "position_bar_max": 25000,
+    "home_position": 0,
+    "limit_switch_a_position": -8000,
+    "limit_switch_b_position": 20000
   },
   "servo": {
     "position_normal": 75,

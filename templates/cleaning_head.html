@@ -2,187 +2,243 @@
 {% block title %}Cleaning Head Control{% endblock %}
 
 {% block content %}
-<div class="row">
-    <!-- Position Display -->
-    <div class="col-md-12 mb-4">
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                <h5 class="card-title mb-0">Cleaning Head Position</h5>
-            </div>
-            <div class="card-body text-center">
-                <div class="row">
-                    <div class="col-md-6 border-end">
-                        <h1 id="position-display-mm" class="display-4" data-bs-toggle="tooltip" title="Current position in millimeters">{{ (current_position / stepper_config.steps_per_mm)|round(2) }}</h1>
-                        <h5 class="text-muted">Millimeters from home position</h5>
-                    </div>
-                    <div class="col-md-6">
-                        <h3 id="position-display" class="text-secondary" data-bs-toggle="tooltip" title="Current position in motor steps">{{ current_position }}</h3>
-                        <p class="text-muted">Steps from home position</p>
-                        <div class="badge bg-info" data-bs-toggle="tooltip" title="Number of motor steps needed to move 1mm">
-                            <i class="fas fa-info-circle me-1"></i>
-                            Conversion: {{ stepper_config.steps_per_mm }} steps per mm
+<div class="container-fluid">
+    <!-- 1. Cleaning Head Position - Full Width -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">Cleaning Head Position</h5>
+                </div>
+                <div class="card-body text-center">
+                    <div class="row">
+                        <div class="col-md-6 border-end">
+                            <h1 id="position-display-mm" class="display-4" data-bs-toggle="tooltip" title="Current position in millimeters">{{ (current_position / (stepper_config.steps_per_mm|default(100)))|round(2) }}</h1>
+                            <h5 class="text-muted">Millimeters from home position</h5>
+                        </div>
+                        <div class="col-md-6">
+                            <h3 id="position-display" class="text-secondary" data-bs-toggle="tooltip" title="Current position in motor steps">{{ current_position }}</h3>
+                            <p class="text-muted">Steps from home position</p>
+                            <div class="badge bg-info" data-bs-toggle="tooltip" title="Number of motor steps needed to move 1mm">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Conversion: {{ stepper_config.steps_per_mm|default(100) }} steps per mm
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="progress mt-4" style="height: 15px;" data-bs-toggle="tooltip" title="Visual representation of current position">
-                    <div id="position-progress" class="progress-bar" role="progressbar" 
-                        style="width: 50%;" aria-valuenow="{{ current_position }}" aria-valuemin="0" aria-valuemax="1000">
+                    
+                    <!-- Enhanced Position Bar with Markers -->
+                    <div class="position-bar-container mt-4" style="position: relative;">
+                        <div class="position-bar-labels d-flex justify-content-between mb-1">
+                            <small class="text-muted">{{ ((stepper_config.position_bar_min|default(-10000)) / (stepper_config.steps_per_mm|default(100)))|round(1) }} mm</small>
+                            <small class="text-muted">Home (0 mm)</small>
+                            <small class="text-muted">{{ ((stepper_config.position_bar_max|default(25000)) / (stepper_config.steps_per_mm|default(100)))|round(1) }} mm</small>
+                        </div>
+                        
+                        <div class="progress position-relative" style="height: 20px;" data-bs-toggle="tooltip" title="Visual representation of current position with markers">
+                            <!-- Main position bar -->
+                            <div id="position-progress" class="progress-bar bg-primary" role="progressbar" 
+                                style="width: {{ [0, [100, ((current_position - (stepper_config.position_bar_min|default(-10000))) / ((stepper_config.position_bar_max|default(25000)) - (stepper_config.position_bar_min|default(-10000))) * 100)|round(2)]|min]|max }}%;" aria-valuenow="{{ current_position }}" 
+                                aria-valuemin="{{ stepper_config.position_bar_min|default(-10000) }}" 
+                                aria-valuemax="{{ stepper_config.position_bar_max|default(25000) }}">
+                            </div>
+                            
+                            <!-- Home marker -->
+                            <div class="position-marker home-marker" 
+                                 style="position: absolute; 
+                                        left: {{ (((stepper_config.home_position|default(0)) - (stepper_config.position_bar_min|default(-10000))) / ((stepper_config.position_bar_max|default(25000)) - (stepper_config.position_bar_min|default(-10000))) * 100)|round(2) }}%; 
+                                        top: 0; 
+                                        width: 3px; 
+                                        height: 100%; 
+                                        background-color: #28a745; 
+                                        z-index: 10;"
+                                 data-bs-toggle="tooltip" title="Home Position (0)">
+                            </div>
+                            
+                            <!-- Limit Switch A marker -->
+                            <div class="position-marker limit-a-marker" 
+                                 style="position: absolute; 
+                                        left: {{ (((stepper_config.limit_switch_a_position|default(-8000)) - (stepper_config.position_bar_min|default(-10000))) / ((stepper_config.position_bar_max|default(25000)) - (stepper_config.position_bar_min|default(-10000))) * 100)|round(2) }}%; 
+                                        top: 0; 
+                                        width: 2px; 
+                                        height: 100%; 
+                                        background-color: #dc3545; 
+                                        z-index: 10;"
+                                 data-bs-toggle="tooltip" title="Limit Switch A">
+                            </div>
+                            
+                            <!-- Limit Switch B marker -->
+                            <div class="position-marker limit-b-marker" 
+                                 style="position: absolute; 
+                                        left: {{ (((stepper_config.limit_switch_b_position|default(20000)) - (stepper_config.position_bar_min|default(-10000))) / ((stepper_config.position_bar_max|default(25000)) - (stepper_config.position_bar_min|default(-10000))) * 100)|round(2) }}%; 
+                                        top: 0; 
+                                        width: 2px; 
+                                        height: 100%; 
+                                        background-color: #dc3545; 
+                                        z-index: 10;"
+                                 data-bs-toggle="tooltip" title="Limit Switch B">
+                            </div>
+                        </div>
+                        
+                        <!-- Marker legend -->
+                        <div class="position-markers-legend mt-2 d-flex justify-content-center">
+                            <div class="me-3">
+                                <span class="legend-marker" style="background-color: #28a745; width: 12px; height: 3px; display: inline-block; margin-right: 5px;"></span>
+                                <small class="text-muted">Home</small>
+                            </div>
+                            <div class="me-3">
+                                <span class="legend-marker" style="background-color: #dc3545; width: 12px; height: 3px; display: inline-block; margin-right: 5px;"></span>
+                                <small class="text-muted">Limit Switches</small>
+                            </div>
+                            <div>
+                                <span class="legend-marker" style="background-color: #007bff; width: 12px; height: 3px; display: inline-block; margin-right: 5px;"></span>
+                                <small class="text-muted">Current Position</small>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Cleaning Head Control -->
-    <div class="col-md-6 mb-4">
-        <div class="card h-100">
-            <div class="card-header bg-secondary text-white">
-                <h5 class="card-title mb-0">Cleaning Head Control</h5>
+    <!-- 2. Control Settings (Left) and Movement Buttons (Right) -->
+    <div class="row mb-4">
+        <!-- Control Settings - Left Side (Narrower) -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="card-title mb-0">Cleaning Head Control Settings</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Index Speed -->
+                        <div class="col-md-6 mb-3">
+                            <label for="index-speed" class="form-label" data-bs-toggle="tooltip" title="Speed for index movements (steps per second)">Index Speed:</label>
+                            <input type="range" class="form-range" id="index-speed" min="200" max="3000" value="{{ stepper_config.index_speed|default(2000) }}" data-bs-toggle="tooltip" title="Adjust index speed">
+                            <div class="d-flex justify-content-between">
+                                <span>200</span>
+                                <span id="index-speed-value">{{ stepper_config.index_speed|default(2000) }}</span>
+                                <span>3000</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Jog Speed -->
+                        <div class="col-md-6 mb-3">
+                            <label for="jog-speed" class="form-label" data-bs-toggle="tooltip" title="Speed for jog movements (steps per second)">Jog Speed:</label>
+                            <input type="range" class="form-range" id="jog-speed" min="100" max="2000" value="{{ stepper_config.jog_speed|default(1000) }}" data-bs-toggle="tooltip" title="Adjust jog speed">
+                            <div class="d-flex justify-content-between">
+                                <span>100</span>
+                                <span id="jog-speed-value">{{ stepper_config.jog_speed|default(1000) }}</span>
+                                <span>2000</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Deceleration -->
+                        <div class="col-md-6 mb-3">
+                            <label for="deceleration" class="form-label" data-bs-toggle="tooltip" title="Deceleration ramp (steps per second²)">Deceleration:</label>
+                            <input type="range" class="form-range" id="deceleration" min="100" max="8000" value="{{ stepper_config.deceleration|default(5000) }}" data-bs-toggle="tooltip" title="Adjust deceleration">
+                            <div class="d-flex justify-content-between">
+                                <span>100</span>
+                                <span id="deceleration-value">{{ stepper_config.deceleration|default(5000) }}</span>
+                                <span>8000</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Acceleration -->
+                        <div class="col-md-6 mb-3">
+                            <label for="acceleration" class="form-label" data-bs-toggle="tooltip" title="Acceleration ramp (steps per second²)">Acceleration:</label>
+                            <input type="range" class="form-range" id="acceleration" min="100" max="8000" value="{{ stepper_config.acceleration|default(5000) }}" data-bs-toggle="tooltip" title="Adjust acceleration">
+                            <div class="d-flex justify-content-between">
+                                <span>100</span>
+                                <span id="acceleration-value">{{ stepper_config.acceleration|default(5000) }}</span>
+                                <span>8000</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Step Size -->
+                        <div class="col-md-6 mb-3">
+                            <label for="step-size" class="form-label" data-bs-toggle="tooltip" title="Number of steps for each jog operation">Step Size:</label>
+                            <input type="range" class="form-range" id="step-size" min="1" max="100" value="{{ stepper_config.jog_step_size|default(10) }}" data-bs-toggle="tooltip" title="Adjust jog distance">
+                            <div class="d-flex justify-content-between">
+                                <span>1</span>
+                                <span id="step-size-value">{{ stepper_config.jog_step_size|default(10) }}</span>
+                                <span>100</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Enable Off Delay -->
+                        <div class="col-md-6 mb-3">
+                            <label for="enable-off-delay" class="form-label" data-bs-toggle="tooltip" title="Time delay before disabling motor after movement (0-60 seconds)">Enable Off Delay:</label>
+                            <input type="range" class="form-range" id="enable-off-delay" min="0" max="60" value="{{ [60, stepper_config.enable_timeout|default(300)]|min }}" data-bs-toggle="tooltip" title="Adjust motor disable delay">
+                            <div class="d-flex justify-content-between">
+                                <span>0s</span>
+                                <span id="enable-off-delay-value">{{ [60, stepper_config.enable_timeout|default(300)]|min }}s</span>
+                                <span>60s</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="card-body">
-                <div class="mb-3">
-                    <label for="step-size" class="form-label" data-bs-toggle="tooltip" title="Number of steps for each jog operation">Step Size:</label>
-                    <input type="range" class="form-range" id="step-size" min="1" max="100" value="10" data-bs-toggle="tooltip" title="Adjust jog distance">
-                    <div class="d-flex justify-content-between">
-                        <span>1</span>
-                        <span id="step-size-value">10</span>
-                        <span>100</span>
-                    </div>
+        </div>
+        
+        <!-- Movement Controls - Right Side (Wider) -->
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header bg-success text-white">
+                    <h5 class="card-title mb-0">Movement Controls</h5>
                 </div>
-                
-                <!-- Speed Controls -->
-                <div class="card bg-dark text-white mb-3">
-                    <div class="card-header">
-                        <h6 class="card-title mb-0" data-bs-toggle="tooltip" title="Motor speed and movement settings">Speed Controls</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="jog-speed" class="form-label" data-bs-toggle="tooltip" title="Speed for jog movements (steps per second)">Jog Speed:</label>
-                                <input type="range" class="form-range" id="jog-speed" min="100" max="2000" value="{{ stepper_config.jog_speed|default(1000) }}" data-bs-toggle="tooltip" title="Adjust jog speed">
-                                <div class="d-flex justify-content-between">
-                                    <span>100</span>
-                                    <span id="jog-speed-value">{{ stepper_config.jog_speed|default(1000) }}</span>
-                                    <span>2000</span>
-                                </div>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="index-speed" class="form-label" data-bs-toggle="tooltip" title="Speed for index movements (steps per second)">Index Speed:</label>
-                                <input type="range" class="form-range" id="index-speed" min="200" max="3000" value="{{ stepper_config.index_speed|default(2000) }}" data-bs-toggle="tooltip" title="Adjust index speed">
-                                <div class="d-flex justify-content-between">
-                                    <span>200</span>
-                                    <span id="index-speed-value">{{ stepper_config.index_speed|default(2000) }}</span>
-                                    <span>3000</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="acceleration" class="form-label" data-bs-toggle="tooltip" title="Acceleration ramp (steps per second²)">Acceleration:</label>
-                                <input type="range" class="form-range" id="acceleration" min="100" max="8000" value="{{ stepper_config.acceleration|default(800) }}" data-bs-toggle="tooltip" title="Adjust acceleration">
-                                <div class="d-flex justify-content-between">
-                                    <span>Fast</span>
-                                    <span id="acceleration-value">{{ stepper_config.acceleration|default(800) }}</span>
-                                    <span>Slow</span>
-                                </div>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="deceleration" class="form-label" data-bs-toggle="tooltip" title="Deceleration ramp (steps per second²)">Deceleration:</label>
-                                <input type="range" class="form-range" id="deceleration" min="100" max="8000" value="{{ stepper_config.deceleration|default(800) }}" data-bs-toggle="tooltip" title="Adjust deceleration">
-                                <div class="d-flex justify-content-between">
-                                    <span>Fast</span>
-                                    <span id="deceleration-value">{{ stepper_config.deceleration|default(800) }}</span>
-                                    <span>Slow</span>
-                                </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Index Distance Control -->
-                <div class="card bg-info text-white mb-3">
-                    <div class="card-header">
-                        <h6 class="card-title mb-0" data-bs-toggle="tooltip" title="Standard movement increment">Index Distance</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <label for="index-distance-mm" class="form-label" data-bs-toggle="tooltip" title="Standard distance to move when indexing">Index Distance (mm):</label>
-                            <div class="input-group">
-                                <input type="number" id="index-distance-mm" class="form-control" 
-                                    value="{{ (stepper_config.index_distance / stepper_config.steps_per_mm)|round(2) }}" 
-                                    min="0.1" step="0.1" data-bs-toggle="tooltip" title="Standard movement distance in mm">
-                                <span class="input-group-text">mm</span>
-                                <button id="update-index-distance" class="btn btn-primary" data-bs-toggle="tooltip" title="Save the index distance setting">
-                                    <i class="fas fa-save"></i> Update
+                <div class="card-body d-flex flex-column">
+                    <!-- Top Row: Jog IN and Jog OUT side by side -->
+                    <div class="mb-3">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <button type="button" class="btn btn-outline-primary btn-lg w-100" id="jog-backward" data-bs-toggle="tooltip" title="Move cleaning head IN">
+                                    <i class="fas fa-arrow-left me-1"></i>Jog IN
                                 </button>
                             </div>
-                            <small class="form-text text-light">
-                                Current value: <span id="index-distance-steps-display">{{ stepper_config.index_distance }}</span> steps
-                            </small>
-                        </div>
-                        <div class="d-flex justify-content-between mb-2">
-                            <button id="index-back-button" class="btn btn-light w-100 me-2" data-bs-toggle="tooltip" title="Move backward by the index distance">
-                                <i class="fas fa-backward me-2"></i> Index Back
-                            </button>
-                            <button id="index-button" class="btn btn-light w-100 ms-2" data-bs-toggle="tooltip" title="Move forward by the index distance">
-                                <i class="fas fa-forward me-2"></i> Index Forward
-                            </button>
+                            <div class="col-6">
+                                <button type="button" class="btn btn-outline-primary btn-lg w-100" id="jog-forward" data-bs-toggle="tooltip" title="Move cleaning head OUT">
+                                    <i class="fas fa-arrow-right me-1"></i>Jog OUT
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-
-                <div class="d-grid gap-2">
-                    <div class="d-flex justify-content-between mb-3">
-                        <button id="jog-backward" class="btn btn-danger btn-lg w-100 me-2" data-bs-toggle="tooltip" title="Move cleaning head backward by step size">
-                            <i class="fas fa-arrow-left me-2"></i> Jog Backward
-                        </button>
-                        <button id="jog-forward" class="btn btn-success btn-lg w-100 ms-2" data-bs-toggle="tooltip" title="Move cleaning head forward by step size">
-                            Jog Forward <i class="fas fa-arrow-right ms-2"></i>
-                        </button>
-                    </div>
-                    <button id="home-motor" class="btn btn-primary btn-lg" data-bs-toggle="tooltip" title="Return cleaning head to home position (zero)">
-                        <i class="fas fa-home me-2"></i> Home Cleaning Head
-                    </button>
-                    <button id="go-to-zero" class="btn btn-info btn-lg mt-2" data-bs-toggle="tooltip" title="Move cleaning head to position 0 at index speed">
-                        <i class="fas fa-crosshairs me-2"></i> GO to 0
-                    </button>
-                    <div class="form-check form-switch mt-3">
-                        <input class="form-check-input" type="checkbox" id="motor-enabled" checked data-bs-toggle="tooltip" title="Enable/disable the stepper motor">
-                        <label class="form-check-label" for="motor-enabled">Cleaning Head Enabled</label>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Position Presets -->
-    <div class="col-md-6 mb-4">
-        <div class="card h-100">
-            <div class="card-header bg-info text-white">
-                <h5 class="card-title mb-0">Position Presets</h5>
-            </div>
-            <div class="card-body">
-                <div id="presets-container">
-                    {% for name, position in preset_positions.items() %}
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span>{{ name }}</span>
-                        <div>
-                            <span class="badge bg-primary me-2" data-bs-toggle="tooltip" title="Position in millimeters">{{ (position / stepper_config.steps_per_mm) | round(2) }} mm</span>
-                            <span class="badge bg-secondary me-2 small" data-bs-toggle="tooltip" title="Position in motor steps">{{ position }} steps</span>
-                            <button class="btn btn-sm btn-primary move-to-preset" data-position="{{ position }}" data-bs-toggle="tooltip" title="Move to this saved position">
-                                Go
-                            </button>
+                    
+                    <!-- Second Row: Index Backward and Index Forward side by side -->
+                    <div class="mb-3">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <button id="index-back-button" class="btn btn-danger btn-lg w-100" data-bs-toggle="tooltip" title="Move backward by index distance">
+                                    <i class="fas fa-arrow-left me-1"></i> Index Backward
+                                </button>
+                            </div>
+                            <div class="col-6">
+                                <button id="index-button" class="btn btn-success btn-lg w-100" data-bs-toggle="tooltip" title="Move forward by index distance">
+                                    <i class="fas fa-arrow-right me-1"></i> Index Forward
+                                </button>
+                            </div>
                         </div>
                     </div>
-                    {% endfor %}
-                </div>
-                <hr>
-                <div class="mt-3">
-                    <div class="input-group mb-3">
-                        <input type="text" id="new-preset-name" class="form-control" placeholder="Preset Name" data-bs-toggle="tooltip" title="Enter a name for this position">
-                        <button id="save-position" class="btn btn-success" data-bs-toggle="tooltip" title="Save current position with the specified name">
-                            <i class="fas fa-save me-2"></i> Save Current Position
+                    
+                    <!-- Third Row: Go to Zero and Home Cleaning Head side by side -->
+                    <div class="mb-3">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <button type="button" class="btn btn-warning btn-lg w-100" id="go-to-zero" data-bs-toggle="tooltip" title="Return to home position (zero)">
+                                    <i class="fas fa-crosshairs me-1"></i>Go to Zero
+                                </button>
+                            </div>
+                            <div class="col-6">
+                                <button type="button" class="btn btn-primary btn-lg w-100" id="home-motor" data-bs-toggle="tooltip" title="Home the cleaning head to reference position">
+                                    <i class="fas fa-home me-1"></i>Home Cleaning Head
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Enable Motor button (full width) -->
+                    <div class="d-grid">
+                        <button type="button" class="btn btn-info" id="enable-motor" data-bs-toggle="tooltip" title="Enable/disable stepper motor">
+                            <i class="fas fa-power-off me-2"></i>Enable Motor
                         </button>
                     </div>
                 </div>
@@ -190,43 +246,120 @@
         </div>
     </div>
 
-    <!-- Absolute Position Control -->
-    <div class="col-md-12 mb-4">
-        <div class="card">
-            <div class="card-header bg-warning text-dark">
-                <h5 class="card-title mb-0">Absolute Position Control</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="absolute-position-mm" class="form-label" data-bs-toggle="tooltip" title="Enter exact position in millimeters">Target Position (millimeters):</label>
-                            <div class="input-group">
-                                <input type="number" class="form-control" id="absolute-position-mm" value="0" min="0" step="0.1" data-bs-toggle="tooltip" title="Specific position in millimeters">
-                                <span class="input-group-text">mm</span>
-                            </div>
-                            <small class="form-text text-muted">Enter target position in millimeters</small>
+    <!-- 3. Index Distance (Left) and Position Presets (Right) -->
+    <div class="row mb-4">
+        <!-- Index Distance - Left Side -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="card-title mb-0">Index Distance Settings</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="index-distance" class="form-label" data-bs-toggle="tooltip" title="Distance to move for index operations (in millimeters)">Index Distance (mm):</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" id="index-distance" value="{{ ((stepper_config.index_distance|default(1000)) / (stepper_config.steps_per_mm|default(100)))|round(2) }}" min="0.1" max="50" step="0.1" data-bs-toggle="tooltip" title="Distance for index movements">
+                            <span class="input-group-text">mm</span>
+                            <button id="save-index-distance" class="btn btn-primary" data-bs-toggle="tooltip" title="Save index distance setting">
+                                <i class="fas fa-save me-1"></i> Save
+                            </button>
                         </div>
-                        <div class="d-grid">
-                            <button id="move-to-position-mm" class="btn btn-warning" data-bs-toggle="tooltip" title="Move cleaning head to the specified millimeter position">
-                                <i class="fas fa-ruler me-2"></i> Move to Position (mm)
+                        <small class="form-text text-muted">Current: {{ ((stepper_config.index_distance|default(1000)) / (stepper_config.steps_per_mm|default(100)))|round(2) }} mm</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Position Presets - Right Side -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-purple text-white" style="background-color: #6f42c1 !important;">
+                    <h5 class="card-title mb-0">Position Presets</h5>
+                </div>
+                <div class="card-body">
+                    <div id="presets-container">
+                        {% for name, position in preset_positions.items() %}
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>{{ name }}</span>
+                            <div>
+                                <span class="badge bg-primary me-2" data-bs-toggle="tooltip" title="Position in millimeters">{{ (position / (stepper_config.steps_per_mm|default(100)))|round(2) }} mm</span>
+                                <button class="btn btn-sm btn-primary move-to-preset" data-position="{{ position }}" data-bs-toggle="tooltip" title="Move to this saved position">
+                                    Go
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <hr>
+                    <div class="mt-3">
+                        <div class="input-group mb-2">
+                            <input type="text" id="new-preset-name" class="form-control" placeholder="Preset Name" data-bs-toggle="tooltip" title="Enter a name for this position">
+                            <button id="save-position" class="btn btn-success" data-bs-toggle="tooltip" title="Save current position with the specified name">
+                                <i class="fas fa-save me-1"></i> Save
                             </button>
                         </div>
                     </div>
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="absolute-position" class="form-label" data-bs-toggle="tooltip" title="Enter exact position in motor steps">Target Position (steps):</label>
-                            <div class="input-group">
-                                <input type="number" class="form-control" id="absolute-position" value="0" min="0" data-bs-toggle="tooltip" title="Specific position in motor steps">
-                                <span class="input-group-text">steps</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Absolute Position Control - Full Width -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="card-title mb-0">Absolute Position Control</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="absolute-position-mm" class="form-label" data-bs-toggle="tooltip" title="Enter exact position in millimeters">Target Position (mm):</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="absolute-position-mm" value="0" min="-100" max="100" step="0.1" data-bs-toggle="tooltip" title="Specific position in millimeters">
+                                    <span class="input-group-text">mm</span>
+                                    <button id="move-to-position-mm" class="btn btn-warning" data-bs-toggle="tooltip" title="Move cleaning head to the specified millimeter position">
+                                        <i class="fas fa-ruler me-1"></i> Move
+                                    </button>
+                                </div>
+                                <small class="form-text text-muted">Enter target position in millimeters</small>
                             </div>
-                            <small class="form-text text-muted">Enter target position in motor steps</small>
                         </div>
-                        <div class="d-grid">
-                            <button id="move-to-position" class="btn btn-warning" data-bs-toggle="tooltip" title="Move cleaning head to the specified step position">
-                                <i class="fas fa-crosshairs me-2"></i> Move to Position (steps)
-                            </button>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="absolute-position" class="form-label" data-bs-toggle="tooltip" title="Enter exact position in motor steps">Target Position (steps):</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="absolute-position" value="0" min="-10000" max="10000" step="1" data-bs-toggle="tooltip" title="Specific position in motor steps">
+                                    <span class="input-group-text">steps</span>
+                                    <button id="move-to-position" class="btn btn-warning" data-bs-toggle="tooltip" title="Move cleaning head to the specified step position">
+                                        <i class="fas fa-cogs me-1"></i> Move
+                                    </button>
+                                </div>
+                                <small class="form-text text-muted">Enter target position in motor steps</small>
+                            </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. Action Log - Full Width -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="card-title mb-0">Action Log</h5>
+                </div>
+                <div class="card-body">
+                    <div id="log-container" class="log-container" style="height: 200px; overflow-y: auto; border: 1px solid #495057; padding: 10px; background-color: #212529; color: #ffffff;">
+                        <!-- Log messages will be added here dynamically -->
+                    </div>
+                    <div class="mt-2">
+                        <button id="clear-log" class="btn btn-sm btn-outline-secondary" data-bs-toggle="tooltip" title="Clear all log messages">
+                            <i class="fas fa-trash me-1"></i> Clear Log
+                        </button>
                     </div>
                 </div>
             </div>

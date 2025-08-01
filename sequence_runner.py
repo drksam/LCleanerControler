@@ -281,6 +281,28 @@ class SequenceRunner:
             # Default to normal mode in case of error
             return OperationMode.NORMAL
         
+    def _increment_table_cycle(self):
+        """
+        Increment the table cycle count for the current session via API call
+        """
+        try:
+            import requests
+            response = requests.post('http://localhost:5000/api/sessions/table-cycle', 
+                                   json={'increment': 1}, 
+                                   timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('success'):
+                    logger.debug("Table cycle count incremented successfully")
+                    self.execution_log.append("Table cycle count incremented")
+                else:
+                    logger.warning(f"Failed to increment table cycle: {data.get('error', 'Unknown error')}")
+            else:
+                logger.warning(f"HTTP error incrementing table cycle: {response.status_code}")
+        except Exception as e:
+            logger.error(f"Error incrementing table cycle: {e}")
+            # Don't fail the sequence if cycle increment fails
+        
     def load_sequence(self, sequence_data):
         """
         Load a sequence for execution
@@ -1788,6 +1810,8 @@ class SequenceRunner:
                 
             # Simulation fallback
             self.execution_log.append("Simulated table run to back limit")
+            # Increment cycle count for simulation
+            self._increment_table_cycle()
             time.sleep(2.0)  # Simulate some time for the operation
             return True
         
@@ -1799,6 +1823,8 @@ class SequenceRunner:
                 data = response.json()
                 if data.get('success'):
                     self.execution_log.append("Table run to back limit completed")
+                    # Increment cycle count when table successfully reaches back limit
+                    self._increment_table_cycle()
                     return True
                 else:
                     error_msg = data.get('error', 'Unknown error')
@@ -1821,6 +1847,8 @@ class SequenceRunner:
             # Fall back to simulation in simulation mode
             self.simulation_used = True
             self.execution_log.append("Simulated table run to back limit after error")
+            # Increment cycle count for simulation fallback
+            self._increment_table_cycle()
             time.sleep(2.0)
             return True
     

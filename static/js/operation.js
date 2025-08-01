@@ -832,11 +832,15 @@ document.addEventListener('DOMContentLoaded', function() {
     
     /**
      * Updates the cleaning head position display
-     * @param {number|string} position - The position to display
+     * @param {number|string} position - The position to display in steps
      */
     function updateCleaningHeadPosition(position) {
         if (cleaningHeadStatus) {
-            cleaningHeadStatus.textContent = `Position: ${position}`;
+            // Convert steps to millimeters for display
+            const positionSteps = parseInt(position) || 0;
+            const stepsPerMm = 100; // Default value - you might want to get this from config
+            const positionMm = (positionSteps / stepsPerMm).toFixed(1);
+            cleaningHeadStatus.textContent = `Position: ${positionMm}mm`;
         }
     }
     
@@ -974,8 +978,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log,
                 function(data) {
                     if (data.status === 'success') {
-                        updateCleaningHeadPosition(0);
-                        window.addLogMessage('Cleaning head moved to position 0 successfully', false, 'success');
+                        // Update position from response if available, otherwise use 0
+                        const newPosition = data.position !== undefined ? data.position : 0;
+                        updateCleaningHeadPosition(newPosition);
+                        window.addLogMessage(`Cleaning head moved to position ${newPosition} successfully`, false, 'success');
                     } else {
                         window.addLogMessage(`Error moving to position 0: ${data.message}`, true);
                     }
@@ -2302,5 +2308,31 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initial status check when page loads
     setTimeout(() => {
         pollFanLightsStatus(); // One-time initial poll
+        updateInitialCleaningHeadPosition(); // Get initial position
     }, 500);
+    
+    /**
+     * Get and display the initial cleaning head position
+     */
+    function updateInitialCleaningHeadPosition() {
+        makeRequest(
+            '/stepper_status',
+            'GET',
+            null,
+            console.log,
+            function(data) {
+                if (data && typeof data.position !== 'undefined') {
+                    updateCleaningHeadPosition(data.position);
+                    console.log(`Initial cleaning head position loaded: ${data.position}`);
+                } else {
+                    console.log('Could not get initial cleaning head position');
+                    updateCleaningHeadPosition('--');
+                }
+            },
+            function(error) {
+                console.error('Error getting initial cleaning head position:', error);
+                updateCleaningHeadPosition('--');
+            }
+        );
+    }
 });
